@@ -100,7 +100,7 @@ public partial class MainWindow : Window
     {
         if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
         {
-            lm.SetArea(new Rect(0, 0, ActualWidth, ActualHeight - 40));
+            lm.SetArea(_hwnd, TaskBar.Height);
             lm.LayoutChanged += (_, layout) => LayoutLabel.Text = layout.ToString();
         }
 

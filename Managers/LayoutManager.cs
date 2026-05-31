@@ -32,15 +32,24 @@ public class LayoutManager
         _workspaceManager.WorkspaceChanged += (_, _) => Relayout();
     }
 
-    public void SetArea(System.Windows.Rect area)
+    public void SetArea(IntPtr mainHwnd, double taskbarHeight)
     {
-        if (area.Width <= 0 || area.Height <= 0 ||
-            double.IsNaN(area.Width) || double.IsNaN(area.Height))
+        var monitor = MonitorFromWindow(mainHwnd, MONITOR_DEFAULTTONEAREST);
+        var mi = new MONITORINFO();
+        mi.cbSize = System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>();
+        if (!GetMonitorInfo(monitor, ref mi))
         {
-            Logger.Warn($"SetArea rejected invalid area: {area.Width}x{area.Height}");
+            Logger.Warn("GetMonitorInfo failed, using fallback area");
             return;
         }
-        _area = area;
+
+        _area = new System.Windows.Rect(
+            mi.rcWork.Left,
+            mi.rcWork.Top,
+            mi.rcWork.Width,
+            Math.Max(200, mi.rcWork.Height - taskbarHeight));
+
+        Logger.Info($"Work area: {_area.Width:F0}x{_area.Height:F0} @ ({_area.X:F0},{_area.Y:F0})");
         Relayout();
     }
 
@@ -159,12 +168,8 @@ public class LayoutManager
     private static void Position(ManagedWindow mw, System.Windows.Rect r)
     {
         if (!IsWindow(mw.Hwnd)) return;
-        uint dpi = GetDpiForWindow(mw.Hwnd);
-        if (dpi == 0) dpi = 96;
-        double scale = dpi / 96.0;
         SetWindowPos(mw.Hwnd, IntPtr.Zero,
-            (int)(r.X * scale), (int)(r.Y * scale),
-            (int)(r.Width * scale), (int)(r.Height * scale),
+            (int)r.X, (int)r.Y, (int)r.Width, (int)r.Height,
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
 
@@ -230,16 +235,9 @@ public class LayoutManager
         var mw = _windowManager.GetManagedWindow(hwnd);
         if (mw == null) return;
 
-        if (mw.State == WindowLayoutState.Floating)
-        {
-            mw.State = WindowLayoutState.Tiled;
-            Win32.WindowHelper.RemoveWindowChrome(hwnd);
-        }
-        else
-        {
-            mw.State = WindowLayoutState.Floating;
-            Win32.WindowHelper.RestoreWindowChrome(hwnd, mw.OriginalWindowInfo);
-        }
+        mw.State = mw.State == WindowLayoutState.Floating
+            ? WindowLayoutState.Tiled
+            : WindowLayoutState.Floating;
         Relayout();
     }
 
@@ -258,12 +256,6 @@ public class LayoutManager
                     r.Left, r.Top, r.Width, r.Height,
                     SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
             }
-
-            if (mw.State == WindowLayoutState.Tiled)
-                Win32.WindowHelper.RemoveWindowChrome(hwnd);
-            else
-                Win32.WindowHelper.RestoreWindowChrome(hwnd, mw.OriginalWindowInfo);
-
             Relayout();
         }
         else

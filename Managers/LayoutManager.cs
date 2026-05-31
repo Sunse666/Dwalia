@@ -13,6 +13,8 @@ public class LayoutManager
     private readonly WorkspaceManager _workspaceManager;
     private readonly FocusManager _focusManager;
     private System.Windows.Rect _area;
+    public event EventHandler<LayoutType>? LayoutChanged;
+
     private LayoutType _layout = LayoutType.MasterStack;
     private double _masterFactor = 0.6;
     private int _gap = 4;
@@ -177,6 +179,7 @@ public class LayoutManager
             _ => LayoutType.MasterStack
         };
         Logger.Info($"Layout: {_layout}");
+        LayoutChanged?.Invoke(this, _layout);
         Relayout();
     }
 

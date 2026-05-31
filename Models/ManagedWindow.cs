@@ -16,7 +16,7 @@ public class ManagedWindow
     public uint ProcessId { get; init; }
     public string ProcessName { get; init; } = string.Empty;
     public string Title { get; private set; } = string.Empty;
-    public WindowLayoutState State { get; set; } = WindowLayoutState.Floating;
+    public WindowLayoutState State { get; set; } = WindowLayoutState.Tiled;
 
     public WindowInfo OriginalWindowInfo { get; init; } = null!;
 

@@ -44,6 +44,10 @@
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
+                <TextBlock x:Name="LayoutLabel" Text="MasterStack"
+                           Foreground="#565f89" FontSize="11"
+                           VerticalAlignment="Center"
+                           DockPanel.Dock="Right"/>
             </DockPanel>
         </Border>
     </Grid>

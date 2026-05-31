@@ -61,7 +61,7 @@ public class ConfigManager
             Workspaces = new WorkspaceConfig(),
             ExcludeProcesses = new[]
             {
-                "explorer", "shellexperiencehost", "SearchApp",
+                "shellexperiencehost", "SearchApp",
                 "TextInputHost", "SystemSettings", "ApplicationFrameHost", "LockApp"
             },
             Rules = new[]

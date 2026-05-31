@@ -22,7 +22,6 @@
     "names": ["1:Term", "2:Code", "3:Web", "4:Comm", "5:Misc"]
   },
   "excludeProcesses": [
-    "explorer",
     "shellexperiencehost",
     "SearchApp",
     "TextInputHost",

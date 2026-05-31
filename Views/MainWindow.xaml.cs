@@ -30,6 +30,9 @@ public partial class MainWindow : Window
 
         _windowManager.WindowsChanged += (_, _) => UpdateTaskBar();
 
+        if (ServiceLocator.TryResolve<FocusMgr>(out var fm))
+            fm.FocusChanged += UpdateTaskBar;
+
         if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
             wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateStatus(); UpdateWorkspacePills(); };
 
@@ -96,7 +99,10 @@ public partial class MainWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
+        {
             lm.SetArea(new Rect(0, 0, ActualWidth, ActualHeight - 40));
+            lm.LayoutChanged += (_, layout) => LayoutLabel.Text = layout.ToString();
+        }
 
         _windowEventHookManager.Start();
         _windowManager.Initialize();

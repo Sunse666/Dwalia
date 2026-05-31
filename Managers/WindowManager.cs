@@ -78,6 +78,7 @@ public class WindowManager
 
         if (IsWindow(hwnd))
         {
+            ShowWindow(hwnd, SW_SHOW);
             var r = mw.OriginalWindowInfo.OriginalRect;
             SetWindowPos(hwnd, IntPtr.Zero, r.Left, r.Top, r.Width, r.Height,
                 SWP_NOZORDER | (mw.OriginalWindowInfo.WasVisible ? SWP_SHOWWINDOW : 0U));

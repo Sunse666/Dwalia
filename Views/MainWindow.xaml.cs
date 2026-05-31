@@ -112,34 +112,14 @@ public partial class MainWindow : Window
 
     private void UpdateStatus()
     {
-        var n = _windowManager.ManagedCount;
-        var lines = new List<string>();
-
-        var wsName = "?";
-        var wsWindows = 0;
-        if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
+        if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm) && hkm.FailedRegistrations.Count > 0)
         {
-            var aws = wsm.GetActiveWorkspace();
-            wsName = aws.Name;
-            wsWindows = aws.Windows.Count;
-        }
-
-        if (n == 0)
-        {
-            lines.Add("No windows managed. Open an app (e.g. Notepad).");
-            lines.Add("Alt+Ctrl+1~9: focus | Alt+Ctrl+J/K: next/prev | Alt+Ctrl+Shift+1~5: workspace");
+            StatusText.Text = $"WARNING: {hkm.FailedRegistrations.Count} hotkey(s) failed: {string.Join(", ", hkm.FailedRegistrations)}";
         }
         else
         {
-            lines.Add($"[{wsName}] {wsWindows} window{(wsWindows != 1 ? "s" : "")} / {n} total");
+            StatusText.Text = "";
         }
-
-        if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm) && hkm.FailedRegistrations.Count > 0)
-        {
-            lines.Add($"WARNING: {hkm.FailedRegistrations.Count} hotkey(s) failed: {string.Join(", ", hkm.FailedRegistrations)}");
-        }
-
-        StatusText.Text = string.Join("\n", lines);
     }
 
     private void UpdateTaskBar()

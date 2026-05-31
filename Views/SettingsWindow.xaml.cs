@@ -116,6 +116,12 @@ public partial class SettingsWindow : Window
         Close();
     }
 
+    private void OnTitleBarDrag(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+            DragMove();
+    }
+
     private void OnNavGeneral(object sender, RoutedEventArgs e)
     {
         PageGeneral.Visibility = Visibility.Visible;

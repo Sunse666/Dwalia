@@ -34,21 +34,28 @@
                 BorderBrush="#3b4261"
                 BorderThickness="0,1,0,0"
                 Height="40">
-            <DockPanel VerticalAlignment="Center" Margin="8,0">
-                <StackPanel x:Name="WorkspacePills" Orientation="Horizontal"
+            <Grid Margin="8,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel x:Name="WorkspacePills" Grid.Column="0" Orientation="Horizontal"
                             VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <ItemsControl x:Name="TaskBarItems">
+                <ItemsControl x:Name="TaskBarItems" Grid.Column="1"
+                              VerticalAlignment="Center">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
-                <TextBlock x:Name="LayoutLabel" Text="MasterStack"
+                <TextBlock x:Name="LayoutLabel" Grid.Column="2" Text="MasterStack"
                            Foreground="#565f89" FontSize="11"
-                           VerticalAlignment="Center"
-                           DockPanel.Dock="Right"/>
-            </DockPanel>
+                           VerticalAlignment="Bottom"
+                           HorizontalAlignment="Right"
+                           Margin="4,0,0,0"/>
+            </Grid>
         </Border>
     </Grid>
 </Window>

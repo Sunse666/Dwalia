@@ -56,8 +56,6 @@ public partial class App : Application
         _mainWindow = new MainWindow(_windowManager, _hookManager);
         _hotKeyManager.CommandTriggered += OnCommandTriggered;
 
-        _mainWindow.Show();
-
         _layoutManager = new LayoutManager(_windowManager, _workspaceManager, _focusManager);
         ServiceLocator.Register(_layoutManager);
 
@@ -69,6 +67,8 @@ public partial class App : Application
             if (_focusManager.ActiveWindow == mw)
                 _focusManager.SetActiveWindow(null);
         };
+
+        _mainWindow.Show();
 
         _configManager.ApplyRules(_config, _windowManager, _workspaceManager);
 

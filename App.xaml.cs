@@ -64,6 +64,11 @@ public partial class App : Application
         _hookManager.FocusChanged += (_, hwnd) => _focusManager.OnFocusEvent(hwnd);
         _hookManager.WindowDiscovered += (_, hwnd) =>
             _mainWindow.Dispatcher.Invoke(() => _windowManager.TryManageWindow(hwnd));
+        _windowManager.WindowUnmanaged += (_, mw) =>
+        {
+            if (_focusManager.ActiveWindow == mw)
+                _focusManager.SetActiveWindow(null);
+        };
 
         _configManager.ApplyRules(_config, _windowManager, _workspaceManager);
 

@@ -30,6 +30,7 @@ public class LayoutManager
         _windowManager.WindowManaged += (_, _) => Relayout();
         _windowManager.WindowUnmanaged += (_, _) => Relayout();
         _workspaceManager.WorkspaceChanged += (_, _) => Relayout();
+        _focusManager.FocusChanged += Relayout;
     }
 
     public void SetArea(IntPtr mainHwnd, double taskbarHeight)
@@ -149,18 +150,22 @@ public class LayoutManager
             return;
         }
 
+        var active = _focusManager.ActiveWindow;
+        var master = (active != null && windows.Contains(active)) ? active : windows[0];
+        var stack = windows.Where(w => w != master).ToList();
+
         double mw = (area.Width - _gap) * _masterFactor;
         double sw = area.Width - mw - _gap;
-        Position(windows[0], new System.Windows.Rect(area.X, area.Y, mw, area.Height));
+        Position(master, new System.Windows.Rect(area.X, area.Y, mw, area.Height));
 
-        int s = n - 1;
+        int s = stack.Count;
         if (s > 0)
         {
             double sh = (area.Height - (s - 1) * _gap) / s;
             for (int i = 0; i < s; i++)
             {
                 var r = new System.Windows.Rect(area.X + mw + _gap, area.Y + i * (sh + _gap), sw, sh);
-                Position(windows[1 + i], r);
+                Position(stack[i], r);
             }
         }
     }

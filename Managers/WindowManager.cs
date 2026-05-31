@@ -84,6 +84,7 @@ public class WindowManager
         }
 
         _managedWindows.Remove(hwnd);
+        _workspaceManager?.RemoveWindow(mw);
         WindowUnmanaged?.Invoke(this, mw);
         WindowsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -102,6 +103,7 @@ public class WindowManager
         {
             Logger.Info($"Window destroyed: '{mw.Title}'");
             _managedWindows.Remove(hwnd);
+            _workspaceManager?.RemoveWindow(mw);
             WindowUnmanaged?.Invoke(this, mw);
             WindowsChanged?.Invoke(this, EventArgs.Empty);
         }

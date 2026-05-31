@@ -53,7 +53,6 @@ public class FocusManager
         var next = windows[(idx + 1) % windows.Count];
         SetActiveWindow(next);
         next.Focus();
-        MoveToFront(windows, next);
     }
 
     public void FocusPrevious(IList<ManagedWindow> windows)
@@ -67,15 +66,6 @@ public class FocusManager
         var prev = windows[(idx - 1 + windows.Count) % windows.Count];
         SetActiveWindow(prev);
         prev.Focus();
-        MoveToFront(windows, prev);
-    }
-
-    private static void MoveToFront(IList<ManagedWindow> list, ManagedWindow item)
-    {
-        int idx = list.IndexOf(item);
-        if (idx <= 0) return;
-        list.RemoveAt(idx);
-        list.Insert(0, item);
     }
 
     private ManagedWindow? ResolveManagedWindow(IntPtr hwnd)

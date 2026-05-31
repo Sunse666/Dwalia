@@ -1,4 +1,5 @@
 using Dwalia.Win32;
+using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Models;
 
@@ -42,6 +43,7 @@ public class ManagedWindow
 
     public void Focus()
     {
+        NativeMethods.ShowWindow(Hwnd, SW_RESTORE);
         NativeMethods.SetForegroundWindow(Hwnd);
         NativeMethods.SetFocus(Hwnd);
     }

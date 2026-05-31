@@ -1,0 +1,39 @@
+{
+  "modKey": "Alt+Ctrl",
+  "theme": {
+    "background": "#1a1b26",
+    "foreground": "#c0caf5",
+    "accent": "#7aa2f7",
+    "inactiveBorder": "#3b4261",
+    "activeBorder": "#7aa2f7",
+    "borderWidth": 2,
+    "titleBarHeight": 28,
+    "fontFamily": "Segoe UI",
+    "fontSize": 12
+  },
+  "layout": {
+    "masterCount": 1,
+    "masterFactor": 0.6,
+    "innerGap": 4,
+    "outerGap": 4
+  },
+  "workspaces": {
+    "count": 5,
+    "names": ["1:Term", "2:Code", "3:Web", "4:Comm", "5:Misc"]
+  },
+  "excludeProcesses": [
+    "explorer",
+    "shellexperiencehost",
+    "SearchApp",
+    "TextInputHost",
+    "SystemSettings",
+    "ApplicationFrameHost",
+    "LockApp"
+  ],
+  "rules": [
+    { "process": "firefox.exe", "workspace": 3 },
+    { "process": "Code.exe", "workspace": 2 },
+    { "process": "WindowsTerminal.exe", "workspace": 1 }
+  ],
+  "launchTerminal": "wt.exe"
+}

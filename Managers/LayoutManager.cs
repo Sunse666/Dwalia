@@ -69,7 +69,7 @@ public class LayoutManager
             if (!IsWindow(mw.Hwnd)) continue;
             if (mw.State == WindowLayoutState.Floating) continue;
             var onActive = mw.WorkspaceId == _workspaceManager.ActiveWorkspaceId;
-            var sw = onActive ? SW_SHOW : SW_HIDE;
+            var sw = onActive ? SW_RESTORE : SW_HIDE;
             ShowWindow(mw.Hwnd, sw);
         }
 

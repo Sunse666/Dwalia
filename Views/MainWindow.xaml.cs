@@ -132,13 +132,23 @@ public partial class MainWindow : Window
     {
         TaskBarItems.Items.Clear();
 
-        int activeWsId = -1;
-        ServiceLocator.TryResolve<WorkspaceManager>(out var wsm);
-        if (wsm != null) activeWsId = wsm.ActiveWorkspaceId;
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
+        if (!ServiceLocator.TryResolve<FocusMgr>(out var fm)) return;
 
-        foreach (var mw in _windowManager.ManagedWindows.Values)
+        var activeWs = wsm.GetActiveWorkspace();
+        if (activeWs == null || activeWs.Windows.Count == 0) return;
+
+        int startIdx = 0;
+        if (fm.ActiveWindow != null)
         {
-            if (mw.WorkspaceId != activeWsId) continue;
+            var idx = activeWs.Windows.IndexOf(fm.ActiveWindow);
+            if (idx >= 0) startIdx = idx;
+        }
+
+        var count = activeWs.Windows.Count;
+        for (int i = 0; i < count; i++)
+        {
+            var mw = activeWs.Windows[(startIdx + i) % count];
             var title = mw.Title.Length > 30 ? mw.Title[..30] + "..." : mw.Title;
             var btn = new Button
             {
@@ -153,12 +163,12 @@ public partial class MainWindow : Window
             };
 
             var hwnd = mw.Hwnd;
+            var captured = mw;
             btn.Click += (_, _) =>
             {
                 ShowWindow(hwnd, SW_RESTORE);
                 SetForegroundWindow(hwnd);
-                ServiceLocator.TryResolve<FocusMgr>(out var fm);
-                fm?.SetActiveWindow(mw);
+                fm.SetActiveWindow(captured);
             };
 
             TaskBarItems.Items.Add(btn);

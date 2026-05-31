@@ -133,13 +133,13 @@ public partial class MainWindow : Window
         TaskBarItems.Items.Clear();
 
         if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
-        if (!ServiceLocator.TryResolve<FocusMgr>(out var fm)) return;
-
         var activeWs = wsm.GetActiveWorkspace();
         if (activeWs == null || activeWs.Windows.Count == 0) return;
 
+        ServiceLocator.TryResolve<FocusMgr>(out var fm);
+
         int startIdx = 0;
-        if (fm.ActiveWindow != null)
+        if (fm?.ActiveWindow != null)
         {
             var idx = activeWs.Windows.IndexOf(fm.ActiveWindow);
             if (idx >= 0) startIdx = idx;
@@ -168,7 +168,7 @@ public partial class MainWindow : Window
             {
                 ShowWindow(hwnd, SW_RESTORE);
                 SetForegroundWindow(hwnd);
-                fm.SetActiveWindow(captured);
+                fm?.SetActiveWindow(captured);
             };
 
             TaskBarItems.Items.Add(btn);

@@ -51,6 +51,7 @@ public partial class App : Application
         ServiceLocator.Register(_workspaceManager);
         ServiceLocator.Register(_hotKeyManager);
         ServiceLocator.Register(_configManager);
+        ServiceLocator.Register(_focusManager);
 
         _mainWindow = new MainWindow(_windowManager, _hookManager);
         _hotKeyManager.CommandTriggered += OnCommandTriggered;
@@ -59,7 +60,6 @@ public partial class App : Application
 
         _layoutManager = new LayoutManager(_windowManager, _workspaceManager, _focusManager);
         ServiceLocator.Register(_layoutManager);
-        ServiceLocator.Register(_focusManager);
 
         _hookManager.FocusChanged += (_, hwnd) => _focusManager.OnFocusEvent(hwnd);
         _hookManager.WindowDiscovered += (_, hwnd) =>

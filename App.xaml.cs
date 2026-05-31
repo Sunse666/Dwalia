@@ -103,6 +103,7 @@ public partial class App : Application
             case DwaliaCommand.MoveToWorkspacePrevious: MoveActiveRelative(-1); break;
             case DwaliaCommand.LaunchTerminal: LaunchTerminal(_config?.LaunchTerminal ?? "wt.exe"); break;
             case DwaliaCommand.ReloadConfig: ReloadConfig(); break;
+            case DwaliaCommand.OpenSettings: OpenSettingsWindow(); break;
         }
     }
 
@@ -131,6 +132,16 @@ public partial class App : Application
     {
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = cmd, UseShellExecute = true }); }
         catch (Exception ex) { Logger.Error($"Launch terminal failed: {ex.Message}"); }
+    }
+
+    private void OpenSettingsWindow()
+    {
+        _mainWindow?.Dispatcher.Invoke(() =>
+        {
+            var sw = new Views.SettingsWindow();
+            sw.Owner = _mainWindow;
+            sw.ShowDialog();
+        });
     }
 
     private void ReloadConfig()

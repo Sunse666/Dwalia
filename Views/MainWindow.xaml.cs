@@ -280,6 +280,9 @@ public partial class MainWindow : Window
             case DwaliaCommand.QuitDwalia:
                 System.Windows.Application.Current.Shutdown();
                 break;
+            case DwaliaCommand.OpenSettings:
+                new SettingsWindow { Owner = this }.ShowDialog();
+                break;
             case DwaliaCommand.FocusWindow1: FocusWindowByIndex(0, fm, aws); break;
             case DwaliaCommand.FocusWindow2: FocusWindowByIndex(1, fm, aws); break;
             case DwaliaCommand.FocusWindow3: FocusWindowByIndex(2, fm, aws); break;

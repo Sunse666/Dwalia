@@ -74,6 +74,8 @@ public class HotKeyManager : IDisposable
         Register(mod | MOD_SHIFT, VK_LEFT, DwaliaCommand.MoveToWorkspacePrevious);
         Register(mod | MOD_SHIFT, VK_RIGHT, DwaliaCommand.MoveToWorkspaceNext);
 
+        Register(mod, VK_S, DwaliaCommand.OpenSettings);
+
         Logger.Info($"HotKeyManager: registered {_hotkeys.Count} hotkeys (mod={modKey})");
     }
 
@@ -169,4 +171,5 @@ public enum DwaliaCommand
     Workspace1, Workspace2, Workspace3, Workspace4, Workspace5,
     WorkspaceNext, WorkspacePrevious,
     MoveToWorkspaceNext, MoveToWorkspacePrevious,
+    OpenSettings,
 }

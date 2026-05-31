@@ -161,8 +161,6 @@ public static partial class NativeMethods
 
     #endregion
 
-    #region Structures
-
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
     {
@@ -195,5 +193,23 @@ public static partial class NativeMethods
         public IntPtr lParam;
     }
 
-    #endregion
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct AccentPolicy
+    {
+        public int AccentState;
+        public int AccentFlags;
+        public int GradientColor;
+        public int AnimationId;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct WindowCompositionAttributeData
+    {
+        public int Attribute;
+        public IntPtr Data;
+        public int SizeOfData;
+    }
+
+    [DllImport(User32)]
+    internal static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
 }

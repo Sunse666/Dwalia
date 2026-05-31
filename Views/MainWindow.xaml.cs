@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Dwalia.Infrastructure;
@@ -30,7 +31,7 @@ public partial class MainWindow : Window
         _windowManager.WindowsChanged += (_, _) => UpdateTaskBar();
 
         if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
-            wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateStatus(); };
+            wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateStatus(); UpdateWorkspacePills(); };
 
         var wa = System.Windows.SystemParameters.WorkArea;
         Left = wa.Left;
@@ -48,6 +49,8 @@ public partial class MainWindow : Window
         _hwndSource?.AddHook(WndProcHook);
 
         Logger.Info($"MainWindow.OnSourceInitialized: HWND={_hwnd}, HwndSource={(_hwndSource != null ? "ok" : "NULL")}");
+
+        ApplyAcrylic(_hwnd);
 
         SetWindowPos(_hwnd, new IntPtr(1), 0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -175,9 +178,59 @@ public partial class MainWindow : Window
             TaskBarItems.Items.Add(btn);
         }
         UpdateStatus();
+        UpdateWorkspacePills();
     }
 
-    #region Keyboard (WPF fallback)
+    private void ApplyAcrylic(IntPtr hwnd)
+    {
+        try
+        {
+            var accent = new AccentPolicy
+            {
+                AccentState = 4,
+                AccentFlags = 2,
+                GradientColor = unchecked((int)0x401A1B26),
+                AnimationId = 0
+            };
+            var data = new WindowCompositionAttributeData
+            {
+                Attribute = 19,
+                Data = Marshal.AllocHGlobal(Marshal.SizeOf<AccentPolicy>()),
+                SizeOfData = Marshal.SizeOf<AccentPolicy>()
+            };
+            Marshal.StructureToPtr(accent, data.Data, false);
+            SetWindowCompositionAttribute(hwnd, ref data);
+            Marshal.FreeHGlobal(data.Data);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"ApplyAcrylic failed: {ex.Message}");
+        }
+    }
+
+    private void UpdateWorkspacePills()
+    {
+        WorkspacePills.Children.Clear();
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
+
+        foreach (var ws in wsm.Workspaces)
+        {
+            var isActive = ws.Id == wsm.ActiveWorkspaceId;
+            var hasWindows = ws.Windows.Count > 0;
+            var pill = new Border
+            {
+                Width = isActive ? 24 : 8,
+                Height = 8,
+                CornerRadius = new CornerRadius(4),
+                Margin = new Thickness(2, 0, 2, 0),
+                Background = new SolidColorBrush(Color.FromRgb(
+                    (byte)(isActive ? 0x7a : (hasWindows ? 0x56 : 0x3b)),
+                    (byte)(isActive ? 0xa2 : (hasWindows ? 0x5f : 0x42)),
+                    (byte)(isActive ? 0xf7 : (hasWindows ? 0x89 : 0x61))))
+            };
+            WorkspacePills.Children.Add(pill);
+        }
+    }
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
@@ -277,6 +330,4 @@ public partial class MainWindow : Window
         Key.Enter => VK_RETURN, Key.Space => VK_SPACE,
         _ => 0
     };
-
-    #endregion
 }

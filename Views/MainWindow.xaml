@@ -4,7 +4,8 @@
         Title="Dwalia"
         WindowStyle="None"
         ResizeMode="NoResize"
-        Background="#1a1b26"
+        AllowsTransparency="True"
+        Background="Transparent"
         Topmost="False"
         ShowInTaskbar="True"
         Focusable="True"
@@ -17,10 +18,10 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Background="#1a1b26" IsHitTestVisible="False">
+        <Grid Grid.Row="0" Background="#221a1b26" IsHitTestVisible="False">
             <TextBlock x:Name="StatusText"
                        Text="Dwalia — Alt+Ctrl+1~9: focus | Alt+Ctrl+J/K: next/prev | Alt+Ctrl+Shift+1~5: workspace"
-                       Foreground="#565f89"
+                       Foreground="#c0caf5"
                        FontSize="14"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
@@ -29,16 +30,13 @@
 
         <Border x:Name="TaskBar"
                 Grid.Row="1"
-                Background="#16161e"
+                Background="#5516161e"
                 BorderBrush="#3b4261"
                 BorderThickness="0,1,0,0"
                 Height="40">
             <DockPanel VerticalAlignment="Center" Margin="8,0">
-                <TextBlock x:Name="TaskBarInfo"
-                           Foreground="#565f89"
-                           FontSize="11"
-                           VerticalAlignment="Center"
-                           Text="No windows"/>
+                <StackPanel x:Name="WorkspacePills" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <ItemsControl x:Name="TaskBarItems">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>

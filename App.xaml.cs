@@ -104,6 +104,13 @@ public partial class App : Application
             case DwaliaCommand.LaunchTerminal: LaunchTerminal(_config?.LaunchTerminal ?? "wt.exe"); break;
             case DwaliaCommand.ReloadConfig: ReloadConfig(); break;
             case DwaliaCommand.OpenSettings: OpenSettingsWindow(); break;
+            case DwaliaCommand.CycleLayout: _layoutManager?.CycleLayout(); break;
+            case DwaliaCommand.IncMaster: _layoutManager?.ResizeMaster(0.05); break;
+            case DwaliaCommand.DecMaster: _layoutManager?.ResizeMaster(-0.05); break;
+            case DwaliaCommand.IncGap: _layoutManager?.ResizeGap(1); break;
+            case DwaliaCommand.DecGap: _layoutManager?.ResizeGap(-1); break;
+            case DwaliaCommand.SwapNext: _layoutManager?.SwapNext(); break;
+            case DwaliaCommand.SwapPrevious: _layoutManager?.SwapPrevious(); break;
         }
     }
 

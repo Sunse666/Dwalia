@@ -281,6 +281,13 @@ public partial class MainWindow : Window
             case DwaliaCommand.WorkspacePrevious: ws?.PreviousWorkspace(); break;
             case DwaliaCommand.MoveToWorkspaceNext: MoveActiveRelativeWpf(1, fm, ws); break;
             case DwaliaCommand.MoveToWorkspacePrevious: MoveActiveRelativeWpf(-1, fm, ws); break;
+            case DwaliaCommand.CycleLayout: lm?.CycleLayout(); break;
+            case DwaliaCommand.IncMaster: lm?.ResizeMaster(0.05); break;
+            case DwaliaCommand.DecMaster: lm?.ResizeMaster(-0.05); break;
+            case DwaliaCommand.IncGap: lm?.ResizeGap(1); break;
+            case DwaliaCommand.DecGap: lm?.ResizeGap(-1); break;
+            case DwaliaCommand.SwapNext: lm?.SwapNext(); break;
+            case DwaliaCommand.SwapPrevious: lm?.SwapPrevious(); break;
         }
     }
 

@@ -5,12 +5,16 @@ using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Managers;
 
+public enum LayoutType { MasterStack, Monocle, Grid, HorizontalStack }
+
 public class LayoutManager
 {
     private readonly WindowManager _windowManager;
     private readonly WorkspaceManager _workspaceManager;
     private readonly FocusManager _focusManager;
     private System.Windows.Rect _area;
+    private LayoutType _layout = LayoutType.MasterStack;
+    private double _masterFactor = 0.6;
     private int _gap = 4;
     private int _outer = 2;
 
@@ -71,21 +75,72 @@ public class LayoutManager
             Math.Max(MinWindowWidth, _area.Width - _outer * 2),
             Math.Max(MinWindowHeight, _area.Height - _outer * 2));
 
-        int n = windows.Count;
+        switch (_layout)
+        {
+            case LayoutType.Monocle: ArrangeMonocle(windows, area); break;
+            case LayoutType.Grid: ArrangeGrid(windows, area); break;
+            case LayoutType.HorizontalStack: ArrangeHStack(windows, area); break;
+            default: ArrangeMasterStack(windows, area); break;
+        }
+    }
 
+    private void ArrangeMonocle(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        var active = _focusManager.ActiveWindow;
+        if (active == null || !windows.Contains(active))
+            active = windows[0];
+
+        foreach (var w in windows)
+            ShowWindow(w.Hwnd, w == active ? SW_SHOW : SW_HIDE);
+
+        Position(active, area);
+    }
+
+    private void ArrangeGrid(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        int n = windows.Count;
+        if (n == 0) return;
+        int cols = (int)Math.Ceiling(Math.Sqrt(n));
+        int rows = (int)Math.Ceiling((double)n / cols);
+        double cw = (area.Width - (cols - 1) * _gap) / cols;
+        double ch = (area.Height - (rows - 1) * _gap) / rows;
+
+        for (int i = 0; i < n; i++)
+        {
+            int col = i % cols;
+            int row = i / cols;
+            var r = new System.Windows.Rect(
+                area.X + col * (cw + _gap),
+                area.Y + row * (ch + _gap),
+                cw, ch);
+            Position(windows[i], r);
+        }
+    }
+
+    private void ArrangeHStack(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        int n = windows.Count;
+        if (n == 0) return;
+        double h = (area.Height - (n - 1) * _gap) / n;
+        for (int i = 0; i < n; i++)
+        {
+            var r = new System.Windows.Rect(area.X, area.Y + i * (h + _gap), area.Width, h);
+            Position(windows[i], r);
+        }
+    }
+
+    private void ArrangeMasterStack(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        int n = windows.Count;
         if (n == 1)
         {
-            Logger.Info($"  Tiling solo: '{windows[0].Title}' -> ({area.X:F0},{area.Y:F0} {area.Width:F0}x{area.Height:F0})");
             Position(windows[0], area);
             return;
         }
 
-        double mw = (area.Width - _gap) * 0.6;
+        double mw = (area.Width - _gap) * _masterFactor;
         double sw = area.Width - mw - _gap;
-
-        double mh = (area.Height - 0 * _gap) / 1;
-        Logger.Info($"  Tiling master: '{windows[0].Title}' -> ({area.X:F0},{area.Y:F0} {mw:F0}x{mh:F0})");
-        Position(windows[0], new System.Windows.Rect(area.X, area.Y, mw, mh));
+        Position(windows[0], new System.Windows.Rect(area.X, area.Y, mw, area.Height));
 
         int s = n - 1;
         if (s > 0)
@@ -94,7 +149,6 @@ public class LayoutManager
             for (int i = 0; i < s; i++)
             {
                 var r = new System.Windows.Rect(area.X + mw + _gap, area.Y + i * (sh + _gap), sw, sh);
-                Logger.Info($"  Tiling stack[{i}]: '{windows[1 + i].Title}' -> ({r.X:F0},{r.Y:F0} {r.Width:F0}x{r.Height:F0})");
                 Position(windows[1 + i], r);
             }
         }
@@ -110,6 +164,62 @@ public class LayoutManager
             (int)(r.X * scale), (int)(r.Y * scale),
             (int)(r.Width * scale), (int)(r.Height * scale),
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    }
+
+    public void CycleLayout()
+    {
+        _layout = _layout switch
+        {
+            LayoutType.MasterStack => LayoutType.Monocle,
+            LayoutType.Monocle => LayoutType.Grid,
+            LayoutType.Grid => LayoutType.HorizontalStack,
+            LayoutType.HorizontalStack => LayoutType.MasterStack,
+            _ => LayoutType.MasterStack
+        };
+        Logger.Info($"Layout: {_layout}");
+        Relayout();
+    }
+
+    public void ResizeMaster(double delta)
+    {
+        _masterFactor = Math.Clamp(_masterFactor + delta, 0.3, 0.8);
+        Logger.Info($"Master factor: {_masterFactor:F2}");
+        Relayout();
+    }
+
+    public void ResizeGap(int delta)
+    {
+        _gap = Math.Clamp(_gap + delta, 0, 24);
+        _outer = Math.Clamp(_outer + delta, 0, 12);
+        Logger.Info($"Gap: {_gap}, Outer: {_outer}");
+        Relayout();
+    }
+
+    public void SwapNext()
+    {
+        SwapWindow(1);
+    }
+
+    public void SwapPrevious()
+    {
+        SwapWindow(-1);
+    }
+
+    private void SwapWindow(int direction)
+    {
+        var ws = _workspaceManager.GetActiveWorkspace();
+        if (ws == null || _focusManager.ActiveWindow == null) return;
+        var list = ws.Windows;
+        var tiled = list.Where(w => w.State == WindowLayoutState.Tiled).ToList();
+        if (tiled.Count < 2) return;
+        int tiledIdx = tiled.IndexOf(_focusManager.ActiveWindow);
+        if (tiledIdx < 0) return;
+        int nextTiled = (tiledIdx + direction + tiled.Count) % tiled.Count;
+        int realIdx = list.IndexOf(tiled[tiledIdx]);
+        int realNext = list.IndexOf(tiled[nextTiled]);
+        (list[realIdx], list[realNext]) = (list[realNext], list[realIdx]);
+        _focusManager.SetActiveWindow(list[realNext]);
+        Relayout();
     }
 
     public void ToggleFloating(IntPtr hwnd)

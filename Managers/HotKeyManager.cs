@@ -76,6 +76,12 @@ public class HotKeyManager : IDisposable
 
         Register(mod, VK_S, DwaliaCommand.OpenSettings);
 
+        Register(mod, VK_T, DwaliaCommand.CycleLayout);
+        Register(mod, VK_UP, DwaliaCommand.IncMaster);
+        Register(mod, VK_DOWN, DwaliaCommand.DecMaster);
+        Register(mod | MOD_SHIFT, VK_UP, DwaliaCommand.IncGap);
+        Register(mod | MOD_SHIFT, VK_DOWN, DwaliaCommand.DecGap);
+
         Logger.Info($"HotKeyManager: registered {_hotkeys.Count} hotkeys (mod={modKey})");
     }
 
@@ -172,4 +178,7 @@ public enum DwaliaCommand
     WorkspaceNext, WorkspacePrevious,
     MoveToWorkspaceNext, MoveToWorkspacePrevious,
     OpenSettings,
+    CycleLayout,
+    IncMaster, DecMaster,
+    IncGap, DecGap,
 }

@@ -14,6 +14,7 @@ public class LayoutManager
     private readonly WorkspaceManager _workspaceManager;
     private readonly FocusManager _focusManager;
     private System.Windows.Rect _area;
+    public System.Windows.Rect Area => _area;
     public event EventHandler<LayoutType>? LayoutChanged;
     public event Action<string>? StatusMessage;
 

@@ -21,10 +21,11 @@ public partial class MainWindow : Window
     private IntPtr _hwnd;
     private HwndSource? _hwndSource;
     private DispatcherTimer? _statusTimer;
-    private DispatcherTimer? _focusBgTimer;
     private FocusBackground? _focusBackground;
+    private DispatcherTimer? _focusBgTimer;
     private Color _focusBgColor;
     private int _focusBgRadius;
+    private int _lastBgX = -1, _lastBgY = -1, _lastBgW, _lastBgH;
 
     public IntPtr GetHwnd() => _hwnd;
 
@@ -81,7 +82,7 @@ public partial class MainWindow : Window
         {
             try { _focusBgColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent ?? "#7aa2f7"); }
             catch { _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7); }
-            _focusBgRadius = Math.Max(cfg.Theme.BorderWidth, 2) + 4;
+            _focusBgRadius = cfg.Theme.BorderWidth > 0 ? cfg.Theme.BorderWidth + 6 : 8;
         }
         else
         {
@@ -341,8 +342,6 @@ public partial class MainWindow : Window
     }
 
 
-    private int _lastBgX = -1, _lastBgY = -1, _lastBgW, _lastBgH;
-
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
         e.Handled = false;
@@ -394,15 +393,8 @@ public partial class MainWindow : Window
                 h = wr.Height;
             }
 
-            if (w <= 0 || h <= 0)
-            {
-                _focusBackground.Hide();
-                _lastBgX = -1;
-                return;
-            }
-
-            if (x == _lastBgX && y == _lastBgY && w == _lastBgW && h == _lastBgH)
-                return;
+            if (w <= 0 || h <= 0) { _focusBackground.Hide(); _lastBgX = -1; return; }
+            if (x == _lastBgX && y == _lastBgY && w == _lastBgW && h == _lastBgH) return;
 
             _lastBgX = x; _lastBgY = y; _lastBgW = w; _lastBgH = h;
             _focusBackground.Show(mw.Hwnd, x, y, w, h, _focusBgColor, _focusBgRadius);

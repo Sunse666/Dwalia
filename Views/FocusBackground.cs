@@ -53,15 +53,13 @@ public class FocusBackground : IDisposable
             _shown = true;
         }
 
-        SetWindowPos(_hwnd, behindHwnd, x, y, w, h,
-            SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        SetWindowPos(_hwnd, behindHwnd, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
 
     public void Hide()
     {
         if (!_shown || _disposed) return;
-        SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-            SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_HIDEWINDOW);
+        _window.Hide();
         _shown = false;
     }
 
@@ -69,7 +67,6 @@ public class FocusBackground : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        Hide();
         _window.Close();
     }
 }

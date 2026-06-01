@@ -9,17 +9,37 @@ namespace Dwalia.Views;
 
 public class FocusBackground : IDisposable
 {
-    private readonly Window _window;
-    private readonly Border _border;
-    private IntPtr _hwnd;
-    private bool _shown;
+    private readonly Color _accentColor;
+    private readonly int _radius;
+    private readonly Dictionary<IntPtr, BgWindow> _windows = new();
+    private IntPtr _activeOwnerHwnd;
     private bool _disposed;
 
-    public FocusBackground()
+    private class BgWindow
     {
-        _border = new Border { IsHitTestVisible = false };
+        public Window Window = null!;
+        public Border Border = null!;
+        public IntPtr Hwnd;
+        public IntPtr OwnerHwnd;
+    }
 
-        _window = new Window
+    public FocusBackground(Color color, int radius)
+    {
+        _accentColor = color;
+        _radius = radius;
+    }
+
+    public void Add(IntPtr ownerHwnd, int x, int y, int w, int h)
+    {
+        if (_disposed || _windows.ContainsKey(ownerHwnd)) return;
+
+        var border = new Border
+        {
+            IsHitTestVisible = false,
+            CornerRadius = new CornerRadius(_radius)
+        };
+
+        var window = new Window
         {
             WindowStyle = WindowStyle.None,
             ResizeMode = ResizeMode.NoResize,
@@ -29,44 +49,72 @@ public class FocusBackground : IDisposable
             ShowActivated = false,
             Topmost = false,
             Focusable = false,
-            Content = _border,
+            Content = border,
             Width = 1,
             Height = 1,
         };
 
-        _window.SourceInitialized += (_, _) =>
+        var bg = new BgWindow { Window = window, Border = border, OwnerHwnd = ownerHwnd };
+        _windows[ownerHwnd] = bg;
+
+        window.SourceInitialized += (_, _) =>
         {
-            _hwnd = new WindowInteropHelper(_window).Handle;
+            bg.Hwnd = new WindowInteropHelper(window).Handle;
+            SetWindowPos(bg.Hwnd, ownerHwnd, x, y, w, h, SWP_NOACTIVATE);
+            ApplyColor(bg);
         };
+
+        window.Show();
     }
 
-    public void Show(IntPtr behindHwnd, int x, int y, int w, int h, Color color, int radius)
+    public void Remove(IntPtr ownerHwnd)
     {
-        if (_disposed) return;
-
-        _border.Background = new SolidColorBrush(Color.FromArgb(0x30, color.R, color.G, color.B));
-        _border.CornerRadius = new CornerRadius(radius);
-
-        if (!_shown)
+        if (_windows.TryGetValue(ownerHwnd, out var bg))
         {
-            _window.Show();
-            _shown = true;
+            bg.Window.Close();
+            _windows.Remove(ownerHwnd);
         }
-
-        SetWindowPos(_hwnd, behindHwnd, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
 
-    public void Hide()
+    public void UpdatePosition(IntPtr ownerHwnd, int x, int y, int w, int h)
     {
-        if (!_shown || _disposed) return;
-        _window.Hide();
-        _shown = false;
+        if (_windows.TryGetValue(ownerHwnd, out var bg) && bg.Hwnd != IntPtr.Zero)
+            SetWindowPos(bg.Hwnd, ownerHwnd, x, y, w, h, SWP_NOACTIVATE);
+    }
+
+    public void SetVisible(IntPtr ownerHwnd, bool visible)
+    {
+        if (!_windows.TryGetValue(ownerHwnd, out var bg) || bg.Hwnd == IntPtr.Zero) return;
+        SetWindowPos(bg.Hwnd, IntPtr.Zero, 0, 0, 0, 0,
+            SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE |
+            (visible ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
+    }
+
+    public void SetActive(IntPtr? activeOwnerHwnd)
+    {
+        var prev = _activeOwnerHwnd;
+        _activeOwnerHwnd = activeOwnerHwnd ?? IntPtr.Zero;
+
+        if (prev != IntPtr.Zero && _windows.TryGetValue(prev, out var prevBg))
+            ApplyColor(prevBg);
+        if (_activeOwnerHwnd != IntPtr.Zero && _windows.TryGetValue(_activeOwnerHwnd, out var activeBg))
+            ApplyColor(activeBg);
+    }
+
+    private void ApplyColor(BgWindow bg)
+    {
+        var isActive = bg.OwnerHwnd == _activeOwnerHwnd;
+        var alpha = isActive ? (byte)0x45 : (byte)0x18;
+        bg.Border.Background = new SolidColorBrush(
+            Color.FromArgb(alpha, _accentColor.R, _accentColor.G, _accentColor.B));
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        _window.Close();
+        foreach (var bg in _windows.Values)
+            bg.Window.Close();
+        _windows.Clear();
     }
 }

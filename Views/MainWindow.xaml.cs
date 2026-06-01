@@ -25,7 +25,6 @@ public partial class MainWindow : Window
     private DispatcherTimer? _focusBgTimer;
     private Color _focusBgColor;
     private int _focusBgRadius;
-    private int _lastBgX = -1, _lastBgY = -1, _lastBgW, _lastBgH;
 
     public IntPtr GetHwnd() => _hwnd;
 
@@ -36,12 +35,16 @@ public partial class MainWindow : Window
         _windowEventHookManager = ehm;
 
         _windowManager.WindowsChanged += (_, _) => UpdateTaskBar();
+        _windowManager.WindowManaged += (_, mw) => OnWindowManaged(mw);
+        _windowManager.WindowUnmanaged += (_, mw) => OnWindowUnmanaged(mw);
 
         if (ServiceLocator.TryResolve<FocusMgr>(out var fm))
             fm.FocusChanged += UpdateTaskBar;
 
         if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
-            wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateWorkspacePills(); };
+        {
+            wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateWorkspacePills(); RefreshBackgroundVisibility(); };
+        }
 
         var wa = System.Windows.SystemParameters.WorkArea;
         Left = wa.Left;
@@ -90,20 +93,26 @@ public partial class MainWindow : Window
             _focusBgRadius = 8;
         }
 
-        _focusBackground = new FocusBackground();
+        _focusBackground = new FocusBackground(_focusBgColor, _focusBgRadius);
 
         if (ServiceLocator.TryResolve<FocusMgr>(out var focusMgr))
         {
-            focusMgr.FocusChanged += UpdateFocusBackground;
+            focusMgr.FocusChanged += () =>
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    _focusBackground?.SetActive(focusMgr.ActiveWindow?.Hwnd);
+                });
+            };
         }
 
-        if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
+        if (ServiceLocator.TryResolve<LayoutManager>(out var lmg))
         {
-            lm.LayoutChanged += (_, _) => Dispatcher.BeginInvoke(() => UpdateFocusBackground());
+            lmg.LayoutChanged += (_, _) => Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
         }
 
-        _focusBgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
-        _focusBgTimer.Tick += (_, _) => UpdateFocusBackground();
+        _focusBgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _focusBgTimer.Tick += (_, _) => RefreshFloatingBackgroundPositions();
         _focusBgTimer.Start();
     }
 
@@ -347,62 +356,84 @@ public partial class MainWindow : Window
         e.Handled = false;
     }
 
-    private void UpdateFocusBackground()
+    private void OnWindowManaged(Dwalia.Models.ManagedWindow mw)
     {
         if (_focusBackground == null) return;
-
-        if (!ServiceLocator.TryResolve<FocusMgr>(out var fm) || fm.ActiveWindow == null)
-        {
-            _focusBackground.Hide();
-            _lastBgX = -1;
-            return;
-        }
-
-        var mw = fm.ActiveWindow;
-        if (mw.State == Dwalia.Models.WindowLayoutState.Fullscreen)
-        {
-            _focusBackground.Hide();
-            _lastBgX = -1;
-            return;
-        }
-
         try
         {
-            int x, y, w, h;
+            var r = Dwalia.Win32.WindowHelper.GetWindowRectSafe(mw.Hwnd);
+            if (r.Width > 0 && r.Height > 0)
+                _focusBackground.Add(mw.Hwnd, r.Left, r.Top, r.Width, r.Height);
+        }
+        catch { }
+    }
 
-            if (mw.State == Dwalia.Models.WindowLayoutState.Tiled && mw.LayoutBounds.Width > 0)
+    private void OnWindowUnmanaged(Dwalia.Models.ManagedWindow mw)
+    {
+        _focusBackground?.Remove(mw.Hwnd);
+    }
+
+    private void RefreshAllBackgroundPositions()
+    {
+        if (_focusBackground == null) return;
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
+
+        var activeWs = wsm.GetActiveWorkspace();
+        if (activeWs == null) return;
+
+        foreach (var mw in activeWs.Windows)
+        {
+            if (mw.State == Dwalia.Models.WindowLayoutState.Fullscreen) continue;
+            try
             {
-                var r = mw.LayoutBounds;
-                x = (int)r.X;
-                y = (int)r.Y;
-                w = (int)r.Width;
-                h = (int)r.Height;
+                if (mw.State == Dwalia.Models.WindowLayoutState.Tiled && mw.LayoutBounds.Width > 0)
+                {
+                    var r = mw.LayoutBounds;
+                    _focusBackground.UpdatePosition(mw.Hwnd, (int)r.X, (int)r.Y, (int)r.Width, (int)r.Height);
+                    _focusBackground.SetVisible(mw.Hwnd, true);
+                }
             }
-            else
+            catch { }
+        }
+    }
+
+    private void RefreshFloatingBackgroundPositions()
+    {
+        if (_focusBackground == null) return;
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
+
+        var activeWs = wsm.GetActiveWorkspace();
+        if (activeWs == null) return;
+
+        foreach (var mw in activeWs.Windows)
+        {
+            if (mw.State != Dwalia.Models.WindowLayoutState.Floating) continue;
+            try
             {
                 var wr = Dwalia.Win32.WindowHelper.GetWindowRectSafe(mw.Hwnd);
-                if (wr.Width <= 0 || wr.Height <= 0)
+                if (wr.Width > 0 && wr.Height > 0)
                 {
-                    _focusBackground.Hide();
-                    _lastBgX = -1;
-                    return;
+                    _focusBackground.UpdatePosition(mw.Hwnd, wr.Left, wr.Top, wr.Width, wr.Height);
+                    _focusBackground.SetVisible(mw.Hwnd, true);
                 }
-                x = wr.Left;
-                y = wr.Top;
-                w = wr.Width;
-                h = wr.Height;
             }
-
-            if (w <= 0 || h <= 0) { _focusBackground.Hide(); _lastBgX = -1; return; }
-            if (x == _lastBgX && y == _lastBgY && w == _lastBgW && h == _lastBgH) return;
-
-            _lastBgX = x; _lastBgY = y; _lastBgW = w; _lastBgH = h;
-            _focusBackground.Show(mw.Hwnd, x, y, w, h, _focusBgColor, _focusBgRadius);
+            catch { }
         }
-        catch
+    }
+
+    private void RefreshBackgroundVisibility()
+    {
+        if (_focusBackground == null) return;
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
+        if (!ServiceLocator.TryResolve<WindowManager>(out var wm)) return;
+
+        var activeWs = wsm.GetActiveWorkspace();
+        if (activeWs == null) return;
+
+        foreach (var mw in wm.ManagedWindows.Values)
         {
-            _focusBackground.Hide();
-            _lastBgX = -1;
+            bool visible = mw.WorkspaceId == activeWs.Id && mw.State != Dwalia.Models.WindowLayoutState.Fullscreen;
+            _focusBackground.SetVisible(mw.Hwnd, visible);
         }
     }
 

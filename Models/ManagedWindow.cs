@@ -24,6 +24,8 @@ public class ManagedWindow
 
     public bool IsActive { get; set; }
 
+    public System.Windows.Rect LayoutBounds { get; set; }
+
     public NativeMethods.RECT? PreFullscreenRect { get; set; }
     public WindowLayoutState? PreFullscreenState { get; set; }
 

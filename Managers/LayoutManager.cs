@@ -307,6 +307,7 @@ public class LayoutManager
     private static void Position(ManagedWindow mw, System.Windows.Rect r)
     {
         if (!IsWindow(mw.Hwnd)) return;
+        mw.LayoutBounds = r;
         SetWindowPos(mw.Hwnd, IntPtr.Zero,
             (int)r.X, (int)r.Y, (int)r.Width, (int)r.Height,
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);

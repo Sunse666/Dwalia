@@ -21,6 +21,10 @@ public partial class MainWindow : Window
     private IntPtr _hwnd;
     private HwndSource? _hwndSource;
     private DispatcherTimer? _statusTimer;
+    private DispatcherTimer? _focusBgTimer;
+    private FocusBackground? _focusBackground;
+    private Color _focusBgColor;
+    private int _focusBgRadius;
 
     public IntPtr GetHwnd() => _hwnd;
 
@@ -72,6 +76,34 @@ public partial class MainWindow : Window
         {
             Logger.Warn("HotKeyManager NOT FOUND in ServiceLocator during OnSourceInitialized!");
         }
+
+        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var cfg))
+        {
+            try { _focusBgColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent ?? "#7aa2f7"); }
+            catch { _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7); }
+            _focusBgRadius = Math.Max(cfg.Theme.BorderWidth, 2) + 4;
+        }
+        else
+        {
+            _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7);
+            _focusBgRadius = 8;
+        }
+
+        _focusBackground = new FocusBackground();
+
+        if (ServiceLocator.TryResolve<FocusMgr>(out var focusMgr))
+        {
+            focusMgr.FocusChanged += UpdateFocusBackground;
+        }
+
+        if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
+        {
+            lm.LayoutChanged += (_, _) => Dispatcher.BeginInvoke(() => UpdateFocusBackground());
+        }
+
+        _focusBgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
+        _focusBgTimer.Tick += (_, _) => UpdateFocusBackground();
+        _focusBgTimer.Start();
     }
 
     private IntPtr WndProcHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -121,6 +153,8 @@ public partial class MainWindow : Window
     private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
     {
         Logger.Info("Shutting down — restoring all windows...");
+        _focusBgTimer?.Stop();
+        _focusBackground?.Dispose();
         _windowEventHookManager.Stop();
         _windowManager.RestoreAllWindows();
     }
@@ -307,9 +341,77 @@ public partial class MainWindow : Window
     }
 
 
+    private int _lastBgX = -1, _lastBgY = -1, _lastBgW, _lastBgH;
+
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
         e.Handled = false;
+    }
+
+    private void UpdateFocusBackground()
+    {
+        if (_focusBackground == null) return;
+
+        if (!ServiceLocator.TryResolve<FocusMgr>(out var fm) || fm.ActiveWindow == null)
+        {
+            _focusBackground.Hide();
+            _lastBgX = -1;
+            return;
+        }
+
+        var mw = fm.ActiveWindow;
+        if (mw.State == Dwalia.Models.WindowLayoutState.Fullscreen)
+        {
+            _focusBackground.Hide();
+            _lastBgX = -1;
+            return;
+        }
+
+        try
+        {
+            int x, y, w, h;
+
+            if (mw.State == Dwalia.Models.WindowLayoutState.Tiled && mw.LayoutBounds.Width > 0)
+            {
+                var r = mw.LayoutBounds;
+                x = (int)r.X;
+                y = (int)r.Y;
+                w = (int)r.Width;
+                h = (int)r.Height;
+            }
+            else
+            {
+                var wr = Dwalia.Win32.WindowHelper.GetWindowRectSafe(mw.Hwnd);
+                if (wr.Width <= 0 || wr.Height <= 0)
+                {
+                    _focusBackground.Hide();
+                    _lastBgX = -1;
+                    return;
+                }
+                x = wr.Left;
+                y = wr.Top;
+                w = wr.Width;
+                h = wr.Height;
+            }
+
+            if (w <= 0 || h <= 0)
+            {
+                _focusBackground.Hide();
+                _lastBgX = -1;
+                return;
+            }
+
+            if (x == _lastBgX && y == _lastBgY && w == _lastBgW && h == _lastBgH)
+                return;
+
+            _lastBgX = x; _lastBgY = y; _lastBgW = w; _lastBgH = h;
+            _focusBackground.Show(mw.Hwnd, x, y, w, h, _focusBgColor, _focusBgRadius);
+        }
+        catch
+        {
+            _focusBackground.Hide();
+            _lastBgX = -1;
+        }
     }
 
 }

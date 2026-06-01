@@ -377,9 +377,17 @@ public partial class MainWindow : Window
     {
         if (_focusBackground == null) return;
         if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
+        if (!ServiceLocator.TryResolve<LayoutManager>(out var lm)) return;
 
         var activeWs = wsm.GetActiveWorkspace();
         if (activeWs == null) return;
+
+        var area = lm.Area;
+        int gap = 4;
+        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var cfg))
+            gap = cfg.Layout.InnerGap;
+
+        int expand = gap / 2;
 
         foreach (var mw in activeWs.Windows)
         {
@@ -389,7 +397,11 @@ public partial class MainWindow : Window
                 if (mw.State == Dwalia.Models.WindowLayoutState.Tiled && mw.LayoutBounds.Width > 0)
                 {
                     var r = mw.LayoutBounds;
-                    _focusBackground.UpdatePosition(mw.Hwnd, (int)r.X, (int)r.Y, (int)r.Width, (int)r.Height);
+                    int x = Math.Max((int)area.X, (int)r.X - expand);
+                    int y = Math.Max((int)area.Y, (int)r.Y - expand);
+                    int right = Math.Min((int)(area.X + area.Width), (int)(r.X + r.Width + expand));
+                    int bottom = Math.Min((int)(area.Y + area.Height), (int)(r.Y + r.Height + expand));
+                    _focusBackground.UpdatePosition(mw.Hwnd, x, y, right - x, bottom - y);
                     _focusBackground.SetVisible(mw.Hwnd, true);
                 }
             }

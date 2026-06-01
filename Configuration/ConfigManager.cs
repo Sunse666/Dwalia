@@ -51,7 +51,6 @@ public class ConfigManager
     {
         return new DwaliaConfig
         {
-            ModKey = "Alt+Ctrl",
             Theme = new ThemeConfig(),
             Layout = new LayoutConfig
             {

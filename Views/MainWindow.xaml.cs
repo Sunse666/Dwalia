@@ -36,7 +36,7 @@ public partial class MainWindow : Window
             fm.FocusChanged += UpdateTaskBar;
 
         if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
-            wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateStatus(); UpdateWorkspacePills(); };
+            wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateWorkspacePills(); };
 
         var wa = System.Windows.SystemParameters.WorkArea;
         Left = wa.Left;
@@ -81,19 +81,14 @@ public partial class MainWindow : Window
             handled = true;
             return (IntPtr)MA_NOACTIVATE;
         }
-        if (msg == WM_HOTKEY)
+        if (msg == WM_DWALIA_COMMAND)
         {
-            var hotkeyId = wParam.ToInt32();
-            Logger.Info($"WM_HOTKEY received: id={hotkeyId}");
             if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm))
             {
-                if (hkm.HandleHotKeyMessage(hotkeyId))
-                    handled = true;
+                hkm.DispatchCommand((DwaliaCommand)wParam.ToInt32());
+                handled = true;
             }
-            else
-            {
-                Logger.Warn("WM_HOTKEY: HotKeyManager not found in ServiceLocator");
-            }
+            return IntPtr.Zero;
         }
         return IntPtr.Zero;
     }
@@ -117,7 +112,6 @@ public partial class MainWindow : Window
 
         _windowEventHookManager.Start();
         _windowManager.Initialize();
-        UpdateStatus();
     }
 
     private string _layoutLabelText = "MasterStack";
@@ -127,18 +121,6 @@ public partial class MainWindow : Window
         Logger.Info("Shutting down — restoring all windows...");
         _windowEventHookManager.Stop();
         _windowManager.RestoreAllWindows();
-    }
-
-    private void UpdateStatus()
-    {
-        if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm) && hkm.FailedRegistrations.Count > 0)
-        {
-            StatusText.Text = $"WARNING: {hkm.FailedRegistrations.Count} hotkey(s) failed: {string.Join(", ", hkm.FailedRegistrations)}";
-        }
-        else
-        {
-            StatusText.Text = "";
-        }
     }
 
     private void UpdateTaskBar()
@@ -188,7 +170,6 @@ public partial class MainWindow : Window
 
             TaskBarItems.Items.Add(btn);
         }
-        UpdateStatus();
         UpdateWorkspacePills();
     }
 
@@ -289,50 +270,10 @@ public partial class MainWindow : Window
         }
     }
 
+
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (!ServiceLocator.TryResolve<HotKeyManager>(out var hkm)) return;
-
-        uint mod = 0;
-        var m = Keyboard.Modifiers;
-        if ((m & ModifierKeys.Alt) != 0) mod |= MOD_ALT;
-        if ((m & ModifierKeys.Control) != 0) mod |= MOD_CONTROL;
-        if ((m & ModifierKeys.Shift) != 0) mod |= MOD_SHIFT;
-        if ((m & ModifierKeys.Windows) != 0) mod |= MOD_WIN;
-
-        uint vk = KeyToVk(e.Key);
-        if (vk == 0) return;
-
-        if (hkm.TryMatchCommand(mod, vk, out var cmd))
-        {
-            e.Handled = true;
-            Execute(cmd);
-        }
+        e.Handled = false;
     }
 
-    private void Execute(DwaliaCommand cmd)
-    {
-        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var ws)) return;
-        if (!ServiceLocator.TryResolve<FocusMgr>(out var fm)) return;
-        if (!ServiceLocator.TryResolve<LayoutManager>(out var lm)) return;
-        var terminal = ServiceLocator.TryResolve<Dwalia.Configuration.DwaliaConfig>(out var c) ? c.LaunchTerminal : "wt.exe";
-
-        CommandDispatcher.Execute(cmd, ws, fm, lm, terminal,
-            openSettings: () => new SettingsWindow { Owner = this }.ShowDialog(),
-            quit: () => System.Windows.Application.Current.Shutdown());
-    }
-
-    private static uint KeyToVk(Key key) => key switch
-    {
-        Key.A => VK_A, Key.B => VK_B, Key.C => VK_C, Key.D => VK_D, Key.E => VK_E,
-        Key.F => VK_F, Key.G => VK_G, Key.H => VK_H, Key.I => VK_I, Key.J => VK_J,
-        Key.K => VK_K, Key.L => VK_L, Key.M => VK_M, Key.N => VK_N, Key.O => VK_O,
-        Key.P => VK_P, Key.Q => VK_Q, Key.R => VK_R, Key.S => VK_S, Key.T => VK_T,
-        Key.U => VK_U, Key.V => VK_V, Key.W => VK_W, Key.X => VK_X, Key.Y => VK_Y,
-        Key.Z => VK_Z,
-        Key.D0 => VK_0, Key.D1 => VK_1, Key.D2 => VK_2, Key.D3 => VK_3, Key.D4 => VK_4,
-        Key.D5 => VK_5, Key.D6 => VK_6, Key.D7 => VK_7, Key.D8 => VK_8, Key.D9 => VK_9,
-        Key.Enter => VK_RETURN, Key.Space => VK_SPACE,
-        _ => 0
-    };
 }

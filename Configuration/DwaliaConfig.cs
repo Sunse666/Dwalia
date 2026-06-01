@@ -2,7 +2,6 @@ namespace Dwalia.Configuration;
 
 public class DwaliaConfig
 {
-    public string ModKey { get; set; } = "Alt+Ctrl";
     public ThemeConfig Theme { get; set; } = new();
     public LayoutConfig Layout { get; set; } = new();
     public WorkspaceConfig Workspaces { get; set; } = new();

@@ -24,11 +24,6 @@ public partial class SettingsWindow : Window
 
     private void LoadValues()
     {
-        ModKeyCombo.SelectedIndex = _config.ModKey switch
-        {
-            "Win" => 1, "Alt+Win" => 2, "Ctrl+Win" => 3, _ => 0
-        };
-
         var bgHex = _config.Theme.Background ?? "#221a1b26";
         var bgAlpha = bgHex.Length >= 7
             ? int.Parse(bgHex[1..3], System.Globalization.NumberStyles.HexNumber)
@@ -64,11 +59,6 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            _config.ModKey = ModKeyCombo.SelectedIndex switch
-            {
-                1 => "Win", 2 => "Alt+Win", 3 => "Ctrl+Win", _ => "Alt+Ctrl"
-            };
-
             var bgAlpha = (byte)((int)BgOpacitySlider.Value * 255 / 100);
             var tbAlpha = (byte)((int)TbOpacitySlider.Value * 255 / 100);
             _config.Theme.Background = $"#{bgAlpha:x2}1a1b26";

@@ -18,15 +18,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Background="#221a1b26" IsHitTestVisible="False">
-            <TextBlock x:Name="StatusText"
-                       Text="Dwalia — Alt+Ctrl+1~9: focus | Alt+Ctrl+J/K: next/prev | Alt+Ctrl+Shift+1~5: workspace"
-                       Foreground="#c0caf5"
-                       FontSize="14"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       IsHitTestVisible="False"/>
-        </Grid>
+        <Grid Grid.Row="0" Background="#221a1b26" IsHitTestVisible="False"/>
 
         <Border x:Name="TaskBar"
                 Grid.Row="1"

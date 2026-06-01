@@ -5,6 +5,7 @@ namespace Dwalia.Win32;
 
 public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 public delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
+public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
 public static partial class NativeMethods
 {
@@ -115,6 +116,35 @@ public static partial class NativeMethods
 
     [DllImport(User32, SetLastError = true)]
     public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    #endregion
+
+    #region Keyboard Hook
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern bool UnhookWindowsHookEx(IntPtr hHook);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr CallNextHookEx(IntPtr hHook, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport(User32)]
+    public static extern short GetAsyncKeyState(int vKey);
+
+    [DllImport(User32)]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KBDLLHOOKSTRUCT
+    {
+        public uint vkCode;
+        public uint scanCode;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
 
     #endregion
 

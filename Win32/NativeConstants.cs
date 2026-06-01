@@ -72,4 +72,26 @@ internal static class NativeConstants
     public const uint VK_X = 0x58;
     public const uint VK_Y = 0x59;
     public const uint VK_Z = 0x5A;
+
+    public const uint VK_LWIN = 0x5B;
+    public const uint VK_RWIN = 0x5C;
+    public const uint VK_LCONTROL = 0xA2;
+    public const uint VK_RCONTROL = 0xA3;
+    public const uint VK_LMENU = 0xA4;
+    public const uint VK_RMENU = 0xA5;
+    public const uint VK_LSHIFT = 0xA0;
+    public const uint VK_RSHIFT = 0xA1;
+
+    public const int WH_KEYBOARD_LL = 13;
+
+    public const uint WM_KEYDOWN = 0x0100;
+    public const uint WM_KEYUP = 0x0101;
+    public const uint WM_SYSKEYDOWN = 0x0104;
+    public const uint WM_SYSKEYUP = 0x0105;
+
+    public const uint LLKHF_ALTDOWN = 0x20;
+
+    public const int WM_DWALIA_COMMAND = 0x8001;
+
+    public const uint KEYEVENTF_KEYUP = 0x0002;
 }

@@ -76,17 +76,13 @@
                             <TextBlock Text="General" FontSize="18" FontWeight="SemiBold"
                                        Foreground="#ffffff" Margin="0,0,0,20"/>
 
-                            <TextBlock Text="Modifier key" Foreground="#999999"
+                            <TextBlock Text="Shortcuts — Win+Space, then:" Foreground="#999999"
                                        Margin="0,0,0,4"/>
-                            <ComboBox x:Name="ModKeyCombo" Height="32"
-                                      Background="#2d2d2d" Foreground="#cccccc"
-                                      BorderBrush="#444444" Margin="0,0,0,16"
-                                      SelectedIndex="0">
-                                <ComboBoxItem Content="Alt + Ctrl"/>
-                                <ComboBoxItem Content="Win"/>
-                                <ComboBoxItem Content="Alt + Win"/>
-                                <ComboBoxItem Content="Ctrl + Win"/>
-                            </ComboBox>
+                            <TextBlock Foreground="#777777" FontSize="11" Margin="0,0,0,16">J/K · focus prev/next    Shift+J/K · swap<LineBreak/>
+Q · close    Shift+Q · quit    F · fullscreen<LineBreak/>
+Space · float    Enter · terminal    S · settings<LineBreak/>
+T · cycle layout    ←↑↓→ · workspace/master/gap<LineBreak/>
+1–9 · focus window    Shift+1–5 · switch workspace</TextBlock>
 
                             <TextBlock Text="Terminal" Foreground="#999999"
                                        Margin="0,0,0,4"/>
@@ -154,7 +150,7 @@
                             <StackPanel>
                                 <TextBlock Text="Tiling Layouts" FontSize="18" FontWeight="SemiBold"
                                            Foreground="#ffffff" Margin="0,0,0,12"/>
-                                <TextBlock Text="Choose which layouts to cycle through with mod+T"
+                                <TextBlock Text="Choose which layouts to cycle through with T (in command mode)"
                                            Foreground="#999999" Margin="0,0,0,16"/>
 
                                 <CheckBox x:Name="ChkMasterStack" Content="MasterStack — Master left, stack right"

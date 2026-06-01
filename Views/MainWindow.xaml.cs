@@ -359,11 +359,25 @@ public partial class MainWindow : Window
     private void OnWindowManaged(Dwalia.Models.ManagedWindow mw)
     {
         if (_focusBackground == null) return;
+        Dispatcher.BeginInvoke(() => AddBackgroundForWindow(mw));
+    }
+
+    private void AddBackgroundForWindow(Dwalia.Models.ManagedWindow mw)
+    {
+        if (_focusBackground == null) return;
         try
         {
-            var r = Dwalia.Win32.WindowHelper.GetWindowRectSafe(mw.Hwnd);
-            if (r.Width > 0 && r.Height > 0)
-                _focusBackground.Add(mw.Hwnd, r.Left, r.Top, r.Width, r.Height);
+            var r = mw.LayoutBounds;
+            if (r.Width > 0)
+            {
+                _focusBackground.Add(mw.Hwnd, (int)r.X, (int)r.Y, (int)r.Width, (int)r.Height);
+            }
+            else
+            {
+                var wr = Dwalia.Win32.WindowHelper.GetWindowRectSafe(mw.Hwnd);
+                if (wr.Width > 0 && wr.Height > 0)
+                    _focusBackground.Add(mw.Hwnd, wr.Left, wr.Top, wr.Width, wr.Height);
+            }
         }
         catch { }
     }

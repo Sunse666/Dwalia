@@ -104,6 +104,8 @@ public partial class MainWindow : Window
         _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _statusTimer.Tick += (_, _) => { _statusTimer.Stop(); LayoutLabel.Text = _layoutLabelText; };
 
+        ApplyThemeFromConfig();
+
         if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
         {
             lm.SetArea(_hwnd, TaskBar.Height);
@@ -249,6 +251,40 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             Logger.Warn($"ApplyAcrylic failed: {ex.Message}");
+        }
+    }
+
+    public void ApplyThemeFromConfig()
+    {
+        if (!ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var c))
+            return;
+
+        var bgHex = c.Theme.Background ?? "#221a1b26";
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(bgHex);
+            OverlayGrid.Background = new SolidColorBrush(color);
+        }
+        catch { }
+
+        if (c.Theme.Accent is { Length: > 0 } accent)
+        {
+            try
+            {
+                var accentColor = (Color)ColorConverter.ConvertFromString(accent);
+                Application.Current.Resources["AccentBrush"] = new SolidColorBrush(accentColor);
+            }
+            catch { }
+        }
+
+        if (c.Theme.TaskbarBackground is { Length: > 0 } tbHex)
+        {
+            try
+            {
+                var tbColor = (Color)ColorConverter.ConvertFromString(tbHex);
+                TaskBar.Background = new SolidColorBrush(tbColor);
+            }
+            catch { }
         }
     }
 

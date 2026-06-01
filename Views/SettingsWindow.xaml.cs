@@ -141,6 +141,7 @@ public partial class SettingsWindow : Window
             var bgAlpha = (byte)((int)BgOpacitySlider.Value * 255 / 100);
             var tbAlpha = (byte)((int)TbOpacitySlider.Value * 255 / 100);
             _config.Theme.Background = $"#{bgAlpha:x2}1a1b26";
+            _config.Theme.TaskbarBackground = $"#{tbAlpha:x2}16161e";
             _config.Theme.Accent = AccentColorBox.Text;
             _config.LaunchTerminal = TerminalBox.Text;
             _config.Layout.InnerGap = (int)InnerGapSlider.Value;
@@ -234,17 +235,7 @@ public partial class SettingsWindow : Window
         Application.Current.Resources["AccentBrush"] = new SolidColorBrush(accent);
 
         if (Owner is not MainWindow mw) return;
-
-        var bgGrid = mw.FindName("StatusText") as FrameworkElement;
-        if (bgGrid != null)
-        {
-            var parent = VisualTreeHelper.GetParent(bgGrid) as Panel;
-            if (parent != null)
-                parent.Background = new SolidColorBrush(Color.FromArgb(bgAlpha, 0x1a, 0x1b, 0x26));
-        }
-
-        if (mw.FindName("TaskBar") is Border taskbar)
-            taskbar.Background = new SolidColorBrush(Color.FromArgb(tbAlpha, 0x16, 0x16, 0x1e));
+        mw.ApplyThemeFromConfig();
     }
 
     private static Color TryParseColor(string hex)

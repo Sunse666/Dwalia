@@ -21,6 +21,7 @@ public class ThemeConfig
     public string Background { get; set; } = "#1a1b26";
     public string Foreground { get; set; } = "#c0caf5";
     public string Accent { get; set; } = "#7aa2f7";
+    public string TaskbarBackground { get; set; } = "#5516161e";
     public string InactiveBorder { get; set; } = "#3b4261";
     public string ActiveBorder { get; set; } = "#7aa2f7";
     public int BorderWidth { get; set; } = 2;

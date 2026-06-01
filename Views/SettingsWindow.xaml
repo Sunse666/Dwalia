@@ -252,7 +252,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <Slider x:Name="BgOpacitySlider" Minimum="5" Maximum="60"
+                                <Slider x:Name="BgOpacitySlider" Minimum="0" Maximum="100"
                                         Value="13" TickFrequency="5" IsSnapToTickEnabled="True"/>
                                 <TextBlock Grid.Column="1" Width="40" TextAlignment="Right"
                                            Foreground="#7aa2f7" VerticalAlignment="Center">
@@ -267,7 +267,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <Slider x:Name="TbOpacitySlider" Minimum="15" Maximum="80"
+                                <Slider x:Name="TbOpacitySlider" Minimum="0" Maximum="100"
                                         Value="33" TickFrequency="5" IsSnapToTickEnabled="True"/>
                                 <TextBlock Grid.Column="1" Width="40" TextAlignment="Right"
                                            Foreground="#7aa2f7" VerticalAlignment="Center">

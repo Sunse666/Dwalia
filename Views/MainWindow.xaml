@@ -57,6 +57,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Background="#221a1b26" IsHitTestVisible="False"/>
+        <Grid x:Name="OverlayGrid" Grid.Row="1"
+              Background="#221a1b26" IsHitTestVisible="False"/>
     </Grid>
 </Window>

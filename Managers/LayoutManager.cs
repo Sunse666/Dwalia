@@ -91,6 +91,14 @@ public class LayoutManager
 
     private void ArrangeTiled(List<ManagedWindow> windows)
     {
+        // Put active window first so all layouts treat it as the master
+        var active = _focusManager.ActiveWindow;
+        if (active != null && windows.Count > 1 && windows.Contains(active))
+        {
+            windows.Remove(active);
+            windows.Insert(0, active);
+        }
+
         var area = new System.Windows.Rect(
             _area.X + _outer, _area.Y + _outer,
             Math.Max(MinWindowWidth, _area.Width - _outer * 2),
@@ -376,15 +384,25 @@ public class LayoutManager
         var ws = _workspaceManager.GetActiveWorkspace();
         if (ws == null || _focusManager.ActiveWindow == null) return;
         var list = ws.Windows;
+        var active = _focusManager.ActiveWindow;
+
         var tiled = list.Where(w => w.State == WindowLayoutState.Tiled).ToList();
         if (tiled.Count < 2) return;
-        int tiledIdx = tiled.IndexOf(_focusManager.ActiveWindow);
-        if (tiledIdx < 0) return;
-        int nextTiled = (tiledIdx + direction + tiled.Count) % tiled.Count;
-        int realIdx = list.IndexOf(tiled[tiledIdx]);
-        int realNext = list.IndexOf(tiled[nextTiled]);
-        (list[realIdx], list[realNext]) = (list[realNext], list[realIdx]);
-        _focusManager.SetActiveWindow(list[realNext]);
+
+        int activeTiledIdx = tiled.IndexOf(active);
+        if (activeTiledIdx < 0) return;
+
+        int promoteTiledIdx = (activeTiledIdx + direction + tiled.Count) % tiled.Count;
+        var promote = tiled[promoteTiledIdx];
+
+        list.Remove(active);
+        if (promote != active)
+            list.Remove(promote);
+
+        list.Insert(0, promote);
+        list.Add(active);
+
+        _focusManager.SetActiveWindow(promote);
         Relayout();
     }
 

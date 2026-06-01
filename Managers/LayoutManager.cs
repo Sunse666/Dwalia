@@ -40,7 +40,6 @@ public class LayoutManager
         _windowManager.WindowManaged += (_, _) => Relayout();
         _windowManager.WindowUnmanaged += (_, _) => Relayout();
         _workspaceManager.WorkspaceChanged += (_, _) => Relayout();
-        _focusManager.FocusChanged += Relayout;
     }
 
     public void SetArea(IntPtr mainHwnd, double taskbarHeight)
@@ -56,7 +55,7 @@ public class LayoutManager
 
         _area = new System.Windows.Rect(
             mi.rcWork.Left,
-            mi.rcWork.Top,
+            mi.rcWork.Top + taskbarHeight,
             mi.rcWork.Width,
             Math.Max(200, mi.rcWork.Height - taskbarHeight));
 
@@ -92,7 +91,6 @@ public class LayoutManager
 
     private void ArrangeTiled(List<ManagedWindow> windows)
     {
-        // Put active window first so all layouts treat it as the master
         var active = _focusManager.ActiveWindow;
         if (active != null && windows.Count > 1 && windows.Contains(active))
         {

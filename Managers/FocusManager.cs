@@ -1,6 +1,8 @@
 using Dwalia.Infrastructure;
 using Dwalia.Models;
 using static Dwalia.Win32.NativeMethods;
+using static Dwalia.Win32.NativeConstants;
+using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Managers;
 
@@ -29,11 +31,25 @@ public class FocusManager
         Logger.Info($"Focus -> {window?.Title ?? "none"}");
 
         if (_activeWindow != null)
+        {
             _activeWindow.IsActive = false;
+            ApplyBorderColor(_activeWindow.Hwnd, DWM_INACTIVE_BORDER);
+        }
         _activeWindow = window;
         if (_activeWindow != null)
+        {
             _activeWindow.IsActive = true;
+            ApplyBorderColor(_activeWindow.Hwnd, DWM_ACTIVE_BORDER);
+            SetWindowPos(_activeWindow.Hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+        }
         FocusChanged?.Invoke();
+    }
+
+    private static void ApplyBorderColor(IntPtr hwnd, int color)
+    {
+        var c = color;
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref c, sizeof(int));
     }
 
     public void FocusWindow(IntPtr hwnd)

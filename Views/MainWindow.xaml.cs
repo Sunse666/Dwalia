@@ -66,6 +66,12 @@ public partial class MainWindow : Window
         if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm))
         {
             hkm.Initialize(_hwnd);
+            hkm.ModeChanged += (_, mode) =>
+            {
+                ModeIndicator.Visibility = mode == HotKeyMode.Dwalia
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            };
             Logger.Info($"HotKeyManager initialized: {hkm.RegisteredCount} registered, {hkm.FailedRegistrations.Count} failed");
         }
         else

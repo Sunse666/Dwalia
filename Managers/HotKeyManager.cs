@@ -10,7 +10,7 @@ namespace Dwalia.Managers;
 public enum HotKeyMode
 {
     Normal,
-    CommandMode
+    Dwalia
 }
 
 public class HotKeyManager : IDisposable
@@ -24,14 +24,12 @@ public class HotKeyManager : IDisposable
     private bool _disposed;
 
     private HotKeyMode _mode = HotKeyMode.Normal;
-    private DateTime _leaderTimestamp;
     private bool _shiftHeld;
-    private bool _winHeld;
-    private bool _winConsumed;
-
-    private const int CommandModeTimeoutMs = 2000;
+    private bool _ctrlHeld;
+    private bool _ctrlConsumed;
 
     public event EventHandler<DwaliaCommand>? CommandTriggered;
+    public event EventHandler<HotKeyMode>? ModeChanged;
     public IReadOnlyList<string> FailedRegistrations => _failedRegistrations;
     public int RegisteredCount => _keyMap.Count;
     public HotKeyMode CurrentMode => _mode;
@@ -42,27 +40,31 @@ public class HotKeyManager : IDisposable
 
         Register(false, VK_J, DwaliaCommand.FocusNext);
         Register(false, VK_K, DwaliaCommand.FocusPrevious);
-        Register(false, VK_SPACE, DwaliaCommand.ToggleFloat);
+        Register(true, VK_J, DwaliaCommand.SwapNext);
+        Register(true, VK_K, DwaliaCommand.SwapPrevious);
         Register(false, VK_F, DwaliaCommand.ToggleFullscreen);
-        Register(false, VK_Q, DwaliaCommand.CloseWindow);
-        Register(false, VK_RETURN, DwaliaCommand.LaunchTerminal);
-        Register(false, VK_S, DwaliaCommand.OpenSettings);
         Register(false, VK_T, DwaliaCommand.CycleLayout);
-        Register(false, VK_LEFT, DwaliaCommand.WorkspacePrevious);
-        Register(false, VK_RIGHT, DwaliaCommand.WorkspaceNext);
-        Register(false, VK_UP, DwaliaCommand.IncMaster);
-        Register(false, VK_DOWN, DwaliaCommand.DecMaster);
+        Register(false, VK_S, DwaliaCommand.OpenSettings);
+        Register(false, VK_LEFT, DwaliaCommand.FocusPrevious);
+        Register(false, VK_RIGHT, DwaliaCommand.FocusNext);
+        Register(false, VK_UP, DwaliaCommand.FocusPrevious);
+        Register(false, VK_DOWN, DwaliaCommand.FocusNext);
+        Register(false, VK_H, DwaliaCommand.DecMaster);
+        Register(false, VK_L, DwaliaCommand.IncMaster);
 
         for (int i = 0; i < 9; i++)
             Register(false, VK_1 + (uint)i, DwaliaCommand.FocusWindow1 + i);
 
-        Register(true, VK_J, DwaliaCommand.SwapNext);
-        Register(true, VK_K, DwaliaCommand.SwapPrevious);
+        Register(true, VK_SPACE, DwaliaCommand.ToggleFloat);
+        Register(true, VK_RETURN, DwaliaCommand.LaunchTerminal);
+        Register(true, VK_C, DwaliaCommand.CloseWindow);
         Register(true, VK_Q, DwaliaCommand.QuitDwalia);
-        Register(true, VK_LEFT, DwaliaCommand.MoveToWorkspacePrevious);
-        Register(true, VK_RIGHT, DwaliaCommand.MoveToWorkspaceNext);
-        Register(true, VK_UP, DwaliaCommand.IncGap);
-        Register(true, VK_DOWN, DwaliaCommand.DecGap);
+        Register(true, VK_LEFT, DwaliaCommand.WorkspacePrevious);
+        Register(true, VK_RIGHT, DwaliaCommand.WorkspaceNext);
+        Register(true, VK_N, DwaliaCommand.MoveToWorkspaceNext);
+        Register(true, VK_M, DwaliaCommand.MoveToWorkspacePrevious);
+        Register(true, VK_OEM_COMMA, DwaliaCommand.DecGap);
+        Register(true, VK_OEM_PERIOD, DwaliaCommand.IncGap);
 
         for (int i = 0; i < 5; i++)
             Register(true, VK_1 + (uint)i, DwaliaCommand.Workspace1 + i);
@@ -79,7 +81,9 @@ public class HotKeyManager : IDisposable
         }
         else
         {
-            Logger.Info($"HotKeyManager: keyboard hook installed (Win+Space), bindings={_keyMap.Count}");
+            Logger.Info($"HotKeyManager: keyboard hook installed (Ctrl+`), bindings={_keyMap.Count}");
+            foreach (var kv in _keyMap)
+                Logger.Info($"  KeyMap: vk=0x{kv.Key.vkCode:X2} shift={kv.Key.shift} → {kv.Value}");
         }
     }
 
@@ -125,35 +129,37 @@ public class HotKeyManager : IDisposable
             _shiftHeld = true;
             return IntPtr.Zero;
         }
-        if (kb.vkCode is VK_LWIN or VK_RWIN)
+        if (kb.vkCode is VK_LCONTROL or VK_RCONTROL)
         {
-            _winHeld = true;
-            return (IntPtr)1;
+            _ctrlHeld = true;
+            return IntPtr.Zero;
         }
 
-        CheckTimeout();
+        if (_ctrlHeld && kb.vkCode == VK_OEM_3)
+        {
+            _ctrlConsumed = true;
+            _mode = _mode == HotKeyMode.Normal ? HotKeyMode.Dwalia : HotKeyMode.Normal;
+            ModeChanged?.Invoke(this, _mode);
+            return (IntPtr)1;
+        }
 
         switch (_mode)
         {
             case HotKeyMode.Normal:
-                if (_winHeld && kb.vkCode == VK_SPACE)
-                {
-                    _winConsumed = true;
-                    _leaderTimestamp = DateTime.UtcNow;
-                    _mode = HotKeyMode.CommandMode;
-                    return (IntPtr)1;
-                }
                 return IntPtr.Zero;
 
-            case HotKeyMode.CommandMode:
+            case HotKeyMode.Dwalia:
+                if (kb.vkCode is VK_LWIN or VK_RWIN or VK_LMENU or VK_RMENU)
+                    return IntPtr.Zero;
                 if (kb.vkCode == VK_ESCAPE)
                 {
                     _mode = HotKeyMode.Normal;
+                    ModeChanged?.Invoke(this, _mode);
                     return (IntPtr)1;
                 }
                 if (_keyMap.TryGetValue((kb.vkCode, _shiftHeld), out var cmd))
                 {
-                    _mode = HotKeyMode.Normal;
+                    Logger.Info($"Dwalia: {(char)kb.vkCode} shift={_shiftHeld} → {cmd}");
                     PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)cmd, IntPtr.Zero);
                 }
                 return (IntPtr)1;
@@ -170,37 +176,22 @@ public class HotKeyManager : IDisposable
             return IntPtr.Zero;
         }
 
-        if (kb.vkCode is VK_LWIN or VK_RWIN)
+        if (kb.vkCode is VK_LCONTROL or VK_RCONTROL)
         {
-            _winHeld = false;
-            if (_winConsumed)
+            _ctrlHeld = false;
+            if (_ctrlConsumed)
             {
-                _winConsumed = false;
+                _ctrlConsumed = false;
+                keybd_event((byte)kb.vkCode, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
                 return (IntPtr)1;
             }
-            ReplayKey((byte)kb.vkCode);
-            return (IntPtr)1;
+            return IntPtr.Zero;
         }
 
-        if (_mode == HotKeyMode.CommandMode)
+        if (_mode == HotKeyMode.Dwalia && kb.vkCode is not VK_LWIN and not VK_RWIN and not VK_LMENU and not VK_RMENU)
             return (IntPtr)1;
 
         return IntPtr.Zero;
-    }
-
-    private void CheckTimeout()
-    {
-        if (_mode == HotKeyMode.CommandMode &&
-            (DateTime.UtcNow - _leaderTimestamp).TotalMilliseconds > CommandModeTimeoutMs)
-        {
-            _mode = HotKeyMode.Normal;
-        }
-    }
-
-    private static void ReplayKey(byte vkCode)
-    {
-        keybd_event(vkCode, 0, 0, UIntPtr.Zero);
-        keybd_event(vkCode, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
     }
 
     public void DispatchCommand(DwaliaCommand cmd)
@@ -213,12 +204,25 @@ public class HotKeyManager : IDisposable
         if (_disposed) return;
         _disposed = true;
 
+        ReleaseStuckModifiers();
+
         if (_hookHandle != IntPtr.Zero)
         {
             UnhookWindowsHookEx(_hookHandle);
             _hookHandle = IntPtr.Zero;
         }
         _keyMap.Clear();
+    }
+
+    private void ReleaseStuckModifiers()
+    {
+        if (_ctrlConsumed)
+        {
+            keybd_event((byte)VK_LCONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event((byte)VK_RCONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            _ctrlConsumed = false;
+            _ctrlHeld = false;
+        }
     }
 
     private static string VkToString(uint vk)

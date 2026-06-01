@@ -76,7 +76,7 @@
                             <TextBlock Text="General" FontSize="18" FontWeight="SemiBold"
                                        Foreground="#ffffff" Margin="0,0,0,20"/>
 
-                            <TextBlock Text="Shortcuts — Win+Space, then:" Foreground="#999999"
+                            <TextBlock Text="Shortcuts — Ctrl+`, then:" Foreground="#999999"
                                        Margin="0,0,0,4"/>
                             <TextBlock Foreground="#777777" FontSize="11" Margin="0,0,0,16">J/K · focus prev/next    Shift+J/K · swap<LineBreak/>
 Q · close    Shift+Q · quit    F · fullscreen<LineBreak/>

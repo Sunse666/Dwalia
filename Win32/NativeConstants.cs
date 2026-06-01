@@ -75,6 +75,9 @@ internal static class NativeConstants
 
     public const uint VK_LWIN = 0x5B;
     public const uint VK_RWIN = 0x5C;
+    public const uint VK_OEM_3 = 0xC0;
+    public const uint VK_OEM_COMMA = 0xBC;
+    public const uint VK_OEM_PERIOD = 0xBE;
     public const uint VK_LCONTROL = 0xA2;
     public const uint VK_RCONTROL = 0xA3;
     public const uint VK_LMENU = 0xA4;
@@ -94,4 +97,8 @@ internal static class NativeConstants
     public const int WM_DWALIA_COMMAND = 0x8001;
 
     public const uint KEYEVENTF_KEYUP = 0x0002;
+
+    public const uint DWMWA_BORDER_COLOR = 34;
+    public const int DWM_ACTIVE_BORDER = unchecked((int)0xFF7AA2F7);
+    public const int DWM_INACTIVE_BORDER = unchecked((int)0xFF1A1B26);
 }

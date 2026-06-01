@@ -124,20 +124,44 @@ public class LayoutManager
     {
         int n = windows.Count;
         if (n == 0) return;
+        if (n == 1) { Position(windows[0], area); return; }
+
         int cols = (int)Math.Ceiling(Math.Sqrt(n));
         int rows = (int)Math.Ceiling((double)n / cols);
-        double cw = (area.Width - (cols - 1) * _gap) / cols;
-        double ch = (area.Height - (rows - 1) * _gap) / rows;
+
+        double firstColW, otherColW, firstRowH, otherRowH;
+
+        if (cols > 1)
+        {
+            firstColW = (area.Width - (cols - 1) * _gap) * _masterFactor;
+            otherColW = Math.Max(MinWindowWidth, (area.Width - firstColW - (cols - 1) * _gap) / (cols - 1));
+        }
+        else
+        {
+            firstColW = area.Width;
+            otherColW = 0;
+        }
+
+        if (rows > 1)
+        {
+            firstRowH = (area.Height - (rows - 1) * _gap) * _masterFactor;
+            otherRowH = Math.Max(MinWindowHeight, (area.Height - firstRowH - (rows - 1) * _gap) / (rows - 1));
+        }
+        else
+        {
+            firstRowH = area.Height;
+            otherRowH = 0;
+        }
 
         for (int i = 0; i < n; i++)
         {
             int col = i % cols;
             int row = i / cols;
-            var r = new System.Windows.Rect(
-                area.X + col * (cw + _gap),
-                area.Y + row * (ch + _gap),
-                cw, ch);
-            Position(windows[i], r);
+            double x = col == 0 ? area.X : area.X + firstColW + _gap + (col - 1) * (otherColW + _gap);
+            double y = row == 0 ? area.Y : area.Y + firstRowH + _gap + (row - 1) * (otherRowH + _gap);
+            double w = col == 0 ? firstColW : otherColW;
+            double h = row == 0 ? firstRowH : otherRowH;
+            Position(windows[i], new System.Windows.Rect(x, y, w, h));
         }
     }
 
@@ -157,10 +181,17 @@ public class LayoutManager
     {
         int n = windows.Count;
         if (n == 0) return;
-        double cw = (area.Width - (n - 1) * _gap) / n;
-        for (int i = 0; i < n; i++)
+        if (n == 1) { Position(windows[0], area); return; }
+
+        double firstW = (area.Width - (n - 1) * _gap) * _masterFactor;
+        double otherW = Math.Max(MinWindowWidth, (area.Width - firstW - (n - 1) * _gap) / (n - 1));
+
+        Position(windows[0], new System.Windows.Rect(area.X, area.Y, firstW, area.Height));
+        for (int i = 1; i < n; i++)
         {
-            var r = new System.Windows.Rect(area.X + i * (cw + _gap), area.Y, cw, area.Height);
+            var r = new System.Windows.Rect(
+                area.X + firstW + _gap + (i - 1) * (otherW + _gap),
+                area.Y, otherW, area.Height);
             Position(windows[i], r);
         }
     }
@@ -192,7 +223,19 @@ public class LayoutManager
 
     private void ArrangeBSP(List<ManagedWindow> windows, System.Windows.Rect area)
     {
-        ArrangeBSPRecursive(windows, 0, windows.Count, area, true);
+        int n = windows.Count;
+        if (n == 0) return;
+        if (n == 1) { Position(windows[0], area); return; }
+
+        int leftCount = n / 2;
+        int rightCount = n - leftCount;
+
+        double leftW = (area.Width - _gap) * _masterFactor;
+        var left = new System.Windows.Rect(area.X, area.Y, leftW, area.Height);
+        var right = new System.Windows.Rect(area.X + leftW + _gap, area.Y, area.Width - leftW - _gap, area.Height);
+
+        ArrangeBSPRecursive(windows, 0, leftCount, left, false);
+        ArrangeBSPRecursive(windows, leftCount, rightCount, right, false);
     }
 
     private void ArrangeBSPRecursive(List<ManagedWindow> windows, int start, int count, System.Windows.Rect area, bool splitVertical)

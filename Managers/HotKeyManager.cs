@@ -7,12 +7,6 @@ using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Managers;
 
-public enum HotKeyMode
-{
-    Normal,
-    Dwalia
-}
-
 public class HotKeyManager : IDisposable
 {
     private readonly Dictionary<(uint vkCode, bool shift), DwaliaCommand> _keyMap = new();
@@ -23,10 +17,10 @@ public class HotKeyManager : IDisposable
     private LowLevelKeyboardProc _hookProcDelegate = null!;
     private bool _disposed;
 
-    private HotKeyMode _mode = HotKeyMode.Normal;
+    private bool _altHeld;
+    private bool _altConsumed;
+    private uint _altVkCode;
     private bool _shiftHeld;
-    private bool _ctrlHeld;
-    private bool _ctrlConsumed;
 
     private readonly Dictionary<DwaliaCommand, string> _commandDisplayMap = new();
 
@@ -40,10 +34,8 @@ public class HotKeyManager : IDisposable
         };
 
     public event EventHandler<DwaliaCommand>? CommandTriggered;
-    public event EventHandler<HotKeyMode>? ModeChanged;
     public IReadOnlyList<string> FailedRegistrations => _failedRegistrations;
     public int RegisteredCount => _keyMap.Count;
-    public HotKeyMode CurrentMode => _mode;
     public IReadOnlyDictionary<DwaliaCommand, string> CommandBindings => _commandDisplayMap;
 
     public static Dictionary<string, string> GetDefaultBindings()
@@ -56,19 +48,19 @@ public class HotKeyManager : IDisposable
             [nameof(DwaliaCommand.SwapPrevious)] = "Shift+K",
             [nameof(DwaliaCommand.ToggleFullscreen)] = "F",
             [nameof(DwaliaCommand.CycleLayout)] = "T",
-            [nameof(DwaliaCommand.OpenSettings)] = "S",
+            [nameof(DwaliaCommand.ToggleFloat)] = "Shift+Space",
+            [nameof(DwaliaCommand.CloseWindow)] = "Q",
+            [nameof(DwaliaCommand.QuitDwalia)] = "Shift+Q",
             [nameof(DwaliaCommand.DecMaster)] = "H",
             [nameof(DwaliaCommand.IncMaster)] = "L",
-            [nameof(DwaliaCommand.ToggleFloat)] = "Shift+Space",
-            [nameof(DwaliaCommand.LaunchTerminal)] = "Shift+Enter",
-            [nameof(DwaliaCommand.CloseWindow)] = "Shift+C",
-            [nameof(DwaliaCommand.QuitDwalia)] = "Shift+Q",
-            [nameof(DwaliaCommand.WorkspacePrevious)] = "Shift+Left",
-            [nameof(DwaliaCommand.WorkspaceNext)] = "Shift+Right",
-            [nameof(DwaliaCommand.MoveToWorkspaceNext)] = "Shift+N",
-            [nameof(DwaliaCommand.MoveToWorkspacePrevious)] = "Shift+M",
-            [nameof(DwaliaCommand.DecGap)] = "Shift+OemComma",
-            [nameof(DwaliaCommand.IncGap)] = "Shift+OemPeriod",
+            [nameof(DwaliaCommand.DecGap)] = "OemComma",
+            [nameof(DwaliaCommand.IncGap)] = "OemPeriod",
+            [nameof(DwaliaCommand.WorkspacePrevious)] = "Left",
+            [nameof(DwaliaCommand.WorkspaceNext)] = "Right",
+            [nameof(DwaliaCommand.MoveToWorkspacePrevious)] = "Shift+Left",
+            [nameof(DwaliaCommand.MoveToWorkspaceNext)] = "Shift+Right",
+            [nameof(DwaliaCommand.LaunchTerminal)] = "Enter",
+            [nameof(DwaliaCommand.OpenSettings)] = "Shift+S",
             [nameof(DwaliaCommand.FocusWindow1)] = "1",
             [nameof(DwaliaCommand.FocusWindow2)] = "2",
             [nameof(DwaliaCommand.FocusWindow3)] = "3",
@@ -161,8 +153,6 @@ public class HotKeyManager : IDisposable
             }
         }
 
-        TryRegisterAlias(false, VK_LEFT, DwaliaCommand.FocusPrevious);
-        TryRegisterAlias(false, VK_RIGHT, DwaliaCommand.FocusNext);
         TryRegisterAlias(false, VK_UP, DwaliaCommand.FocusPrevious);
         TryRegisterAlias(false, VK_DOWN, DwaliaCommand.FocusNext);
 
@@ -185,7 +175,7 @@ public class HotKeyManager : IDisposable
         }
         else
         {
-            Logger.Info($"HotKeyManager: keyboard hook installed (Ctrl+`), bindings={_keyMap.Count}");
+            Logger.Info($"HotKeyManager: keyboard hook installed (Alt+key), bindings={_keyMap.Count}");
             foreach (var kv in _keyMap)
                 Logger.Info($"  KeyMap: vk=0x{kv.Key.vkCode:X2} shift={kv.Key.shift} → {kv.Value}");
         }
@@ -239,40 +229,22 @@ public class HotKeyManager : IDisposable
             _shiftHeld = true;
             return IntPtr.Zero;
         }
-        if (kb.vkCode is VK_LCONTROL or VK_RCONTROL)
+
+        if (kb.vkCode is VK_LMENU or VK_RMENU)
         {
-            _ctrlHeld = true;
+            _altHeld = true;
+            _altVkCode = kb.vkCode;
+            _altConsumed = false;
             return IntPtr.Zero;
         }
 
-        if (_ctrlHeld && kb.vkCode == VK_OEM_3)
+        if (_altHeld && _keyMap.TryGetValue((kb.vkCode, _shiftHeld), out var cmd))
         {
-            _ctrlConsumed = true;
-            _mode = _mode == HotKeyMode.Normal ? HotKeyMode.Dwalia : HotKeyMode.Normal;
-            ModeChanged?.Invoke(this, _mode);
+            _altConsumed = true;
+            keybd_event((byte)_altVkCode, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            Logger.Info($"Dwalia: Alt+{(char)kb.vkCode} shift={_shiftHeld} → {cmd}");
+            PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)cmd, IntPtr.Zero);
             return (IntPtr)1;
-        }
-
-        switch (_mode)
-        {
-            case HotKeyMode.Normal:
-                return IntPtr.Zero;
-
-            case HotKeyMode.Dwalia:
-                if (kb.vkCode is VK_LWIN or VK_RWIN or VK_LMENU or VK_RMENU)
-                    return IntPtr.Zero;
-                if (kb.vkCode == VK_ESCAPE)
-                {
-                    _mode = HotKeyMode.Normal;
-                    ModeChanged?.Invoke(this, _mode);
-                    return (IntPtr)1;
-                }
-                if (_keyMap.TryGetValue((kb.vkCode, _shiftHeld), out var cmd))
-                {
-                    Logger.Info($"Dwalia: {(char)kb.vkCode} shift={_shiftHeld} → {cmd}");
-                    PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)cmd, IntPtr.Zero);
-                }
-                return (IntPtr)1;
         }
 
         return IntPtr.Zero;
@@ -286,20 +258,16 @@ public class HotKeyManager : IDisposable
             return IntPtr.Zero;
         }
 
-        if (kb.vkCode is VK_LCONTROL or VK_RCONTROL)
+        if (kb.vkCode is VK_LMENU or VK_RMENU)
         {
-            _ctrlHeld = false;
-            if (_ctrlConsumed)
+            if (_altConsumed)
             {
-                _ctrlConsumed = false;
-                keybd_event((byte)kb.vkCode, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                _altConsumed = false;
                 return (IntPtr)1;
             }
+            _altHeld = false;
             return IntPtr.Zero;
         }
-
-        if (_mode == HotKeyMode.Dwalia && kb.vkCode is not VK_LWIN and not VK_RWIN and not VK_LMENU and not VK_RMENU)
-            return (IntPtr)1;
 
         return IntPtr.Zero;
     }
@@ -326,12 +294,12 @@ public class HotKeyManager : IDisposable
 
     private void ReleaseStuckModifiers()
     {
-        if (_ctrlConsumed)
+        if (_altConsumed)
         {
-            keybd_event((byte)VK_LCONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-            keybd_event((byte)VK_RCONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-            _ctrlConsumed = false;
-            _ctrlHeld = false;
+            keybd_event((byte)VK_LMENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event((byte)VK_RMENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            _altConsumed = false;
+            _altHeld = false;
         }
     }
 

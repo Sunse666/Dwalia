@@ -33,13 +33,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <StackPanel x:Name="WorkspacePills" Orientation="Horizontal"
                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBlock x:Name="ModeIndicator"
-                               Text="DWALIA"
-                               FontSize="12" FontWeight="Bold"
-                               Foreground="#7aa2f7"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0"
-                               Visibility="Collapsed"/>
+
                 </StackPanel>
                 <ItemsControl x:Name="TaskBarItems" Grid.Column="1"
                               VerticalAlignment="Center">

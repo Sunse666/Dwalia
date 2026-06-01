@@ -11,6 +11,150 @@
         FontSize="13"
         ShowInTaskbar="False"
         Topmost="True">
+    <Window.Resources>
+        <Style TargetType="Slider">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto" MinHeight="16"/>
+                            </Grid.RowDefinitions>
+                            <Track x:Name="PART_Track" Grid.Row="1">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4" Background="#7aa2f7" CornerRadius="2"
+                                                        Margin="0,6,0,0"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4" Background="#3a3a3a" CornerRadius="2"
+                                                        Margin="0,6,0,0"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Width="14" Height="14" Background="#7aa2f7"
+                                                        CornerRadius="7" Margin="0,1,0,0"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#555555" CornerRadius="3"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="#2d2d2d"/>
+            <Setter Property="Foreground" Value="#cccccc"/>
+            <Setter Property="BorderBrush" Value="#444444"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="#7aa2f7"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,0,6,0"/>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#cccccc"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="CheckBorder" Width="16" Height="16"
+                                    Background="#2d2d2d" BorderBrush="#555555"
+                                    BorderThickness="1" CornerRadius="3"
+                                    Margin="0,0,8,0"/>
+                            <Path x:Name="CheckMark" Grid.Column="0"
+                                  Data="M4,8 L7,11 L12,5"
+                                  Stroke="#7aa2f7" StrokeThickness="2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Visibility="Collapsed"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Width="12" Height="10" Margin="2,0,0,0"/>
+                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#7aa2f7"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#7aa2f7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ScrollViewer">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+    </Window.Resources>
+
     <Border Background="#1e1e1e" CornerRadius="8">
         <Grid>
             <Grid.RowDefinitions>
@@ -92,9 +236,7 @@
 
                             <TextBlock Text="Terminal" Foreground="#999999"
                                        Margin="0,0,0,4"/>
-                            <TextBox x:Name="TerminalBox" Height="32"
-                                     Background="#2d2d2d" Foreground="#cccccc"
-                                     BorderBrush="#444444" Text="wt.exe"/>
+                            <TextBox x:Name="TerminalBox" Text="wt.exe"/>
                         </StackPanel>
                     </Grid>
 
@@ -141,9 +283,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox x:Name="AccentColorBox" Height="32"
-                                         Background="#2d2d2d" Foreground="#cccccc"
-                                         BorderBrush="#444444" Text="#7aa2f7"/>
+                                <TextBox x:Name="AccentColorBox" Text="#7aa2f7"/>
                                 <Border Grid.Column="1" x:Name="AccentPreview"
                                         Width="24" Height="24" CornerRadius="4"
                                         Background="#7aa2f7" Margin="8,0,0,0"/>
@@ -160,19 +300,19 @@
                                            Foreground="#999999" Margin="0,0,0,16"/>
 
                                 <CheckBox x:Name="ChkMasterStack" Content="MasterStack — Master left, stack right"
-                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                          Margin="0,0,0,10"/>
                                 <CheckBox x:Name="ChkMonocle" Content="Monocle — Fullscreen active window"
-                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                          Margin="0,0,0,10"/>
                                 <CheckBox x:Name="ChkGrid" Content="Grid — Equal rows and columns"
-                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                          Margin="0,0,0,10"/>
                                 <CheckBox x:Name="ChkHorizontalStack" Content="HorizontalStack — Full-width rows"
-                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                          Margin="0,0,0,10"/>
                                 <CheckBox x:Name="ChkColumns" Content="Columns — Equal-width vertical columns"
-                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                          Margin="0,0,0,10"/>
                                 <CheckBox x:Name="ChkVerticalStack" Content="VerticalStack — Master top, stack below"
-                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                          Margin="0,0,0,10"/>
                                 <CheckBox x:Name="ChkBSP" Content="BSP — Binary space partitioning"
-                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                          Margin="0,0,0,10"/>
 
                                 <TextBlock Text="Window Gaps" FontSize="16" FontWeight="SemiBold"
                                            Foreground="#ffffff" Margin="0,24,0,12"/>

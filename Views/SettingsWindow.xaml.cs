@@ -90,13 +90,7 @@ public partial class SettingsWindow : Window
             {
                 Text = kv.Value,
                 Tag = kv.Key,
-                Height = 28,
-                Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0xcc, 0xcc, 0xcc)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
-                BorderThickness = new Thickness(1),
-                VerticalContentAlignment = VerticalAlignment.Center,
-                Padding = new Thickness(6, 0, 6, 0)
+                Height = 28
             };
             Grid.SetColumn(keyBox, 1);
             row.Children.Add(keyBox);

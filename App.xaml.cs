@@ -57,6 +57,7 @@ public partial class App : Application
         _hotKeyManager.CommandTriggered += OnCommandTriggered;
 
         _layoutManager = new LayoutManager(_windowManager, _workspaceManager, _focusManager);
+        _layoutManager.SetEnabledLayouts(_config.Layout.EnabledLayouts);
         ServiceLocator.Register(_layoutManager);
 
         _hookManager.FocusChanged += (_, hwnd) => _focusManager.OnFocusEvent(hwnd);
@@ -78,82 +79,16 @@ public partial class App : Application
     private void OnCommandTriggered(object? sender, DwaliaCommand cmd)
     {
         if (_workspaceManager == null || _focusManager == null || _layoutManager == null) return;
-        var aws = _workspaceManager.GetActiveWorkspace();
-
-        switch (cmd)
-        {
-            case DwaliaCommand.FocusNext: _focusManager.FocusNext(aws.Windows); break;
-            case DwaliaCommand.FocusPrevious: _focusManager.FocusPrevious(aws.Windows); break;
-            case DwaliaCommand.ToggleFloat: if (_focusManager.ActiveWindow != null) _layoutManager.ToggleFloating(_focusManager.ActiveWindow.Hwnd); break;
-            case DwaliaCommand.ToggleFullscreen: if (_focusManager.ActiveWindow != null) _layoutManager.ToggleFullscreen(_focusManager.ActiveWindow.Hwnd); break;
-            case DwaliaCommand.CloseWindow: if (_focusManager.ActiveWindow != null) Dwalia.Win32.NativeMethods.PostMessage(_focusManager.ActiveWindow.Hwnd, Dwalia.Win32.WindowStyles.WM_CLOSE, IntPtr.Zero, IntPtr.Zero); break;
-            case DwaliaCommand.QuitDwalia: _mainWindow?.Dispatcher.Invoke(() => Shutdown()); break;
-            case DwaliaCommand.FocusWindow1: FocusWindow(0); break;
-            case DwaliaCommand.FocusWindow2: FocusWindow(1); break;
-            case DwaliaCommand.FocusWindow3: FocusWindow(2); break;
-            case DwaliaCommand.FocusWindow4: FocusWindow(3); break;
-            case DwaliaCommand.FocusWindow5: FocusWindow(4); break;
-            case DwaliaCommand.FocusWindow6: FocusWindow(5); break;
-            case DwaliaCommand.FocusWindow7: FocusWindow(6); break;
-            case DwaliaCommand.FocusWindow8: FocusWindow(7); break;
-            case DwaliaCommand.FocusWindow9: FocusWindow(8); break;
-            case DwaliaCommand.Workspace1: _workspaceManager.SwitchToWorkspace(0); break;
-            case DwaliaCommand.Workspace2: _workspaceManager.SwitchToWorkspace(1); break;
-            case DwaliaCommand.Workspace3: _workspaceManager.SwitchToWorkspace(2); break;
-            case DwaliaCommand.Workspace4: _workspaceManager.SwitchToWorkspace(3); break;
-            case DwaliaCommand.Workspace5: _workspaceManager.SwitchToWorkspace(4); break;
-            case DwaliaCommand.WorkspaceNext: _workspaceManager.NextWorkspace(); break;
-            case DwaliaCommand.WorkspacePrevious: _workspaceManager.PreviousWorkspace(); break;
-            case DwaliaCommand.MoveToWorkspaceNext: MoveActiveRelative(1); break;
-            case DwaliaCommand.MoveToWorkspacePrevious: MoveActiveRelative(-1); break;
-            case DwaliaCommand.LaunchTerminal: LaunchTerminal(_config?.LaunchTerminal ?? "wt.exe"); break;
-            case DwaliaCommand.ReloadConfig: ReloadConfig(); break;
-            case DwaliaCommand.OpenSettings: OpenSettingsWindow(); break;
-            case DwaliaCommand.CycleLayout: _layoutManager?.CycleLayout(); break;
-            case DwaliaCommand.IncMaster: _layoutManager?.ResizeMaster(0.05); break;
-            case DwaliaCommand.DecMaster: _layoutManager?.ResizeMaster(-0.05); break;
-            case DwaliaCommand.IncGap: _layoutManager?.ResizeGap(1); break;
-            case DwaliaCommand.DecGap: _layoutManager?.ResizeGap(-1); break;
-            case DwaliaCommand.SwapNext: _layoutManager?.SwapNext(); break;
-            case DwaliaCommand.SwapPrevious: _layoutManager?.SwapPrevious(); break;
-        }
-    }
-
-    private void FocusWindow(int index)
-    {
-        if (_workspaceManager == null || _focusManager == null) return;
-        var windows = _workspaceManager.GetActiveWorkspace().Windows;
-        if (index < 0 || index >= windows.Count)
-        {
-            Logger.Warn($"FocusWindow{index + 1}: only {windows.Count} windows in workspace");
-            return;
-        }
-        _focusManager.SetActiveWindow(windows[index]);
-        windows[index].Focus();
-    }
-
-    private void MoveActiveRelative(int direction)
-    {
-        if (_workspaceManager == null || _focusManager?.ActiveWindow == null) return;
-        var count = _workspaceManager.Workspaces.Count;
-        var newWs = (_focusManager.ActiveWindow.WorkspaceId + direction + count) % count;
-        _workspaceManager.MoveWindowToWorkspace(_focusManager.ActiveWindow, newWs);
-    }
-
-    private static void LaunchTerminal(string cmd)
-    {
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = cmd, UseShellExecute = true }); }
-        catch (Exception ex) { Logger.Error($"Launch terminal failed: {ex.Message}"); }
-    }
-
-    private void OpenSettingsWindow()
-    {
-        _mainWindow?.Dispatcher.Invoke(() =>
-        {
-            var sw = new Views.SettingsWindow();
-            sw.Owner = _mainWindow;
-            sw.ShowDialog();
-        });
+        CommandDispatcher.Execute(cmd, _workspaceManager, _focusManager, _layoutManager,
+            _config?.LaunchTerminal ?? "wt.exe",
+            reloadConfig: ReloadConfig,
+            openSettings: () => _mainWindow?.Dispatcher.Invoke(() =>
+            {
+                var sw = new Views.SettingsWindow();
+                sw.Owner = _mainWindow;
+                sw.ShowDialog();
+            }),
+            quit: () => _mainWindow?.Dispatcher.Invoke(() => Shutdown()));
     }
 
     private void ReloadConfig()

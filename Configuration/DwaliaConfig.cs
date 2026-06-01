@@ -30,6 +30,11 @@ public class LayoutConfig
     public double MasterFactor { get; set; } = 0.6;
     public int InnerGap { get; set; } = 4;
     public int OuterGap { get; set; } = 4;
+    public string[] EnabledLayouts { get; set; } = new[]
+    {
+        "MasterStack", "Monocle", "Grid", "HorizontalStack",
+        "Columns", "VerticalStack", "BSP"
+    };
 }
 
 public class WorkspaceConfig

@@ -5,7 +5,7 @@ using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Managers;
 
-public enum LayoutType { MasterStack, Monocle, Grid, HorizontalStack }
+public enum LayoutType { MasterStack, Monocle, Grid, HorizontalStack, Columns, VerticalStack, BSP }
 
 public class LayoutManager
 {
@@ -19,6 +19,7 @@ public class LayoutManager
     private double _masterFactor = 0.6;
     private int _gap = 4;
     private int _outer = 2;
+    private List<LayoutType> _enabledLayouts = new() { LayoutType.MasterStack, LayoutType.Monocle, LayoutType.Grid, LayoutType.HorizontalStack, LayoutType.Columns, LayoutType.VerticalStack, LayoutType.BSP };
 
     public LayoutManager(WindowManager wm, WorkspaceManager ws, FocusManager fm)
     {
@@ -92,6 +93,9 @@ public class LayoutManager
             case LayoutType.Monocle: ArrangeMonocle(windows, area); break;
             case LayoutType.Grid: ArrangeGrid(windows, area); break;
             case LayoutType.HorizontalStack: ArrangeHStack(windows, area); break;
+            case LayoutType.Columns: ArrangeColumns(windows, area); break;
+            case LayoutType.VerticalStack: ArrangeVStack(windows, area); break;
+            case LayoutType.BSP: ArrangeBSP(windows, area); break;
             default: ArrangeMasterStack(windows, area); break;
         }
     }
@@ -141,6 +145,78 @@ public class LayoutManager
         }
     }
 
+    private void ArrangeColumns(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        int n = windows.Count;
+        if (n == 0) return;
+        double cw = (area.Width - (n - 1) * _gap) / n;
+        for (int i = 0; i < n; i++)
+        {
+            var r = new System.Windows.Rect(area.X + i * (cw + _gap), area.Y, cw, area.Height);
+            Position(windows[i], r);
+        }
+    }
+
+    private void ArrangeVStack(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        int n = windows.Count;
+        if (n == 1) { Position(windows[0], area); return; }
+
+        var active = _focusManager.ActiveWindow;
+        var master = (active != null && windows.Contains(active)) ? active : windows[0];
+        var stack = windows.Where(w => w != master).ToList();
+
+        double mh = (area.Height - _gap) * _masterFactor;
+        double sh = area.Height - mh - _gap;
+        Position(master, new System.Windows.Rect(area.X, area.Y, area.Width, mh));
+
+        int s = stack.Count;
+        if (s > 0)
+        {
+            double blockH = (sh - (s - 1) * _gap) / s;
+            for (int i = 0; i < s; i++)
+            {
+                var r = new System.Windows.Rect(area.X, area.Y + mh + _gap + i * (blockH + _gap), area.Width, blockH);
+                Position(stack[i], r);
+            }
+        }
+    }
+
+    private void ArrangeBSP(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        ArrangeBSPRecursive(windows, 0, windows.Count, area, true);
+    }
+
+    private void ArrangeBSPRecursive(List<ManagedWindow> windows, int start, int count, System.Windows.Rect area, bool splitVertical)
+    {
+        if (count == 0) return;
+        if (count == 1)
+        {
+            Position(windows[start], area);
+            return;
+        }
+
+        int leftCount = count / 2;
+        int rightCount = count - leftCount;
+
+        if (splitVertical)
+        {
+            double leftW = area.Width * leftCount / count - _gap / 2.0;
+            var left = new System.Windows.Rect(area.X, area.Y, leftW, area.Height);
+            var right = new System.Windows.Rect(area.X + leftW + _gap, area.Y, area.Width - leftW - _gap, area.Height);
+            ArrangeBSPRecursive(windows, start, leftCount, left, false);
+            ArrangeBSPRecursive(windows, start + leftCount, rightCount, right, false);
+        }
+        else
+        {
+            double topH = area.Height * leftCount / count - _gap / 2.0;
+            var top = new System.Windows.Rect(area.X, area.Y, area.Width, topH);
+            var bottom = new System.Windows.Rect(area.X, area.Y + topH + _gap, area.Width, area.Height - topH - _gap);
+            ArrangeBSPRecursive(windows, start, leftCount, top, true);
+            ArrangeBSPRecursive(windows, start + leftCount, rightCount, bottom, true);
+        }
+    }
+
     private void ArrangeMasterStack(List<ManagedWindow> windows, System.Windows.Rect area)
     {
         int n = windows.Count;
@@ -178,16 +254,28 @@ public class LayoutManager
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
 
+    public void SetEnabledLayouts(IEnumerable<string> names)
+    {
+        var enabled = new List<LayoutType>();
+        foreach (var name in names)
+        {
+            if (Enum.TryParse<LayoutType>(name, true, out var lt))
+                enabled.Add(lt);
+        }
+        if (enabled.Count == 0)
+            enabled.Add(LayoutType.MasterStack);
+
+        _enabledLayouts = enabled;
+        if (!_enabledLayouts.Contains(_layout))
+            _layout = _enabledLayouts[0];
+
+        Logger.Info($"Enabled layouts: {string.Join(", ", _enabledLayouts)}");
+    }
+
     public void CycleLayout()
     {
-        _layout = _layout switch
-        {
-            LayoutType.MasterStack => LayoutType.Monocle,
-            LayoutType.Monocle => LayoutType.Grid,
-            LayoutType.Grid => LayoutType.HorizontalStack,
-            LayoutType.HorizontalStack => LayoutType.MasterStack,
-            _ => LayoutType.MasterStack
-        };
+        var idx = _enabledLayouts.IndexOf(_layout);
+        _layout = _enabledLayouts[(idx + 1) % _enabledLayouts.Count];
         Logger.Info($"Layout: {_layout}");
         LayoutChanged?.Invoke(this, _layout);
         Relayout();

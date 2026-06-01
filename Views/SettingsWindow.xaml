@@ -4,7 +4,7 @@
         Title="Settings"
         WindowStyle="None"
         ResizeMode="NoResize"
-        Width="600" Height="440"
+        Width="600" Height="560"
         Background="#1e1e1e"
         Foreground="#cccccc"
         FontFamily="Segoe UI"
@@ -53,6 +53,13 @@
                                 BorderThickness="0" HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Left"
                                 Padding="12,0,0,0" Click="OnNavTheme"/>
+
+                        <Button x:Name="NavLayouts" Content="Layouts"
+                                Height="36" Margin="8,0,8,2"
+                                Background="Transparent" Foreground="#999999"
+                                BorderThickness="0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Padding="12,0,0,0" Click="OnNavLayouts"/>
                     </StackPanel>
                 </Grid>
 
@@ -140,6 +147,32 @@
                                         Background="#7aa2f7" Margin="8,0,0,0"/>
                             </Grid>
                         </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="PageLayouts" Grid.Row="0" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Tiling Layouts" FontSize="18" FontWeight="SemiBold"
+                                           Foreground="#ffffff" Margin="0,0,0,12"/>
+                                <TextBlock Text="Choose which layouts to cycle through with mod+T"
+                                           Foreground="#999999" Margin="0,0,0,16"/>
+
+                                <CheckBox x:Name="ChkMasterStack" Content="MasterStack — Master left, stack right"
+                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                <CheckBox x:Name="ChkMonocle" Content="Monocle — Fullscreen active window"
+                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                <CheckBox x:Name="ChkGrid" Content="Grid — Equal rows and columns"
+                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                <CheckBox x:Name="ChkHorizontalStack" Content="HorizontalStack — Full-width rows"
+                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                <CheckBox x:Name="ChkColumns" Content="Columns — Equal-width vertical columns"
+                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                <CheckBox x:Name="ChkVerticalStack" Content="VerticalStack — Master top, stack below"
+                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                                <CheckBox x:Name="ChkBSP" Content="BSP — Binary space partitioning"
+                                          Foreground="#cccccc" Margin="0,0,0,10"/>
+                            </StackPanel>
+                        </ScrollViewer>
                     </Grid>
 
                     <StackPanel Grid.Row="1" Orientation="Horizontal"

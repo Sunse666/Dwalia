@@ -99,7 +99,7 @@ internal static class WindowHelper
         {
             GetWindowThreadProcessId(hwnd, out uint processId);
             if (processId == 0) return "unknown";
-            var process = Process.GetProcessById((int)processId);
+            using var process = Process.GetProcessById((int)processId);
             return process.ProcessName.ToLowerInvariant();
         }
         catch { return "unknown"; }

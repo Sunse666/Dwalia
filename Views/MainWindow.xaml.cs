@@ -251,76 +251,14 @@ public partial class MainWindow : Window
 
     private void Execute(DwaliaCommand cmd)
     {
-        ServiceLocator.TryResolve<FocusMgr>(out var fm);
-        ServiceLocator.TryResolve<WorkspaceManager>(out var ws);
-        ServiceLocator.TryResolve<LayoutManager>(out var lm);
-        var aws = ws?.GetActiveWorkspace();
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var ws)) return;
+        if (!ServiceLocator.TryResolve<FocusMgr>(out var fm)) return;
+        if (!ServiceLocator.TryResolve<LayoutManager>(out var lm)) return;
+        var terminal = ServiceLocator.TryResolve<Dwalia.Configuration.DwaliaConfig>(out var c) ? c.LaunchTerminal : "wt.exe";
 
-        switch (cmd)
-        {
-            case DwaliaCommand.FocusNext:
-                fm?.FocusNext(aws?.Windows ?? new List<Dwalia.Models.ManagedWindow>());
-                break;
-            case DwaliaCommand.FocusPrevious:
-                fm?.FocusPrevious(aws?.Windows ?? new List<Dwalia.Models.ManagedWindow>());
-                break;
-            case DwaliaCommand.ToggleFloat:
-                if (fm?.ActiveWindow != null) lm?.ToggleFloating(fm.ActiveWindow.Hwnd);
-                break;
-            case DwaliaCommand.ToggleFullscreen:
-                if (fm?.ActiveWindow != null) lm?.ToggleFullscreen(fm.ActiveWindow.Hwnd);
-                break;
-            case DwaliaCommand.CloseWindow:
-                if (fm?.ActiveWindow != null) PostMessage(fm.ActiveWindow.Hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-                break;
-            case DwaliaCommand.QuitDwalia:
-                System.Windows.Application.Current.Shutdown();
-                break;
-            case DwaliaCommand.OpenSettings:
-                new SettingsWindow { Owner = this }.ShowDialog();
-                break;
-            case DwaliaCommand.FocusWindow1: FocusWindowByIndex(0, fm, aws); break;
-            case DwaliaCommand.FocusWindow2: FocusWindowByIndex(1, fm, aws); break;
-            case DwaliaCommand.FocusWindow3: FocusWindowByIndex(2, fm, aws); break;
-            case DwaliaCommand.FocusWindow4: FocusWindowByIndex(3, fm, aws); break;
-            case DwaliaCommand.FocusWindow5: FocusWindowByIndex(4, fm, aws); break;
-            case DwaliaCommand.FocusWindow6: FocusWindowByIndex(5, fm, aws); break;
-            case DwaliaCommand.FocusWindow7: FocusWindowByIndex(6, fm, aws); break;
-            case DwaliaCommand.FocusWindow8: FocusWindowByIndex(7, fm, aws); break;
-            case DwaliaCommand.FocusWindow9: FocusWindowByIndex(8, fm, aws); break;
-            case DwaliaCommand.Workspace1: ws?.SwitchToWorkspace(0); break;
-            case DwaliaCommand.Workspace2: ws?.SwitchToWorkspace(1); break;
-            case DwaliaCommand.Workspace3: ws?.SwitchToWorkspace(2); break;
-            case DwaliaCommand.Workspace4: ws?.SwitchToWorkspace(3); break;
-            case DwaliaCommand.Workspace5: ws?.SwitchToWorkspace(4); break;
-            case DwaliaCommand.WorkspaceNext: ws?.NextWorkspace(); break;
-            case DwaliaCommand.WorkspacePrevious: ws?.PreviousWorkspace(); break;
-            case DwaliaCommand.MoveToWorkspaceNext: MoveActiveRelativeWpf(1, fm, ws); break;
-            case DwaliaCommand.MoveToWorkspacePrevious: MoveActiveRelativeWpf(-1, fm, ws); break;
-            case DwaliaCommand.CycleLayout: lm?.CycleLayout(); break;
-            case DwaliaCommand.IncMaster: lm?.ResizeMaster(0.05); break;
-            case DwaliaCommand.DecMaster: lm?.ResizeMaster(-0.05); break;
-            case DwaliaCommand.IncGap: lm?.ResizeGap(1); break;
-            case DwaliaCommand.DecGap: lm?.ResizeGap(-1); break;
-            case DwaliaCommand.SwapNext: lm?.SwapNext(); break;
-            case DwaliaCommand.SwapPrevious: lm?.SwapPrevious(); break;
-        }
-    }
-
-    private static void FocusWindowByIndex(int index, FocusMgr? fm, Dwalia.Models.Workspace? aws)
-    {
-        if (fm == null || aws == null) return;
-        if (index < 0 || index >= aws.Windows.Count) return;
-        fm.SetActiveWindow(aws.Windows[index]);
-        aws.Windows[index].Focus();
-    }
-
-    private static void MoveActiveRelativeWpf(int direction, FocusMgr? fm, WorkspaceManager? ws)
-    {
-        if (fm?.ActiveWindow == null || ws == null) return;
-        var count = ws.Workspaces.Count;
-        var newWs = (fm.ActiveWindow.WorkspaceId + direction + count) % count;
-        ws.MoveWindowToWorkspace(fm.ActiveWindow, newWs);
+        CommandDispatcher.Execute(cmd, ws, fm, lm, terminal,
+            openSettings: () => new SettingsWindow { Owner = this }.ShowDialog(),
+            quit: () => System.Windows.Application.Current.Shutdown());
     }
 
     private static uint KeyToVk(Key key) => key switch

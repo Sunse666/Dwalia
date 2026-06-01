@@ -39,6 +39,15 @@ public partial class SettingsWindow : Window
         AccentColorBox.Text = _config.Theme.Accent;
         TerminalBox.Text = _config.LaunchTerminal;
         OnAccentChanged(null!, null!);
+
+        var enabled = new HashSet<string>(_config.Layout.EnabledLayouts, StringComparer.OrdinalIgnoreCase);
+        ChkMasterStack.IsChecked = enabled.Contains("MasterStack");
+        ChkMonocle.IsChecked = enabled.Contains("Monocle");
+        ChkGrid.IsChecked = enabled.Contains("Grid");
+        ChkHorizontalStack.IsChecked = enabled.Contains("HorizontalStack");
+        ChkColumns.IsChecked = enabled.Contains("Columns");
+        ChkVerticalStack.IsChecked = enabled.Contains("VerticalStack");
+        ChkBSP.IsChecked = enabled.Contains("BSP");
     }
 
     private void OnAccentChanged(object sender, TextChangedEventArgs e)
@@ -66,6 +75,16 @@ public partial class SettingsWindow : Window
             _config.Theme.Accent = AccentColorBox.Text;
             _config.LaunchTerminal = TerminalBox.Text;
 
+            var enabledLayouts = new List<string>();
+            if (ChkMasterStack.IsChecked == true) enabledLayouts.Add("MasterStack");
+            if (ChkMonocle.IsChecked == true) enabledLayouts.Add("Monocle");
+            if (ChkGrid.IsChecked == true) enabledLayouts.Add("Grid");
+            if (ChkHorizontalStack.IsChecked == true) enabledLayouts.Add("HorizontalStack");
+            if (ChkColumns.IsChecked == true) enabledLayouts.Add("Columns");
+            if (ChkVerticalStack.IsChecked == true) enabledLayouts.Add("VerticalStack");
+            if (ChkBSP.IsChecked == true) enabledLayouts.Add("BSP");
+            _config.Layout.EnabledLayouts = enabledLayouts.ToArray();
+
             if (ServiceLocator.TryResolve<ConfigManager>(out var cm))
             {
                 cm.Save(_config);
@@ -75,6 +94,9 @@ public partial class SettingsWindow : Window
             {
                 Logger.Warn("ConfigManager not found in ServiceLocator");
             }
+
+            if (ServiceLocator.TryResolve<Managers.LayoutManager>(out var lm))
+                lm.SetEnabledLayouts(_config.Layout.EnabledLayouts);
 
             ApplyLive(bgAlpha, tbAlpha);
             Close();
@@ -126,19 +148,38 @@ public partial class SettingsWindow : Window
     {
         PageGeneral.Visibility = Visibility.Visible;
         PageTheme.Visibility = Visibility.Collapsed;
+        PageLayouts.Visibility = Visibility.Collapsed;
         NavGeneral.Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d));
         NavGeneral.Foreground = new SolidColorBrush(Color.FromRgb(0xff, 0xff, 0xff));
         NavTheme.Background = Brushes.Transparent;
         NavTheme.Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
+        NavLayouts.Background = Brushes.Transparent;
+        NavLayouts.Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
     }
 
     private void OnNavTheme(object sender, RoutedEventArgs e)
     {
         PageGeneral.Visibility = Visibility.Collapsed;
         PageTheme.Visibility = Visibility.Visible;
+        PageLayouts.Visibility = Visibility.Collapsed;
         NavTheme.Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d));
         NavTheme.Foreground = new SolidColorBrush(Color.FromRgb(0xff, 0xff, 0xff));
         NavGeneral.Background = Brushes.Transparent;
         NavGeneral.Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
+        NavLayouts.Background = Brushes.Transparent;
+        NavLayouts.Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
+    }
+
+    private void OnNavLayouts(object sender, RoutedEventArgs e)
+    {
+        PageGeneral.Visibility = Visibility.Collapsed;
+        PageTheme.Visibility = Visibility.Collapsed;
+        PageLayouts.Visibility = Visibility.Visible;
+        NavLayouts.Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d));
+        NavLayouts.Foreground = new SolidColorBrush(Color.FromRgb(0xff, 0xff, 0xff));
+        NavGeneral.Background = Brushes.Transparent;
+        NavGeneral.Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
+        NavTheme.Background = Brushes.Transparent;
+        NavTheme.Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
     }
 }

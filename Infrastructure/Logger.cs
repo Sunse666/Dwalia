@@ -6,8 +6,7 @@ namespace Dwalia.Infrastructure;
 internal static class Logger
 {
     private static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Dwalia", "dwalia.log");
+        AppContext.BaseDirectory, "dwalia.log");
 
     private static readonly object _lock = new();
 
@@ -27,10 +26,6 @@ internal static class Logger
         {
             try
             {
-                var dir = Path.GetDirectoryName(LogPath)!;
-                if (!Directory.Exists(dir))
-                    Directory.CreateDirectory(dir);
-
                 File.AppendAllText(LogPath, entry + Environment.NewLine);
             }
             catch

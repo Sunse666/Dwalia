@@ -15,7 +15,8 @@
     "masterCount": 1,
     "masterFactor": 0.6,
     "innerGap": 4,
-    "outerGap": 4
+    "outerGap": 4,
+    "enabledLayouts": ["MasterStack", "Monocle", "Grid", "HorizontalStack", "Columns", "VerticalStack", "BSP"]
   },
   "workspaces": {
     "count": 5,
@@ -29,10 +30,6 @@
     "ApplicationFrameHost",
     "LockApp"
   ],
-  "rules": [
-    { "process": "firefox.exe", "workspace": 3 },
-    { "process": "Code.exe", "workspace": 2 },
-    { "process": "WindowsTerminal.exe", "workspace": 1 }
-  ],
+  "rules": [],
   "launchTerminal": "wt.exe"
 }

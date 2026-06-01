@@ -6,9 +6,8 @@ namespace Dwalia.Configuration;
 
 public class ConfigManager
 {
-    private static readonly string ConfigDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Dwalia");
-    private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
+    private static readonly string ConfigPath = Path.Combine(
+        AppContext.BaseDirectory, "config.json");
 
     public DwaliaConfig Load()
     {
@@ -38,9 +37,6 @@ public class ConfigManager
     {
         try
         {
-            if (!Directory.Exists(ConfigDir))
-                Directory.CreateDirectory(ConfigDir);
-
             var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(ConfigPath, json);
             Logger.Info($"Config saved to {ConfigPath}");
@@ -57,19 +53,17 @@ public class ConfigManager
         {
             ModKey = "Alt+Ctrl",
             Theme = new ThemeConfig(),
-            Layout = new LayoutConfig(),
+            Layout = new LayoutConfig
+            {
+                EnabledLayouts = new[] { "MasterStack", "Monocle", "Grid", "HorizontalStack", "Columns", "VerticalStack", "BSP" }
+            },
             Workspaces = new WorkspaceConfig(),
             ExcludeProcesses = new[]
             {
                 "shellexperiencehost", "SearchApp",
                 "TextInputHost", "SystemSettings", "ApplicationFrameHost", "LockApp"
             },
-            Rules = new[]
-            {
-                new WindowRuleConfig { Process = "firefox.exe", Workspace = 3 },
-                new WindowRuleConfig { Process = "Code.exe", Workspace = 2 },
-                new WindowRuleConfig { Process = "WindowsTerminal.exe", Workspace = 1 },
-            },
+            Rules = Array.Empty<WindowRuleConfig>(),
             LaunchTerminal = "wt.exe"
         };
     }
@@ -81,7 +75,9 @@ public class ConfigManager
         {
             foreach (var rule in config.Rules)
             {
-                if (mw.ProcessName.Contains(rule.Process, StringComparison.OrdinalIgnoreCase))
+                var normalizedRule = rule.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                    ? rule.Process[..^4] : rule.Process;
+                if (mw.ProcessName.Equals(normalizedRule, StringComparison.OrdinalIgnoreCase))
                 {
                     if (rule.Workspace.HasValue)
                     {

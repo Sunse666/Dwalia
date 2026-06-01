@@ -15,6 +15,7 @@ public class LayoutManager
     private readonly FocusManager _focusManager;
     private System.Windows.Rect _area;
     public event EventHandler<LayoutType>? LayoutChanged;
+    public event Action<string>? StatusMessage;
 
     private LayoutType _layout = LayoutType.MasterStack;
     private double _masterFactor = 0.6;
@@ -337,6 +338,7 @@ public class LayoutManager
         _layout = _enabledLayouts[(idx + 1) % _enabledLayouts.Count];
         Logger.Info($"Layout: {_layout}");
         LayoutChanged?.Invoke(this, _layout);
+        StatusMessage?.Invoke($"{_layout}");
         Relayout();
     }
 
@@ -344,6 +346,7 @@ public class LayoutManager
     {
         _masterFactor = Math.Clamp(_masterFactor + delta, 0.3, 0.8);
         Logger.Info($"Master factor: {_masterFactor:F2}");
+        StatusMessage?.Invoke($"Master: {_masterFactor * 100:F0}%");
         SaveLayoutConfig();
         Relayout();
     }
@@ -353,6 +356,7 @@ public class LayoutManager
         _gap = Math.Clamp(_gap + delta, 0, 24);
         _outer = Math.Clamp(_outer + delta, 0, 12);
         Logger.Info($"Gap: {_gap}, Outer: {_outer}");
+        StatusMessage?.Invoke($"Gap: {_gap} Inner / {_outer} Outer");
         SaveLayoutConfig();
         Relayout();
     }

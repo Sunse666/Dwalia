@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Dwalia.Infrastructure;
 using Dwalia.Managers;
 using FocusMgr = Dwalia.Managers.FocusManager;
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
     private readonly WindowEventHookManager _windowEventHookManager;
     private IntPtr _hwnd;
     private HwndSource? _hwndSource;
+    private DispatcherTimer? _statusTimer;
 
     public IntPtr GetHwnd() => _hwnd;
 
@@ -98,16 +100,27 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _statusTimer.Tick += (_, _) => { _statusTimer.Stop(); LayoutLabel.Text = _layoutLabelText; };
+
         if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
         {
             lm.SetArea(_hwnd, TaskBar.Height);
-            lm.LayoutChanged += (_, layout) => LayoutLabel.Text = layout.ToString();
+            lm.LayoutChanged += (_, layout) => { _layoutLabelText = layout.ToString(); LayoutLabel.Text = _layoutLabelText; };
+            lm.StatusMessage += msg =>
+            {
+                LayoutLabel.Text = msg;
+                _statusTimer.Stop();
+                _statusTimer.Start();
+            };
         }
 
         _windowEventHookManager.Start();
         _windowManager.Initialize();
         UpdateStatus();
     }
+
+    private string _layoutLabelText = "MasterStack";
 
     private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
     {
@@ -171,10 +184,58 @@ public partial class MainWindow : Window
                 fm?.SetActiveWindow(captured);
             };
 
+            btn.ContextMenu = BuildWindowContextMenu(captured);
+
             TaskBarItems.Items.Add(btn);
         }
         UpdateStatus();
         UpdateWorkspacePills();
+    }
+
+    private ContextMenu BuildWindowContextMenu(Dwalia.Models.ManagedWindow mw)
+    {
+        var menu = new ContextMenu
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xcc, 0xcc, 0xcc)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44))
+        };
+
+        var closeItem = new MenuItem { Header = "Close Window" };
+        closeItem.Click += (_, _) => PostMessage(mw.Hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+        menu.Items.Add(closeItem);
+
+        var floatItem = new MenuItem
+        {
+            Header = mw.State == Dwalia.Models.WindowLayoutState.Floating ? "Tile" : "Float"
+        };
+        floatItem.Click += (_, _) =>
+        {
+            ServiceLocator.TryResolve<LayoutManager>(out var lm);
+            lm?.ToggleFloating(mw.Hwnd);
+        };
+        menu.Items.Add(floatItem);
+
+        menu.Items.Add(new Separator());
+
+        var moveMenu = new MenuItem { Header = "Move to Workspace" };
+        if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
+        {
+            foreach (var ws in wsm.Workspaces)
+            {
+                var wsItem = new MenuItem
+                {
+                    Header = $"{ws.Id + 1}: {ws.Name}",
+                    IsChecked = mw.WorkspaceId == ws.Id
+                };
+                var targetId = ws.Id;
+                wsItem.Click += (_, _) => wsm.MoveWindowToWorkspace(mw, targetId);
+                moveMenu.Items.Add(wsItem);
+            }
+        }
+        menu.Items.Add(moveMenu);
+
+        return menu;
     }
 
     private void ApplyAcrylic(IntPtr hwnd)

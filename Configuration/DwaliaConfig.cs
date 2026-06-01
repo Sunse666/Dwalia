@@ -7,7 +7,13 @@ public class DwaliaConfig
     public WorkspaceConfig Workspaces { get; set; } = new();
     public string[] ExcludeProcesses { get; set; } = Array.Empty<string>();
     public WindowRuleConfig[] Rules { get; set; } = Array.Empty<WindowRuleConfig>();
+    public KeybindingConfig Keybindings { get; set; } = new();
     public string LaunchTerminal { get; set; } = "wt.exe";
+}
+
+public class KeybindingConfig
+{
+    public Dictionary<string, string> Bindings { get; set; } = new();
 }
 
 public class ThemeConfig

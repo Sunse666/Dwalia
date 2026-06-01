@@ -340,6 +340,21 @@ public class LayoutManager
         Relayout();
     }
 
+    public void SetMasterFactor(double value)
+    {
+        _masterFactor = Math.Clamp(value, 0.3, 0.8);
+        SaveLayoutConfig();
+        Relayout();
+    }
+
+    public void SetGaps(int inner, int outer)
+    {
+        _gap = Math.Clamp(inner, 0, 24);
+        _outer = Math.Clamp(outer, 0, 12);
+        SaveLayoutConfig();
+        Relayout();
+    }
+
     public void ResizeMaster(double delta)
     {
         _masterFactor = Math.Clamp(_masterFactor + delta, 0.3, 0.8);

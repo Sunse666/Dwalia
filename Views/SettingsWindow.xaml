@@ -4,7 +4,7 @@
         Title="Settings"
         WindowStyle="None"
         ResizeMode="NoResize"
-        Width="600" Height="560"
+        Width="600" Height="660"
         Background="#1e1e1e"
         Foreground="#cccccc"
         FontFamily="Segoe UI"
@@ -60,6 +60,13 @@
                                 BorderThickness="0" HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Left"
                                 Padding="12,0,0,0" Click="OnNavLayouts"/>
+
+                        <Button x:Name="NavKeybindings" Content="Keybindings"
+                                Height="36" Margin="8,0,8,2"
+                                Background="Transparent" Foreground="#999999"
+                                BorderThickness="0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Padding="12,0,0,0" Click="OnNavKeybindings"/>
                     </StackPanel>
                 </Grid>
 
@@ -76,13 +83,12 @@
                             <TextBlock Text="General" FontSize="18" FontWeight="SemiBold"
                                        Foreground="#ffffff" Margin="0,0,0,20"/>
 
-                            <TextBlock Text="Shortcuts — Ctrl+`, then:" Foreground="#999999"
-                                       Margin="0,0,0,4"/>
-                            <TextBlock Foreground="#777777" FontSize="11" Margin="0,0,0,16">J/K · focus prev/next    Shift+J/K · swap<LineBreak/>
-Q · close    Shift+Q · quit    F · fullscreen<LineBreak/>
-Space · float    Enter · terminal    S · settings<LineBreak/>
-T · cycle layout    ←↑↓→ · workspace/master/gap<LineBreak/>
-1–9 · focus window    Shift+1–5 · switch workspace</TextBlock>
+                            <TextBlock Foreground="#777777" FontSize="11" Margin="0,0,0,16"
+                                       TextWrapping="Wrap">
+                                Press Ctrl+` (backtick) to enter DWALIA command mode,
+                                then use the keybindings below. Edit keybindings in
+                                the Keybindings tab.
+                            </TextBlock>
 
                             <TextBlock Text="Terminal" Foreground="#999999"
                                        Margin="0,0,0,4"/>
@@ -150,7 +156,7 @@ T · cycle layout    ←↑↓→ · workspace/master/gap<LineBreak/>
                             <StackPanel>
                                 <TextBlock Text="Tiling Layouts" FontSize="18" FontWeight="SemiBold"
                                            Foreground="#ffffff" Margin="0,0,0,12"/>
-                                <TextBlock Text="Choose which layouts to cycle through with T (in command mode)"
+                                <TextBlock Text="Choose which layouts to cycle through with T"
                                            Foreground="#999999" Margin="0,0,0,16"/>
 
                                 <CheckBox x:Name="ChkMasterStack" Content="MasterStack — Master left, stack right"
@@ -167,8 +173,68 @@ T · cycle layout    ←↑↓→ · workspace/master/gap<LineBreak/>
                                           Foreground="#cccccc" Margin="0,0,0,10"/>
                                 <CheckBox x:Name="ChkBSP" Content="BSP — Binary space partitioning"
                                           Foreground="#cccccc" Margin="0,0,0,10"/>
+
+                                <TextBlock Text="Window Gaps" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="#ffffff" Margin="0,24,0,12"/>
+
+                                <TextBlock Text="Inner gap" Foreground="#999999" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Slider x:Name="InnerGapSlider" Minimum="0" Maximum="24"
+                                            Value="4" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                    <TextBlock Grid.Column="1" Width="45" TextAlignment="Right"
+                                               Foreground="#7aa2f7" VerticalAlignment="Center">
+                                        <Run x:Name="InnerGapLabel" Text="4"/><Run Text="px"/>
+                                    </TextBlock>
+                                </Grid>
+
+                                <TextBlock Text="Outer gap" Foreground="#999999" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Slider x:Name="OuterGapSlider" Minimum="0" Maximum="12"
+                                            Value="2" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                    <TextBlock Grid.Column="1" Width="45" TextAlignment="Right"
+                                               Foreground="#7aa2f7" VerticalAlignment="Center">
+                                        <Run x:Name="OuterGapLabel" Text="2"/><Run Text="px"/>
+                                    </TextBlock>
+                                </Grid>
+
+                                <TextBlock Text="Master Area" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="#ffffff" Margin="0,24,0,12"/>
+
+                                <TextBlock Text="Master window ratio" Foreground="#999999" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Slider x:Name="MasterFactorSlider" Minimum="30" Maximum="80"
+                                            Value="60" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                                    <TextBlock Grid.Column="1" Width="45" TextAlignment="Right"
+                                               Foreground="#7aa2f7" VerticalAlignment="Center">
+                                        <Run x:Name="MasterFactorLabel" Text="60"/><Run Text="%"/>
+                                    </TextBlock>
+                                </Grid>
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <Grid x:Name="PageKeybindings" Grid.Row="0" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="Keybindings" FontSize="18" FontWeight="SemiBold"
+                                       Foreground="#ffffff" Margin="0,0,0,8"/>
+                            <TextBlock Text="Bindings active in DWALIA command mode. Keybinding changes apply after restart."
+                                       Foreground="#999999" Margin="0,0,0,16" TextWrapping="Wrap"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                                <StackPanel x:Name="KeybindingsPanel"/>
+                            </ScrollViewer>
+                        </StackPanel>
                     </Grid>
 
                     <StackPanel Grid.Row="1" Orientation="Horizontal"

@@ -25,39 +25,6 @@ internal static class WindowHelper
         };
     }
 
-    public static void RemoveWindowChrome(IntPtr hwnd)
-    {
-        var style = GetWindowLongPtr(hwnd, GWL_STYLE);
-        style &= ~(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
-        SetWindowLongPtr(hwnd, GWL_STYLE, style);
-
-        SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE);
-    }
-
-    public static void RestoreWindowChrome(IntPtr hwnd, WindowInfo info)
-    {
-        var style = GetWindowLongPtr(hwnd, GWL_STYLE);
-        style &= ~(WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
-
-        if ((info.OriginalStyle & WS_CAPTION) != 0)
-            style |= WS_CAPTION;
-        if ((info.OriginalStyle & WS_THICKFRAME) != 0)
-            style |= WS_THICKFRAME;
-        if ((info.OriginalStyle & WS_SYSMENU) != 0)
-            style |= WS_SYSMENU;
-        if ((info.OriginalStyle & WS_MINIMIZEBOX) != 0)
-            style |= WS_MINIMIZEBOX;
-        if ((info.OriginalStyle & WS_MAXIMIZEBOX) != 0)
-            style |= WS_MAXIMIZEBOX;
-
-        SetWindowLongPtr(hwnd, GWL_STYLE, style);
-        SetWindowLongPtr(hwnd, GWL_EXSTYLE, info.OriginalExStyle);
-
-        SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE);
-    }
-
     public static bool IsManageableWindow(IntPtr hwnd)
     {
         if (!IsWindow(hwnd)) return false;

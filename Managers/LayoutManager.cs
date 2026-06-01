@@ -1,3 +1,4 @@
+using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Models;
 using static Dwalia.Win32.NativeMethods;
@@ -27,6 +28,13 @@ public class LayoutManager
         _workspaceManager = ws;
         _focusManager = fm;
         _area = new System.Windows.Rect(0, 0, 1920, 1040);
+
+        if (ServiceLocator.TryResolve<DwaliaConfig>(out var config))
+        {
+            _masterFactor = config.Layout.MasterFactor;
+            _gap = config.Layout.InnerGap;
+            _outer = config.Layout.OuterGap;
+        }
 
         _windowManager.WindowManaged += (_, _) => Relayout();
         _windowManager.WindowUnmanaged += (_, _) => Relayout();
@@ -285,6 +293,7 @@ public class LayoutManager
     {
         _masterFactor = Math.Clamp(_masterFactor + delta, 0.3, 0.8);
         Logger.Info($"Master factor: {_masterFactor:F2}");
+        SaveLayoutConfig();
         Relayout();
     }
 
@@ -293,7 +302,20 @@ public class LayoutManager
         _gap = Math.Clamp(_gap + delta, 0, 24);
         _outer = Math.Clamp(_outer + delta, 0, 12);
         Logger.Info($"Gap: {_gap}, Outer: {_outer}");
+        SaveLayoutConfig();
         Relayout();
+    }
+
+    private void SaveLayoutConfig()
+    {
+        if (ServiceLocator.TryResolve<DwaliaConfig>(out var config) &&
+            ServiceLocator.TryResolve<ConfigManager>(out var cm))
+        {
+            config.Layout.MasterFactor = _masterFactor;
+            config.Layout.InnerGap = _gap;
+            config.Layout.OuterGap = _outer;
+            cm.Save(config);
+        }
     }
 
     public void SwapNext()

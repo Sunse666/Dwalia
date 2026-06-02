@@ -43,7 +43,7 @@ public partial class MainWindow : Window
 
         if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
         {
-            wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateWorkspacePills(); RefreshBackgroundVisibility(); };
+            wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateWorkspacePills(); };
         }
 
         var wa = System.Windows.SystemParameters.WorkArea;
@@ -108,7 +108,7 @@ public partial class MainWindow : Window
 
         if (ServiceLocator.TryResolve<LayoutManager>(out var lmg))
         {
-            lmg.LayoutChanged += (_, _) => Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
+            lmg.RelayoutCompleted += () => Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
         }
 
         _focusBgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
@@ -156,6 +156,7 @@ public partial class MainWindow : Window
 
         _windowEventHookManager.Start();
         _windowManager.Initialize();
+        Dispatcher.BeginInvoke(() => RefreshAllBackgroundPositions());
     }
 
     private string _layoutLabelText = "MasterStack";
@@ -164,9 +165,9 @@ public partial class MainWindow : Window
     {
         Logger.Info("Shutting down — restoring all windows...");
         _focusBgTimer?.Stop();
-        _focusBackground?.Dispose();
         _windowEventHookManager.Stop();
         _windowManager.RestoreAllWindows();
+        _focusBackground?.Dispose();
     }
 
     private void UpdateTaskBar()
@@ -392,6 +393,7 @@ public partial class MainWindow : Window
         if (_focusBackground == null) return;
         if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
         if (!ServiceLocator.TryResolve<LayoutManager>(out var lm)) return;
+        if (!ServiceLocator.TryResolve<WindowManager>(out var wm)) return;
 
         var activeWs = wsm.GetActiveWorkspace();
         if (activeWs == null) return;
@@ -403,9 +405,17 @@ public partial class MainWindow : Window
 
         int expand = gap / 2;
 
-        foreach (var mw in activeWs.Windows)
+        foreach (var mw in wm.ManagedWindows.Values)
         {
-            if (mw.State == Dwalia.Models.WindowLayoutState.Fullscreen) continue;
+            bool onActiveWs = mw.WorkspaceId == activeWs.Id;
+            bool isFullscreen = mw.State == Dwalia.Models.WindowLayoutState.Fullscreen;
+
+            if (!onActiveWs || isFullscreen)
+            {
+                _focusBackground.SetVisible(mw.Hwnd, false);
+                continue;
+            }
+
             try
             {
                 if (mw.State == Dwalia.Models.WindowLayoutState.Tiled && mw.LayoutBounds.Width > 0)
@@ -444,22 +454,6 @@ public partial class MainWindow : Window
                 }
             }
             catch { }
-        }
-    }
-
-    private void RefreshBackgroundVisibility()
-    {
-        if (_focusBackground == null) return;
-        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
-        if (!ServiceLocator.TryResolve<WindowManager>(out var wm)) return;
-
-        var activeWs = wsm.GetActiveWorkspace();
-        if (activeWs == null) return;
-
-        foreach (var mw in wm.ManagedWindows.Values)
-        {
-            bool visible = mw.WorkspaceId == activeWs.Id && mw.State != Dwalia.Models.WindowLayoutState.Fullscreen;
-            _focusBackground.SetVisible(mw.Hwnd, visible);
         }
     }
 

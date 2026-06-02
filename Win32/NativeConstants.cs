@@ -101,4 +101,14 @@ internal static class NativeConstants
     public const uint DWMWA_BORDER_COLOR = 34;
     public const int DWM_ACTIVE_BORDER = unchecked((int)0xFF7AA2F7);
     public const int DWM_INACTIVE_BORDER = unchecked((int)0xFF1A1B26);
+
+    public static int ParseDwmColor(string hex)
+    {
+        try
+        {
+            var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+            return unchecked((int)(0xFF000000 | ((uint)c.R << 16) | ((uint)c.G << 8) | c.B));
+        }
+        catch { return DWM_ACTIVE_BORDER; }
+    }
 }

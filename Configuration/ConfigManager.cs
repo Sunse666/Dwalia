@@ -71,24 +71,28 @@ public class ConfigManager
         Managers.WorkspaceManager workspaceManager)
     {
         foreach (var mw in windowManager.ManagedWindows.Values)
+            ApplyRulesToWindow(config, workspaceManager, mw);
+    }
+
+    public void ApplyRulesToWindow(DwaliaConfig config,
+        Managers.WorkspaceManager workspaceManager, Models.ManagedWindow mw)
+    {
+        foreach (var rule in config.Rules)
         {
-            foreach (var rule in config.Rules)
+            var normalizedRule = rule.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                ? rule.Process[..^4] : rule.Process;
+            if (mw.ProcessName.Equals(normalizedRule, StringComparison.OrdinalIgnoreCase))
             {
-                var normalizedRule = rule.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                    ? rule.Process[..^4] : rule.Process;
-                if (mw.ProcessName.Equals(normalizedRule, StringComparison.OrdinalIgnoreCase))
+                if (rule.Workspace.HasValue)
                 {
-                    if (rule.Workspace.HasValue)
-                    {
-                        workspaceManager.MoveWindowToWorkspace(mw, rule.Workspace.Value);
-                        Logger.Info($"Rule applied: {mw.ProcessName} -> workspace {rule.Workspace}");
-                    }
-                    if (rule.Floating.HasValue && rule.Floating.Value)
-                    {
-                        mw.State = Models.WindowLayoutState.Floating;
-                    }
-                    break;
+                    workspaceManager.MoveWindowToWorkspace(mw, rule.Workspace.Value);
+                    Logger.Info($"Rule applied: {mw.ProcessName} -> workspace {rule.Workspace}");
                 }
+                if (rule.Floating.HasValue && rule.Floating.Value)
+                {
+                    mw.State = Models.WindowLayoutState.Floating;
+                }
+                break;
             }
         }
     }

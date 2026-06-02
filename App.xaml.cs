@@ -4,6 +4,7 @@ using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Managers;
 using Dwalia.Views;
+using Dwalia.Win32;
 
 namespace Dwalia;
 
@@ -40,6 +41,9 @@ public partial class App : Application
         _workspaceManager = new WorkspaceManager();
         _windowManager.SetWorkspaceManager(_workspaceManager);
         _focusManager = new FocusManager(_windowManager);
+        _focusManager.SetBorderColors(
+            NativeConstants.ParseDwmColor(_config.Theme.ActiveBorder),
+            NativeConstants.ParseDwmColor(_config.Theme.InactiveBorder));
         _hotKeyManager = new HotKeyManager();
 
         if (_config.Workspaces.Names.Length > 0)
@@ -62,7 +66,12 @@ public partial class App : Application
 
         _hookManager.FocusChanged += (_, hwnd) => _focusManager.OnFocusEvent(hwnd);
         _hookManager.WindowDiscovered += (_, hwnd) =>
-            _mainWindow.Dispatcher.Invoke(() => _windowManager.TryManageWindow(hwnd));
+            _mainWindow.Dispatcher.Invoke(() =>
+            {
+                var mw = _windowManager.TryManageWindow(hwnd);
+                if (mw != null)
+                    _configManager.ApplyRulesToWindow(_config, _workspaceManager, mw);
+            });
         _windowManager.WindowUnmanaged += (_, mw) =>
         {
             if (_focusManager.ActiveWindow == mw)

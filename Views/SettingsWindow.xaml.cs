@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -5,6 +6,7 @@ using System.Windows.Media;
 using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Managers;
+using Dwalia.Win32;
 
 namespace Dwalia.Views;
 
@@ -22,9 +24,12 @@ public partial class SettingsWindow : Window
         BgOpacitySlider.ValueChanged += (_, _) => BgOpacityLabel.Text = ((int)BgOpacitySlider.Value).ToString();
         TbOpacitySlider.ValueChanged += (_, _) => TbOpacityLabel.Text = ((int)TbOpacitySlider.Value).ToString();
         AccentColorBox.TextChanged += OnAccentChanged;
+        ActiveBorderBox.TextChanged += OnActiveBorderChanged;
+        InactiveBorderBox.TextChanged += OnInactiveBorderChanged;
         InnerGapSlider.ValueChanged += (_, _) => InnerGapLabel.Text = ((int)InnerGapSlider.Value).ToString();
         OuterGapSlider.ValueChanged += (_, _) => OuterGapLabel.Text = ((int)OuterGapSlider.Value).ToString();
         MasterFactorSlider.ValueChanged += (_, _) => MasterFactorLabel.Text = ((int)MasterFactorSlider.Value).ToString();
+        BorderWidthSlider.ValueChanged += (_, _) => BorderWidthLabel.Text = ((int)BorderWidthSlider.Value).ToString();
     }
 
     private void LoadValues()
@@ -37,8 +42,16 @@ public partial class SettingsWindow : Window
         BgOpacityLabel.Text = ((int)BgOpacitySlider.Value).ToString();
 
         AccentColorBox.Text = _config.Theme.Accent;
-        TerminalBox.Text = _config.LaunchTerminal;
+        ActiveBorderBox.Text = _config.Theme.ActiveBorder;
+        InactiveBorderBox.Text = _config.Theme.InactiveBorder;
+        BorderWidthSlider.Value = _config.Theme.BorderWidth;
+        BorderWidthLabel.Text = ((int)BorderWidthSlider.Value).ToString();
         OnAccentChanged(null!, null!);
+        OnActiveBorderChanged(null!, null!);
+        OnInactiveBorderChanged(null!, null!);
+
+        TerminalBox.Text = _config.LaunchTerminal;
+        ExcludeBox.Text = string.Join(", ", _config.ExcludeProcesses);
 
         var enabled = new HashSet<string>(_config.Layout.EnabledLayouts, StringComparer.OrdinalIgnoreCase);
         ChkMasterStack.IsChecked = enabled.Contains("MasterStack");
@@ -55,6 +68,13 @@ public partial class SettingsWindow : Window
         InnerGapLabel.Text = ((int)InnerGapSlider.Value).ToString();
         OuterGapLabel.Text = ((int)OuterGapSlider.Value).ToString();
         MasterFactorLabel.Text = ((int)MasterFactorSlider.Value).ToString();
+
+        var wn = _config.Workspaces.Names;
+        if (wn.Length > 0) WsName1.Text = wn[0];
+        if (wn.Length > 1) WsName2.Text = wn[1];
+        if (wn.Length > 2) WsName3.Text = wn[2];
+        if (wn.Length > 3) WsName4.Text = wn[3];
+        if (wn.Length > 4) WsName5.Text = wn[4];
 
         LoadKeybindings();
     }
@@ -143,7 +163,15 @@ public partial class SettingsWindow : Window
             _config.Theme.Background = $"#{bgAlpha:x2}1a1b26";
             _config.Theme.TaskbarBackground = $"#{tbAlpha:x2}16161e";
             _config.Theme.Accent = AccentColorBox.Text;
+            _config.Theme.ActiveBorder = ActiveBorderBox.Text;
+            _config.Theme.InactiveBorder = InactiveBorderBox.Text;
+            _config.Theme.BorderWidth = (int)BorderWidthSlider.Value;
             _config.LaunchTerminal = TerminalBox.Text;
+            _config.ExcludeProcesses = ExcludeBox.Text
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToArray();
             _config.Layout.InnerGap = (int)InnerGapSlider.Value;
             _config.Layout.OuterGap = (int)OuterGapSlider.Value;
             _config.Layout.MasterFactor = MasterFactorSlider.Value / 100.0;
@@ -157,6 +185,12 @@ public partial class SettingsWindow : Window
             if (ChkVerticalStack.IsChecked == true) enabledLayouts.Add("VerticalStack");
             if (ChkBSP.IsChecked == true) enabledLayouts.Add("BSP");
             _config.Layout.EnabledLayouts = enabledLayouts.ToArray();
+
+            _config.Workspaces.Names = new[]
+            {
+                WsName1.Text.Trim(), WsName2.Text.Trim(), WsName3.Text.Trim(),
+                WsName4.Text.Trim(), WsName5.Text.Trim()
+            };
 
             if (!SaveKeybindings())
                 return;
@@ -234,6 +268,20 @@ public partial class SettingsWindow : Window
         var accent = TryParseColor(_config.Theme.Accent);
         Application.Current.Resources["AccentBrush"] = new SolidColorBrush(accent);
 
+        if (ServiceLocator.TryResolve<FocusManager>(out var fm))
+        {
+            var active = NativeConstants.ParseDwmColor(_config.Theme.ActiveBorder);
+            var inactive = NativeConstants.ParseDwmColor(_config.Theme.InactiveBorder);
+            fm.SetBorderColors(active, inactive);
+        }
+
+        if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
+        {
+            var names = _config.Workspaces.Names;
+            for (int i = 0; i < names.Length && i < wsm.Workspaces.Count; i++)
+                wsm.Workspaces[i].Name = names[i];
+        }
+
         if (Owner is not MainWindow mw) return;
         mw.ApplyThemeFromConfig();
     }
@@ -257,6 +305,7 @@ public partial class SettingsWindow : Window
         PageGeneral.Visibility = page == PageGeneral ? Visibility.Visible : Visibility.Collapsed;
         PageTheme.Visibility = page == PageTheme ? Visibility.Visible : Visibility.Collapsed;
         PageLayouts.Visibility = page == PageLayouts ? Visibility.Visible : Visibility.Collapsed;
+        PageWorkspaces.Visibility = page == PageWorkspaces ? Visibility.Visible : Visibility.Collapsed;
         PageKeybindings.Visibility = page == PageKeybindings ? Visibility.Visible : Visibility.Collapsed;
 
         var bg = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d));
@@ -269,6 +318,8 @@ public partial class SettingsWindow : Window
         NavTheme.Foreground = page == PageTheme ? fg : muted;
         NavLayouts.Background = page == PageLayouts ? bg : Brushes.Transparent;
         NavLayouts.Foreground = page == PageLayouts ? fg : muted;
+        NavWorkspaces.Background = page == PageWorkspaces ? bg : Brushes.Transparent;
+        NavWorkspaces.Foreground = page == PageWorkspaces ? fg : muted;
         NavKeybindings.Background = page == PageKeybindings ? bg : Brushes.Transparent;
         NavKeybindings.Foreground = page == PageKeybindings ? fg : muted;
     }
@@ -276,5 +327,27 @@ public partial class SettingsWindow : Window
     private void OnNavGeneral(object sender, RoutedEventArgs e) => SetActivePage(PageGeneral);
     private void OnNavTheme(object sender, RoutedEventArgs e) => SetActivePage(PageTheme);
     private void OnNavLayouts(object sender, RoutedEventArgs e) => SetActivePage(PageLayouts);
+    private void OnNavWorkspaces(object sender, RoutedEventArgs e) => SetActivePage(PageWorkspaces);
     private void OnNavKeybindings(object sender, RoutedEventArgs e) => SetActivePage(PageKeybindings);
+
+    private void OnActiveBorderChanged(object sender, TextChangedEventArgs e)
+    {
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(ActiveBorderBox.Text);
+            ActiveBorderPreview.Background = new SolidColorBrush(color);
+        }
+        catch { }
+    }
+
+    private void OnInactiveBorderChanged(object sender, TextChangedEventArgs e)
+    {
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(InactiveBorderBox.Text);
+            InactiveBorderPreview.Background = new SolidColorBrush(color);
+        }
+        catch { }
+    }
+
 }

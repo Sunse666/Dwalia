@@ -10,6 +10,8 @@ public class FocusManager
 {
     private readonly WindowManager _windowManager;
     private ManagedWindow? _activeWindow;
+    private int _activeBorderColor = DWM_ACTIVE_BORDER;
+    private int _inactiveBorderColor = DWM_INACTIVE_BORDER;
 
     public ManagedWindow? ActiveWindow => _activeWindow;
     public event Action? FocusChanged;
@@ -17,6 +19,14 @@ public class FocusManager
     public FocusManager(WindowManager windowManager)
     {
         _windowManager = windowManager;
+    }
+
+    public void SetBorderColors(int active, int inactive)
+    {
+        _activeBorderColor = active;
+        _inactiveBorderColor = inactive;
+        if (_activeWindow != null)
+            ApplyBorderColor(_activeWindow.Hwnd, _activeBorderColor);
     }
 
     public void OnFocusEvent(IntPtr focusedHwnd)
@@ -33,13 +43,13 @@ public class FocusManager
         if (_activeWindow != null)
         {
             _activeWindow.IsActive = false;
-            ApplyBorderColor(_activeWindow.Hwnd, DWM_INACTIVE_BORDER);
+            ApplyBorderColor(_activeWindow.Hwnd, _inactiveBorderColor);
         }
         _activeWindow = window;
         if (_activeWindow != null)
         {
             _activeWindow.IsActive = true;
-            ApplyBorderColor(_activeWindow.Hwnd, DWM_ACTIVE_BORDER);
+            ApplyBorderColor(_activeWindow.Hwnd, _activeBorderColor);
             SetWindowPos(_activeWindow.Hwnd, IntPtr.Zero, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
         }

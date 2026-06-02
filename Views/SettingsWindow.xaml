@@ -4,7 +4,7 @@
         Title="Settings"
         WindowStyle="None"
         ResizeMode="NoResize"
-        Width="600" Height="660"
+        Width="600" Height="680"
         Background="#1e1e1e"
         Foreground="#cccccc"
         FontFamily="Segoe UI"
@@ -205,6 +205,13 @@
                                 HorizontalContentAlignment="Left"
                                 Padding="12,0,0,0" Click="OnNavLayouts"/>
 
+                        <Button x:Name="NavWorkspaces" Content="Workspaces"
+                                Height="36" Margin="8,0,8,2"
+                                Background="Transparent" Foreground="#999999"
+                                BorderThickness="0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Padding="12,0,0,0" Click="OnNavWorkspaces"/>
+
                         <Button x:Name="NavKeybindings" Content="Keybindings"
                                 Height="36" Margin="8,0,8,2"
                                 Background="Transparent" Foreground="#999999"
@@ -236,7 +243,15 @@
 
                             <TextBlock Text="Terminal" Foreground="#999999"
                                        Margin="0,0,0,4"/>
-                            <TextBox x:Name="TerminalBox" Text="wt.exe"/>
+                            <TextBox x:Name="TerminalBox" Text="wt.exe" Margin="0,0,0,20"/>
+
+                            <TextBlock Text="Excluded processes" Foreground="#999999"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="Comma-separated process names to exclude from tiling"
+                                       Foreground="#777777" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox x:Name="ExcludeBox" Text=""
+                                     Height="60" TextWrapping="Wrap"
+                                     AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
                         </StackPanel>
                     </Grid>
 
@@ -287,6 +302,48 @@
                                 <Border Grid.Column="1" x:Name="AccentPreview"
                                         Width="24" Height="24" CornerRadius="4"
                                         Background="#7aa2f7" Margin="8,0,0,0"/>
+                            </Grid>
+
+                            <TextBlock Text="Active border color" Foreground="#999999"
+                                       Margin="0,16,0,4"/>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="ActiveBorderBox" Text="#7aa2f7"
+                                         TextChanged="OnActiveBorderChanged"/>
+                                <Border Grid.Column="1" x:Name="ActiveBorderPreview"
+                                        Width="24" Height="24" CornerRadius="4"
+                                        Background="#7aa2f7" Margin="8,0,0,0"/>
+                            </Grid>
+
+                            <TextBlock Text="Inactive border color" Foreground="#999999"
+                                       Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="InactiveBorderBox" Text="#3b4261"
+                                         TextChanged="OnInactiveBorderChanged"/>
+                                <Border Grid.Column="1" x:Name="InactiveBorderPreview"
+                                        Width="24" Height="24" CornerRadius="4"
+                                        Background="#3b4261" Margin="8,0,0,0"/>
+                            </Grid>
+
+                            <TextBlock Text="Border width" Foreground="#999999" Margin="0,16,0,4"/>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider x:Name="BorderWidthSlider" Minimum="1" Maximum="8"
+                                        Value="2" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                <TextBlock Grid.Column="1" Width="45" TextAlignment="Right"
+                                           Foreground="#7aa2f7" VerticalAlignment="Center">
+                                    <Run x:Name="BorderWidthLabel" Text="2"/><Run Text="px"/>
+                                </TextBlock>
                             </Grid>
                         </StackPanel>
                     </Grid>
@@ -363,6 +420,61 @@
                                 </Grid>
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <Grid x:Name="PageWorkspaces" Grid.Row="0" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="Workspaces" FontSize="18" FontWeight="SemiBold"
+                                       Foreground="#ffffff" Margin="0,0,0,8"/>
+                            <TextBlock Text="Customize workspace names shown in the taskbar"
+                                       Foreground="#999999" Margin="0,0,0,16"/>
+
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Workspace 1" Foreground="#999999"
+                                           VerticalAlignment="Center"/>
+                                <TextBox x:Name="WsName1" Grid.Column="1"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Workspace 2" Foreground="#999999"
+                                           VerticalAlignment="Center"/>
+                                <TextBox x:Name="WsName2" Grid.Column="1"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Workspace 3" Foreground="#999999"
+                                           VerticalAlignment="Center"/>
+                                <TextBox x:Name="WsName3" Grid.Column="1"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Workspace 4" Foreground="#999999"
+                                           VerticalAlignment="Center"/>
+                                <TextBox x:Name="WsName4" Grid.Column="1"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Workspace 5" Foreground="#999999"
+                                           VerticalAlignment="Center"/>
+                                <TextBox x:Name="WsName5" Grid.Column="1"/>
+                            </Grid>
+                        </StackPanel>
                     </Grid>
 
                     <Grid x:Name="PageKeybindings" Grid.Row="0" Visibility="Collapsed">

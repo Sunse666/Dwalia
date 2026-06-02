@@ -17,6 +17,7 @@ public class LayoutManager
     public System.Windows.Rect Area => _area;
     public event EventHandler<LayoutType>? LayoutChanged;
     public event Action<string>? StatusMessage;
+    public event Action? RelayoutCompleted;
 
     private LayoutType _layout = LayoutType.MasterStack;
     private double _masterFactor = 0.6;
@@ -83,8 +84,10 @@ public class LayoutManager
             ShowWindow(mw.Hwnd, sw);
         }
 
-        if (tiled.Count == 0) return;
-        ArrangeTiled(tiled);
+        if (tiled.Count > 0)
+            ArrangeTiled(tiled);
+
+        RelayoutCompleted?.Invoke();
     }
 
     private const int MinWindowWidth = 200;
@@ -459,6 +462,7 @@ public class LayoutManager
             mw.PreFullscreenRect = Win32.WindowHelper.GetWindowRectSafe(hwnd);
             mw.State = WindowLayoutState.Fullscreen;
             Position(mw, _area);
+            RelayoutCompleted?.Invoke();
         }
     }
 }

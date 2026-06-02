@@ -68,7 +68,7 @@ public class FocusBackground : IDisposable
         window.SourceInitialized += (_, _) =>
         {
             bg.Hwnd = new WindowInteropHelper(window).Handle;
-            SetWindowPos(bg.Hwnd, ownerHwnd, bg.X, bg.Y, bg.W, bg.H, SWP_NOACTIVATE);
+            SetWindowPos(bg.Hwnd, new IntPtr(1), bg.X, bg.Y, bg.W, bg.H, SWP_NOACTIVATE);
             ApplyColor(bg);
             bg.Pending = false;
         };
@@ -93,7 +93,7 @@ public class FocusBackground : IDisposable
 
         if (bg.Hwnd != IntPtr.Zero)
         {
-            SetWindowPos(bg.Hwnd, ownerHwnd, x, y, w, h, SWP_NOACTIVATE);
+            SetWindowPos(bg.Hwnd, new IntPtr(1), x, y, w, h, SWP_NOACTIVATE);
             bg.Pending = false;
         }
         else
@@ -105,7 +105,7 @@ public class FocusBackground : IDisposable
     public void SetVisible(IntPtr ownerHwnd, bool visible)
     {
         if (!_windows.TryGetValue(ownerHwnd, out var bg) || bg.Hwnd == IntPtr.Zero) return;
-        SetWindowPos(bg.Hwnd, IntPtr.Zero, 0, 0, 0, 0,
+        SetWindowPos(bg.Hwnd, new IntPtr(1), 0, 0, 0, 0,
             SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE |
             (visible ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
     }

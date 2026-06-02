@@ -1,6 +1,6 @@
 # Dwalia
 
-A tiling window manager for Windows, inspired by dwm, i3, and GlazeWM.
+A tiling window manager for Windows.
 
 Dwalia automatically arranges your windows into non-overlapping tiles, managed through workspaces and keyboard-driven workflows — no mouse required.
 
@@ -8,7 +8,7 @@ Dwalia automatically arranges your windows into non-overlapping tiles, managed t
 
 - **7 tiling layouts**: MasterStack, Monocle, Grid, HorizontalStack, Columns, VerticalStack, BSP
 - **Virtual workspaces**: 5 configurable workspaces with independent window sets
-- **Keyboard driven**: All operations via `Alt` + key chords (i3-style)
+- **Keyboard driven**: All operations via `Alt` + key chords
 - **Dynamic gaps**: Adjustable inner/outer gaps in real time
 - **Floating windows**: Toggle any window between tiled and floating
 - **Window rules**: Auto-assign apps to workspaces or floating by process name

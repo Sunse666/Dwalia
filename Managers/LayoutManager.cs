@@ -452,17 +452,17 @@ public class LayoutManager
         }
     }
 
-    public void SwapDown()  => SwapDirectional(FindWindowBelow);
-    public void SwapUp()    => SwapDirectional(FindWindowAbove);
-    public void SwapLeft()  => SwapDirectional(FindWindowLeft);
-    public void SwapRight() => SwapDirectional(FindWindowRight);
+    public void SwapDown()  => SwapDirectional(FindWindowBelow, "Down");
+    public void SwapUp()    => SwapDirectional(FindWindowAbove, "Up");
+    public void SwapLeft()  => SwapDirectional(FindWindowLeft, "Left");
+    public void SwapRight() => SwapDirectional(FindWindowRight, "Right");
 
     private delegate ManagedWindow? WindowFinder(ManagedWindow active, List<ManagedWindow> tiled);
 
-    private void SwapDirectional(WindowFinder finder)
+    private void SwapDirectional(WindowFinder finder, string direction)
     {
         var active = _focusManager.ActiveWindow;
-        if (active == null) return;
+        if (active == null || active.State != WindowLayoutState.Tiled) return;
 
         var ws = _workspaceManager.GetActiveWorkspace();
         if (ws == null) return;
@@ -474,7 +474,13 @@ public class LayoutManager
         if (tiled.Count == 0) return;
 
         var other = finder(active, tiled);
-        if (other == null) return;
+        if (other == null)
+        {
+            Logger.Info($"Swap{direction}: no window in direction");
+            return;
+        }
+
+        Logger.Info($"Swap {active.Title} ↔ {other.Title} ({direction})");
 
         var activeBounds = active.LayoutBounds;
         var otherBounds = other.LayoutBounds;
@@ -482,10 +488,32 @@ public class LayoutManager
         active.LayoutBounds = otherBounds;
         other.LayoutBounds = activeBounds;
 
+        ReSortWorkspaceWindows();
+        _bspOrderedHwnds.Clear();
+
         Position(active, active.LayoutBounds);
         Position(other, other.LayoutBounds);
 
+        _focusManager.SetActiveWindow(null);
         _focusManager.SetActiveWindow(active);
+        active.Focus();
+
+        StatusMessage?.Invoke($"Swapped {direction}");
+        RelayoutCompleted?.Invoke();
+    }
+
+    private void ReSortWorkspaceWindows()
+    {
+        var activeWs = _workspaceManager.GetActiveWorkspace();
+        if (activeWs == null) return;
+
+        var sorted = activeWs.Windows
+            .OrderBy(w => w.LayoutBounds.Top)
+            .ThenBy(w => w.LayoutBounds.Left)
+            .ToList();
+
+        activeWs.Windows.Clear();
+        activeWs.Windows.AddRange(sorted);
     }
 
     private static ManagedWindow? FindWindowBelow(ManagedWindow active, List<ManagedWindow> tiled)

@@ -45,8 +45,12 @@ public static class CommandDispatcher
             case DwaliaCommand.DecMaster: lm.ResizeMaster(-0.05); break;
             case DwaliaCommand.IncGap: lm.ResizeGap(1); break;
             case DwaliaCommand.DecGap: lm.ResizeGap(-1); break;
-            case DwaliaCommand.SwapNext: lm.SwapNext(); break;
-            case DwaliaCommand.SwapPrevious: lm.SwapPrevious(); break;
+            case DwaliaCommand.SwapNext:
+            case DwaliaCommand.SwapDown: lm.SwapDown(); break;
+            case DwaliaCommand.SwapPrevious:
+            case DwaliaCommand.SwapUp: lm.SwapUp(); break;
+            case DwaliaCommand.SwapLeft: lm.SwapLeft(); break;
+            case DwaliaCommand.SwapRight: lm.SwapRight(); break;
             case DwaliaCommand.BarNext: cycleBar?.Invoke(1); break;
             case DwaliaCommand.BarPrevious: cycleBar?.Invoke(-1); break;
             case DwaliaCommand.ToggleBar: toggleBar?.Invoke(); break;

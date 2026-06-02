@@ -95,6 +95,8 @@ public class ConfigManager
             new() { Command = "focus_previous", Binding = "Alt+K" },
             new() { Command = "swap_next", Binding = "Alt+Shift+J" },
             new() { Command = "swap_previous", Binding = "Alt+Shift+K" },
+            new() { Command = "swap_left", Binding = "Alt+Shift+H" },
+            new() { Command = "swap_right", Binding = "Alt+Shift+L" },
             new() { Command = "toggle_fullscreen", Binding = "Alt+F" },
             new() { Command = "cycle_layout", Binding = "Alt+T" },
             new() { Command = "toggle_float", Binding = "Alt+Shift+Space" },

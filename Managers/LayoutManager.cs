@@ -452,38 +452,116 @@ public class LayoutManager
         }
     }
 
-    public void SwapNext()
-    {
-        SwapWindow(1);
-    }
+    public void SwapDown()  => SwapDirectional(FindWindowBelow);
+    public void SwapUp()    => SwapDirectional(FindWindowAbove);
+    public void SwapLeft()  => SwapDirectional(FindWindowLeft);
+    public void SwapRight() => SwapDirectional(FindWindowRight);
 
-    public void SwapPrevious()
-    {
-        SwapWindow(-1);
-    }
+    private delegate ManagedWindow? WindowFinder(ManagedWindow active, List<ManagedWindow> tiled);
 
-    private void SwapWindow(int direction)
+    private void SwapDirectional(WindowFinder finder)
     {
-        var ordered = GetOrderedWindows();
-        if (ordered.Count < 2 || _focusManager.ActiveWindow == null) return;
         var active = _focusManager.ActiveWindow;
+        if (active == null) return;
 
-        int activeIdx = ordered.IndexOf(active);
-        if (activeIdx < 0) return;
+        var ws = _workspaceManager.GetActiveWorkspace();
+        if (ws == null) return;
 
-        int otherIdx = (activeIdx + direction + ordered.Count) % ordered.Count;
-        var other = ordered[otherIdx];
+        var tiled = ws.Windows
+            .Where(w => w.State == WindowLayoutState.Tiled && w != active)
+            .ToList();
 
-        var list = _workspaceManager.GetActiveWorkspace()!.Windows;
-        list.Remove(active);
-        if (other != active)
-            list.Remove(other);
+        if (tiled.Count == 0) return;
 
-        list.Insert(0, other);
-        list.Add(active);
+        var other = finder(active, tiled);
+        if (other == null) return;
 
-        _focusManager.SetActiveWindow(other);
-        Relayout(resetFocus: false);
+        var activeBounds = active.LayoutBounds;
+        var otherBounds = other.LayoutBounds;
+
+        active.LayoutBounds = otherBounds;
+        other.LayoutBounds = activeBounds;
+
+        Position(active, active.LayoutBounds);
+        Position(other, other.LayoutBounds);
+
+        _focusManager.SetActiveWindow(active);
+    }
+
+    private static ManagedWindow? FindWindowBelow(ManagedWindow active, List<ManagedWindow> tiled)
+    {
+        var myBottom = active.LayoutBounds.Bottom;
+        var myLeft = active.LayoutBounds.Left;
+        var myRight = active.LayoutBounds.Right;
+
+        return tiled
+            .Where(w =>
+            {
+                var r = w.LayoutBounds;
+                return r.Top >= myBottom - 0.5
+                    && r.Right > myLeft + 0.5
+                    && r.Left < myRight - 0.5;
+            })
+            .OrderBy(w => w.LayoutBounds.Top)
+            .ThenBy(w => w.LayoutBounds.Left)
+            .FirstOrDefault();
+    }
+
+    private static ManagedWindow? FindWindowAbove(ManagedWindow active, List<ManagedWindow> tiled)
+    {
+        var myTop = active.LayoutBounds.Top;
+        var myLeft = active.LayoutBounds.Left;
+        var myRight = active.LayoutBounds.Right;
+
+        return tiled
+            .Where(w =>
+            {
+                var r = w.LayoutBounds;
+                return r.Bottom <= myTop + 0.5
+                    && r.Right > myLeft + 0.5
+                    && r.Left < myRight - 0.5;
+            })
+            .OrderByDescending(w => w.LayoutBounds.Bottom)
+            .ThenBy(w => w.LayoutBounds.Left)
+            .FirstOrDefault();
+    }
+
+    private static ManagedWindow? FindWindowLeft(ManagedWindow active, List<ManagedWindow> tiled)
+    {
+        var myLeft = active.LayoutBounds.Left;
+        var myTop = active.LayoutBounds.Top;
+        var myBottom = active.LayoutBounds.Bottom;
+
+        return tiled
+            .Where(w =>
+            {
+                var r = w.LayoutBounds;
+                return r.Right <= myLeft + 0.5
+                    && r.Bottom > myTop + 0.5
+                    && r.Top < myBottom - 0.5;
+            })
+            .OrderByDescending(w => w.LayoutBounds.Right)
+            .ThenBy(w => w.LayoutBounds.Top)
+            .FirstOrDefault();
+    }
+
+    private static ManagedWindow? FindWindowRight(ManagedWindow active, List<ManagedWindow> tiled)
+    {
+        var myRight = active.LayoutBounds.Right;
+        var myTop = active.LayoutBounds.Top;
+        var myBottom = active.LayoutBounds.Bottom;
+
+        return tiled
+            .Where(w =>
+            {
+                var r = w.LayoutBounds;
+                return r.Left >= myRight - 0.5
+                    && r.Bottom > myTop + 0.5
+                    && r.Top < myBottom - 0.5;
+            })
+            .OrderBy(w => w.LayoutBounds.Left)
+            .ThenBy(w => w.LayoutBounds.Top)
+            .FirstOrDefault();
     }
 
     public void ToggleFloating(IntPtr hwnd)

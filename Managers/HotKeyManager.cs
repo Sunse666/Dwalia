@@ -30,6 +30,10 @@ public class HotKeyManager : IDisposable
             ["focus_previous"] = DwaliaCommand.FocusPrevious,
             ["swap_next"] = DwaliaCommand.SwapNext,
             ["swap_previous"] = DwaliaCommand.SwapPrevious,
+            ["swap_down"] = DwaliaCommand.SwapDown,
+            ["swap_up"] = DwaliaCommand.SwapUp,
+            ["swap_left"] = DwaliaCommand.SwapLeft,
+            ["swap_right"] = DwaliaCommand.SwapRight,
             ["toggle_float"] = DwaliaCommand.ToggleFloat,
             ["toggle_fullscreen"] = DwaliaCommand.ToggleFullscreen,
             ["close_window"] = DwaliaCommand.CloseWindow,
@@ -150,6 +154,8 @@ public class HotKeyManager : IDisposable
 
         TryRegisterAlias(false, VK_UP, DwaliaCommand.FocusPrevious);
         TryRegisterAlias(false, VK_DOWN, DwaliaCommand.FocusNext);
+        TryRegisterAlias(true, VK_H, DwaliaCommand.SwapLeft);
+        TryRegisterAlias(true, VK_L, DwaliaCommand.SwapRight);
 
         InstallHook();
     }
@@ -319,6 +325,10 @@ public enum DwaliaCommand
     FocusPrevious,
     SwapNext,
     SwapPrevious,
+    SwapDown,
+    SwapUp,
+    SwapLeft,
+    SwapRight,
     ToggleFloat,
     ToggleFullscreen,
     CloseWindow,

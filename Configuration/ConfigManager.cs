@@ -19,6 +19,55 @@ public class ConfigManager
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .Build();
 
+    private FileSystemWatcher? _watcher;
+    private System.Timers.Timer? _debounceTimer;
+    private Action? _onConfigChanged;
+    private readonly object _watcherLock = new();
+
+    public void StartWatching(Action onConfigChanged)
+    {
+        lock (_watcherLock)
+        {
+            StopWatching();
+            _onConfigChanged = onConfigChanged;
+
+            var dir = Path.GetDirectoryName(ConfigPath);
+            var file = Path.GetFileName(ConfigPath);
+            if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(file)) return;
+
+            _debounceTimer = new System.Timers.Timer(300) { AutoReset = false };
+            _debounceTimer.Elapsed += (_, _) =>
+            {
+                Logger.Info("config.yaml changed, auto-reloading...");
+                _onConfigChanged?.Invoke();
+            };
+
+            _watcher = new FileSystemWatcher(dir, file)
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size,
+                EnableRaisingEvents = true
+            };
+            _watcher.Changed += (_, _) =>
+            {
+                _debounceTimer?.Stop();
+                _debounceTimer?.Start();
+            };
+            Logger.Info("Config file watcher started");
+        }
+    }
+
+    public void StopWatching()
+    {
+        lock (_watcherLock)
+        {
+            _debounceTimer?.Stop();
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+            _watcher?.Dispose();
+            _watcher = null;
+        }
+    }
+
     public ConfigRoot Load()
     {
         if (!File.Exists(ConfigPath))
@@ -95,8 +144,8 @@ public class ConfigManager
             new() { Command = "focus_up", Binding = "Alt+K" },
             new() { Command = "focus_left", Binding = "Alt+H" },
             new() { Command = "focus_right", Binding = "Alt+L" },
-            new() { Command = "swap_next", Binding = "Alt+Shift+J" },
-            new() { Command = "swap_previous", Binding = "Alt+Shift+K" },
+            new() { Command = "swap_down", Binding = "Alt+Shift+J" },
+            new() { Command = "swap_up", Binding = "Alt+Shift+K" },
             new() { Command = "swap_left", Binding = "Alt+Shift+H" },
             new() { Command = "swap_right", Binding = "Alt+Shift+L" },
             new() { Command = "toggle_fullscreen", Binding = "Alt+F" },

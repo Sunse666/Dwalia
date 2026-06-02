@@ -123,48 +123,87 @@ public class HotKeyManager : IDisposable
         throw new ArgumentException($"Unrecognized key: '{part}' in '{binding}'");
     }
 
+    private static readonly (string binding, string command)[] DefaultBindings =
+    {
+        ("Alt+J", "focus_down"),
+        ("Alt+K", "focus_up"),
+        ("Alt+H", "focus_left"),
+        ("Alt+L", "focus_right"),
+        ("Alt+Shift+J", "swap_down"),
+        ("Alt+Shift+K", "swap_up"),
+        ("Alt+Shift+H", "swap_left"),
+        ("Alt+Shift+L", "swap_right"),
+        ("Alt+F", "toggle_fullscreen"),
+        ("Alt+T", "cycle_layout"),
+        ("Alt+Shift+Space", "toggle_float"),
+        ("Alt+Q", "close_window"),
+        ("Alt+Shift+Q", "quit"),
+        ("Alt+OemOpenBrackets", "dec_master"),
+        ("Alt+OemCloseBrackets", "inc_master"),
+        ("Alt+OemComma", "dec_gap"),
+        ("Alt+OemPeriod", "inc_gap"),
+        ("Alt+1", "focus_1"), ("Alt+2", "focus_2"), ("Alt+3", "focus_3"),
+        ("Alt+4", "focus_4"), ("Alt+5", "focus_5"), ("Alt+6", "focus_6"),
+        ("Alt+7", "focus_7"), ("Alt+8", "focus_8"), ("Alt+9", "focus_9"),
+        ("Alt+Shift+1", "workspace_1"), ("Alt+Shift+2", "workspace_2"),
+        ("Alt+Shift+3", "workspace_3"), ("Alt+Shift+4", "workspace_4"),
+        ("Alt+Shift+5", "workspace_5"),
+        ("Alt+Shift+Right", "workspace_next"),
+        ("Alt+Shift+Left", "workspace_previous"),
+        ("Alt+Shift+N", "move_to_workspace_next"),
+        ("Alt+Shift+M", "move_to_workspace_previous"),
+        ("Alt+Enter", "launch_terminal"),
+        ("Alt+U", "toggle_bar"),
+        ("Alt+Shift+Down", "bar_next"),
+        ("Alt+Shift+Up", "bar_previous"),
+        ("Alt+Shift+R", "reload_config"),
+    };
+
     public void Initialize(IntPtr dwaliaHwnd)
     {
         _dwaliaHwnd = dwaliaHwnd;
+        _keyMap.Clear();
+        _failedRegistrations.Clear();
 
-        if (!ServiceLocator.TryResolve<ConfigRoot>(out var config))
+        foreach (var (binding, cmdName) in DefaultBindings)
         {
-            _failedRegistrations.Add("ConfigRoot not found in ServiceLocator");
-            InstallHook();
-            return;
-        }
-
-        foreach (var entry in config.Keybindings)
-        {
-            if (string.IsNullOrWhiteSpace(entry.Binding)) continue;
-            if (!CommandNameMap.TryGetValue(entry.Command, out var cmd))
+            if (!CommandNameMap.TryGetValue(cmdName, out var cmd))
             {
-                _failedRegistrations.Add($"Unknown command: '{entry.Command}'");
+                _failedRegistrations.Add($"Unknown default command: '{cmdName}'");
                 continue;
             }
-
             try
             {
-                var (vkCode, shift) = ParseBinding(entry.Binding);
-                if (_keyMap.ContainsKey((vkCode, shift)))
-                    _failedRegistrations.Add($"{entry.Binding} (duplicate)");
-                else
-                    _keyMap[(vkCode, shift)] = cmd;
+                var (vkCode, shift) = ParseBinding(binding);
+                _keyMap[(vkCode, shift)] = cmd;
             }
             catch (Exception ex)
             {
-                _failedRegistrations.Add($"Invalid binding '{entry.Binding}': {ex.Message}");
+                _failedRegistrations.Add($"Invalid default binding '{binding}': {ex.Message}");
             }
         }
 
-        TryRegisterAlias(false, VK_J, DwaliaCommand.FocusDown);
-        TryRegisterAlias(false, VK_K, DwaliaCommand.FocusUp);
-        TryRegisterAlias(false, VK_H, DwaliaCommand.FocusLeft);
-        TryRegisterAlias(false, VK_L, DwaliaCommand.FocusRight);
-        TryRegisterAlias(false, VK_UP, DwaliaCommand.FocusUp);
-        TryRegisterAlias(false, VK_DOWN, DwaliaCommand.FocusDown);
-        TryRegisterAlias(true, VK_H, DwaliaCommand.SwapLeft);
-        TryRegisterAlias(true, VK_L, DwaliaCommand.SwapRight);
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var config))
+        {
+            foreach (var entry in config.Keybindings)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Binding)) continue;
+                if (!CommandNameMap.TryGetValue(entry.Command, out var cmd))
+                {
+                    _failedRegistrations.Add($"Unknown command: '{entry.Command}'");
+                    continue;
+                }
+                try
+                {
+                    var (vkCode, shift) = ParseBinding(entry.Binding);
+                    _keyMap[(vkCode, shift)] = cmd;
+                }
+                catch (Exception ex)
+                {
+                    _failedRegistrations.Add($"Invalid binding '{entry.Binding}': {ex.Message}");
+                }
+            }
+        }
 
         InstallHook();
     }
@@ -185,20 +224,6 @@ public class HotKeyManager : IDisposable
         {
             Logger.Info($"HotKeyManager: hook installed, {_keyMap.Count} bindings");
         }
-    }
-
-    private void Register(bool shift, uint vkCode, DwaliaCommand command)
-    {
-        if (_keyMap.ContainsKey((vkCode, shift)))
-            _failedRegistrations.Add($"{(shift ? "Shift+" : "")}{VkToString(vkCode)} (duplicate)");
-        else
-            _keyMap[(vkCode, shift)] = command;
-    }
-
-    private void TryRegisterAlias(bool shift, uint vkCode, DwaliaCommand command)
-    {
-        if (!_keyMap.ContainsKey((vkCode, shift)))
-            _keyMap[(vkCode, shift)] = command;
     }
 
     private IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam)
@@ -309,23 +334,6 @@ public class HotKeyManager : IDisposable
         }
     }
 
-    private static string VkToString(uint vk)
-    {
-        if (vk >= VK_0 && vk <= VK_9) return ((char)vk).ToString();
-        if (vk >= VK_A && vk <= VK_Z) return ((char)vk).ToString();
-        return vk switch
-        {
-            VK_SPACE => "Space",
-            VK_RETURN => "Enter",
-            VK_TAB => "Tab",
-            VK_ESCAPE => "Escape",
-            VK_LEFT => "Left",
-            VK_RIGHT => "Right",
-            VK_UP => "Up",
-            VK_DOWN => "Down",
-            _ => $"VK(0x{vk:X})"
-        };
-    }
 }
 
 public enum DwaliaCommand

@@ -16,7 +16,8 @@ Dwalia automatically arranges your windows into non-overlapping tiles, managed t
 - **Acrylic blur**: Optional acrylic backdrop for the desktop overlay
 - **Color filter**: Subtle full-screen tint for visual cohesion across apps
 - **Multi-monitor**: Covers the full virtual desktop
-- **YAML config**: Human-readable, hot-reloadable configuration (`Alt+Shift+R`)
+- **Zero config**: All keybindings work out of the box — no config file needed
+- **YAML config**: Human-readable; edit and save to auto-reload, or press `Alt+Shift+R`
 - **Launcher bar**: Quick-launch buttons for your favorite apps
 - **Info bar**: System stats at a glance (clock, CPU, memory, battery)
 
@@ -35,7 +36,7 @@ cd Dwalia
 dotnet build -c Release
 ```
 
-Run `Dwalia.exe` from `bin/Release/net8.0-windows/`. On first launch, a default `config.yaml` is generated next to the executable.
+Run `Dwalia.exe` from `bin/Release/net8.0-windows/`. All keybindings work immediately — no configuration required. A `config.yaml` is generated on first launch for customization.
 
 ### Basic Usage
 
@@ -61,10 +62,10 @@ Run `Dwalia.exe` from `bin/Release/net8.0-windows/`. On first launch, a default 
 
 ## Configuration
 
-Dwalia reads `config.yaml` from the executable directory. Edit it and press `Alt+Shift+R` to apply changes without restarting.
+Dwalia reads `config.yaml` from the executable directory. All keybindings have built-in defaults — the config file is only for customization. Edit and save to auto-reload, or press `Alt+Shift+R` to manually reload.
 
 ```yaml
-# Dwalia configuration — edit and press Alt+Shift+R to reload
+# Dwalia configuration — edit and save to auto-reload
 
 general:
   launch_terminal: wt.exe
@@ -222,7 +223,7 @@ Dwalia uses:
 - **DWM attributes** (`DwmSetWindowAttribute`) for colored window borders and acrylic effects
 - **WPF** for the overlay UI (taskbar, focus backgrounds, color filter)
 
-When you press `Alt+J` (focus next), Dwalia intercepts the chord before any application sees it, moves focus to the next window, repaints the focus highlight, and updates the DWM border colors — all in a single frame.
+When you press `Alt+J` (focus below), Dwalia intercepts the chord before any application sees it, moves focus to the window directly below, repaints the focus highlight, and updates the DWM border colors — all in a single frame.
 
 ## Comparison
 
@@ -230,7 +231,7 @@ When you press `Alt+J` (focus next), Dwalia intercepts the chord before any appl
 |---|---|---|---|---|
 | **Language** | C# (.NET) | C# (.NET) | Rust | AHK |
 | **Config** | YAML | YAML | YAML / JSON | AHK script |
-| **Hot reload** | Yes (`Alt+Shift+R`) | File watcher | CLI command | Re-run script |
+| **Hot reload** | Auto (file watcher) + manual | File watcher | CLI command | Re-run script |
 | **Bar** | Built-in (3 modes) | Built-in | External (yasb) | Built-in |
 | **Layouts** | 7 | 3 | 3 | 4 |
 | **Focus highlight** | Rounded corners | Border only | Border only | Border only |

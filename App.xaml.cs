@@ -87,6 +87,9 @@ public partial class App : Application
 
         _configManager.ApplyRules(_config, _windowManager, _workspaceManager);
 
+        _configManager.StartWatching(() =>
+            _mainWindow?.Dispatcher.Invoke(() => ReloadConfig()));
+
         Logger.Info("Dwalia started");
     }
 
@@ -128,6 +131,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _configManager?.StopWatching();
         try { _windowManager?.RestoreAllWindows(); } catch { }
         _hotKeyManager?.Dispose();
         base.OnExit(e);

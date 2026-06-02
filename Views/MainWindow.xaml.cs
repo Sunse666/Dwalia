@@ -121,7 +121,7 @@ public partial class MainWindow : Window
 
         if (ServiceLocator.TryResolve<LayoutManager>(out var lmg))
         {
-            lmg.RelayoutCompleted += () => Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
+            lmg.RelayoutCompleted += RefreshAllBackgroundPositions;
         }
 
         _focusBgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
@@ -377,6 +377,11 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    public void RefreshBackgrounds()
+    {
+        Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
+    }
+
     public void ToggleTaskBar()
     {
         TaskBar.Visibility = TaskBar.Visibility == Visibility.Visible
@@ -434,7 +439,7 @@ public partial class MainWindow : Window
     private void OnWindowManaged(Dwalia.Models.ManagedWindow mw)
     {
         if (_focusBackground == null) return;
-        Dispatcher.BeginInvoke(() => AddBackgroundForWindow(mw));
+        AddBackgroundForWindow(mw);
     }
 
     private void AddBackgroundForWindow(Dwalia.Models.ManagedWindow mw)
@@ -494,6 +499,11 @@ public partial class MainWindow : Window
             {
                 if (mw.State == Dwalia.Models.WindowLayoutState.Tiled && mw.LayoutBounds.Width > 0)
                 {
+                    if (!IsWindowVisible(mw.Hwnd))
+                    {
+                        _focusBackground.SetVisible(mw.Hwnd, false);
+                        continue;
+                    }
                     var r = mw.LayoutBounds;
                     int x = Math.Max((int)area.X, (int)r.X - expand);
                     int y = Math.Max((int)area.Y, (int)r.Y - expand);
@@ -501,6 +511,10 @@ public partial class MainWindow : Window
                     int bottom = Math.Min((int)(area.Y + area.Height), (int)(r.Y + r.Height + expand));
                     _focusBackground.UpdatePosition(mw.Hwnd, x, y, right - x, bottom - y);
                     _focusBackground.SetVisible(mw.Hwnd, true);
+                }
+                else if (mw.State == Dwalia.Models.WindowLayoutState.Floating)
+                {
+                    _focusBackground.SetVisible(mw.Hwnd, IsWindowVisible(mw.Hwnd));
                 }
             }
             catch { }

@@ -70,7 +70,10 @@ public partial class App : Application
             {
                 var mw = _windowManager.TryManageWindow(hwnd);
                 if (mw != null)
+                {
                     _configManager.ApplyRulesToWindow(_config, _workspaceManager, mw);
+                    _mainWindow.RefreshBackgrounds();
+                }
             });
         _windowManager.WindowUnmanaged += (_, mw) =>
         {

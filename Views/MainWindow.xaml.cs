@@ -327,7 +327,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            if (opacity <= 0.01)
+            if (opacity <= 0)
             {
                 var disable = new AccentPolicy { AccentState = 0, AccentFlags = 0, GradientColor = 0, AnimationId = 0 };
                 var disableData = new WindowCompositionAttributeData

@@ -327,6 +327,21 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (opacity <= 0.01)
+            {
+                var disable = new AccentPolicy { AccentState = 0, AccentFlags = 0, GradientColor = 0, AnimationId = 0 };
+                var disableData = new WindowCompositionAttributeData
+                {
+                    Attribute = 19,
+                    Data = Marshal.AllocHGlobal(Marshal.SizeOf<AccentPolicy>()),
+                    SizeOfData = Marshal.SizeOf<AccentPolicy>()
+                };
+                Marshal.StructureToPtr(disable, disableData.Data, false);
+                SetWindowCompositionAttribute(hwnd, ref disableData);
+                Marshal.FreeHGlobal(disableData.Data);
+                return;
+            }
+
             var bgColor = Color.FromRgb(0x1A, 0x1B, 0x26);
             try { bgColor = (Color)ColorConverter.ConvertFromString(bgHex); } catch { }
 
@@ -335,7 +350,7 @@ public partial class MainWindow : Window
                 | (uint)bgColor.R << 16 | (uint)bgColor.G << 8 | bgColor.B));
             var accent = new AccentPolicy
             {
-                AccentState = 3,
+                AccentState = 4,
                 AccentFlags = 2,
                 GradientColor = gradientColor,
                 AnimationId = 0

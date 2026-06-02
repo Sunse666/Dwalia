@@ -35,7 +35,6 @@ public partial class MainWindow : Window
     private Color _focusBgColor;
     private Color _foregroundColor;
     private Color _mutedColor;
-    private int _focusBgRadius;
 
     public IntPtr GetHwnd() => _hwnd;
 
@@ -104,17 +103,20 @@ public partial class MainWindow : Window
             catch { _foregroundColor = Color.FromRgb(0xc0, 0xca, 0xf5); }
             try { _mutedColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Muted ?? "#565f89"); }
             catch { _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89); }
-            _focusBgRadius = cfg.Theme.BorderWidth > 0 ? cfg.Theme.BorderWidth + 6 : 8;
         }
         else
         {
             _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7);
             _foregroundColor = Color.FromRgb(0xc0, 0xca, 0xf5);
             _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89);
-            _focusBgRadius = 8;
         }
 
-        _focusBackground = new FocusBackground(_focusBgColor, _focusBgRadius);
+        var focusRadius = cfg?.Theme.FocusRadius ?? 8;
+        var focusActiveOp = cfg?.Theme.FocusActiveOpacity ?? 0.27;
+        var focusInactiveOp = cfg?.Theme.FocusInactiveOpacity ?? 0.09;
+        var focusFill = cfg?.Theme.FocusFill ?? true;
+
+        _focusBackground = new FocusBackground(_focusBgColor, focusRadius, focusActiveOp, focusInactiveOp, focusFill);
 
         if (ServiceLocator.TryResolve<FocusMgr>(out var focusMgr))
         {
@@ -373,6 +375,9 @@ public partial class MainWindow : Window
 
         if (c.Theme.EnableAcrylic)
             ApplyAcrylic(_hwnd, c.Theme.AcrylicOpacity);
+
+        _focusBackground?.UpdateStyle(_focusBgColor, c.Theme.FocusRadius,
+            c.Theme.FocusActiveOpacity, c.Theme.FocusInactiveOpacity, c.Theme.FocusFill);
 
         if (c.Theme.ColorFilterOpacity > 0)
             ApplyColorFilter(c.Theme.ColorFilter, c.Theme.ColorFilterOpacity);

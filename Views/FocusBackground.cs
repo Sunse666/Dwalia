@@ -9,8 +9,11 @@ namespace Dwalia.Views;
 
 public class FocusBackground : IDisposable
 {
-    private readonly Color _accentColor;
-    private readonly int _radius;
+    private Color _accentColor;
+    private int _radius;
+    private byte _activeAlpha;
+    private byte _inactiveAlpha;
+    private bool _fill;
     private readonly Dictionary<IntPtr, BgWindow> _windows = new();
     private IntPtr _activeOwnerHwnd;
     private bool _disposed;
@@ -25,10 +28,33 @@ public class FocusBackground : IDisposable
         public bool Pending;
     }
 
-    public FocusBackground(Color color, int radius)
+    public FocusBackground(Color color, int radius, double activeOpacity, double inactiveOpacity, bool fill = true)
     {
         _accentColor = color;
         _radius = radius;
+        _activeAlpha = OpacityToAlpha(activeOpacity);
+        _inactiveAlpha = OpacityToAlpha(inactiveOpacity);
+        _fill = fill;
+    }
+
+    public void UpdateStyle(Color color, int radius, double activeOpacity, double inactiveOpacity, bool fill)
+    {
+        _accentColor = color;
+        _radius = radius;
+        _activeAlpha = OpacityToAlpha(activeOpacity);
+        _inactiveAlpha = OpacityToAlpha(inactiveOpacity);
+        _fill = fill;
+
+        foreach (var bg in _windows.Values)
+        {
+            bg.Border.CornerRadius = new CornerRadius(_radius);
+            ApplyColor(bg);
+        }
+    }
+
+    private static byte OpacityToAlpha(double opacity)
+    {
+        return (byte)(Math.Clamp(opacity, 0.0, 1.0) * 255);
     }
 
     public void Add(IntPtr ownerHwnd, int x, int y, int w, int h)
@@ -124,9 +150,21 @@ public class FocusBackground : IDisposable
     private void ApplyColor(BgWindow bg)
     {
         var isActive = bg.OwnerHwnd == _activeOwnerHwnd;
-        var alpha = isActive ? (byte)0x45 : (byte)0x18;
-        bg.Border.Background = new SolidColorBrush(
-            Color.FromArgb(alpha, _accentColor.R, _accentColor.G, _accentColor.B));
+        var alpha = isActive ? _activeAlpha : _inactiveAlpha;
+        var color = Color.FromArgb(alpha, _accentColor.R, _accentColor.G, _accentColor.B);
+
+        if (_fill)
+        {
+            bg.Border.Background = new SolidColorBrush(color);
+            bg.Border.BorderBrush = null;
+            bg.Border.BorderThickness = new Thickness(0);
+        }
+        else
+        {
+            bg.Border.Background = Brushes.Transparent;
+            bg.Border.BorderBrush = new SolidColorBrush(color);
+            bg.Border.BorderThickness = new Thickness(2);
+        }
     }
 
     public void Dispose()

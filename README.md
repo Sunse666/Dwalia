@@ -85,6 +85,10 @@ theme:
   border_width: 2
   enable_acrylic: true
   acrylic_opacity: 0.25           # 0.0 = fully transparent, 1.0 = fully opaque
+  focus_active_opacity: 0.27      # focus highlight opacity for active window
+  focus_inactive_opacity: 0.09    # focus highlight opacity for inactive windows
+  focus_radius: 8                 # corner radius for focus highlight
+  focus_fill: true                # true = filled highlight, false = border only
   color_filter: "#7aa2f7"
   color_filter_opacity: 0.0   # 0.0 = off, try 0.05 for subtle tint
 

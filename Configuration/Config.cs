@@ -71,6 +71,18 @@ public class ThemeConfig
     [YamlMember(Alias = "acrylic_opacity")]
     public double AcrylicOpacity { get; set; } = 0.25;
 
+    [YamlMember(Alias = "focus_active_opacity")]
+    public double FocusActiveOpacity { get; set; } = 0.27;
+
+    [YamlMember(Alias = "focus_inactive_opacity")]
+    public double FocusInactiveOpacity { get; set; } = 0.09;
+
+    [YamlMember(Alias = "focus_radius")]
+    public int FocusRadius { get; set; } = 8;
+
+    [YamlMember(Alias = "focus_fill")]
+    public bool FocusFill { get; set; } = true;
+
     [YamlMember(Alias = "color_filter")]
     public string ColorFilter { get; set; } = "#7aa2f7";
 

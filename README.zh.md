@@ -87,6 +87,10 @@ theme:
   border_width: 2                  # 边框宽度（1-8）
   enable_acrylic: true             # 启用毛玻璃效果
   acrylic_opacity: 0.25           # 毛玻璃透明度（0.0=全透明, 1.0=不透明）
+  focus_active_opacity: 0.27      # 焦点高亮-活动窗口透明度
+  focus_inactive_opacity: 0.09    # 焦点高亮-非活动窗口透明度
+  focus_radius: 8                 # 焦点高亮圆角半径
+  focus_fill: true                # true=填充模式, false=仅边框
   color_filter: "#7aa2f7"          # 全局颜色滤镜
   color_filter_opacity: 0.0        # 滤镜透明度（0.0=关闭，建议 0.05）
 

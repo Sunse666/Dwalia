@@ -240,11 +240,4 @@ When you press `Alt+J` (focus below), Dwalia intercepts the chord before any app
 
 ## License
 
-GNU General Public License v3.0 — see [LICENSE](LICENSE).
-
-## Inspiration
-
-- [dwm](https://dwm.suckless.org/) — the original dynamic window manager
-- [i3](https://i3wm.org/) — keyboard-driven tiling with tree-based layouts
-- [GlazeWM](https://github.com/glzr-io/glazewm) — clean YAML config, C# implementation
-- [Komorebi](https://github.com/LGUG2Z/komorebi) — Rust-powered, bspwm for Windows
+[LICENSE](LICENSE)

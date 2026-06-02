@@ -68,6 +68,9 @@ public class ThemeConfig
     [YamlMember(Alias = "enable_acrylic")]
     public bool EnableAcrylic { get; set; } = true;
 
+    [YamlMember(Alias = "acrylic_opacity")]
+    public double AcrylicOpacity { get; set; } = 0.25;
+
     [YamlMember(Alias = "color_filter")]
     public string ColorFilter { get; set; } = "#7aa2f7";
 

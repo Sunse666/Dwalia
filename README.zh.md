@@ -86,6 +86,7 @@ theme:
   active_border: "#7aa2f7"         # 活动窗口边框色
   border_width: 2                  # 边框宽度（1-8）
   enable_acrylic: true             # 启用毛玻璃效果
+  acrylic_opacity: 0.25           # 毛玻璃透明度（0.0=全透明, 1.0=不透明）
   color_filter: "#7aa2f7"          # 全局颜色滤镜
   color_filter_opacity: 0.0        # 滤镜透明度（0.0=关闭，建议 0.05）
 

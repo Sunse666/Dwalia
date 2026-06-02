@@ -77,7 +77,7 @@ public partial class MainWindow : Window
         if (ServiceLocator.TryResolve<ConfigRoot>(out var acCfg)
             && acCfg.Theme.EnableAcrylic)
         {
-            ApplyAcrylic(_hwnd);
+            ApplyAcrylic(_hwnd, acCfg.Theme.AcrylicOpacity);
         }
 
         SetWindowPos(_hwnd, new IntPtr(1), 0, 0, 0, 0,
@@ -297,15 +297,17 @@ public partial class MainWindow : Window
         return menu;
     }
 
-    private void ApplyAcrylic(IntPtr hwnd)
+    private void ApplyAcrylic(IntPtr hwnd, double opacity = 0.25)
     {
         try
         {
+            var alpha = (int)(Math.Clamp(opacity, 0.0, 1.0) * 255);
+            var gradientColor = unchecked((int)((uint)alpha << 24 | 0x001A1B26));
             var accent = new AccentPolicy
             {
                 AccentState = 4,
                 AccentFlags = 2,
-                GradientColor = unchecked((int)0x401A1B26),
+                GradientColor = gradientColor,
                 AnimationId = 0
             };
             var data = new WindowCompositionAttributeData
@@ -368,6 +370,9 @@ public partial class MainWindow : Window
         CpuText.Foreground = accentBrush;
         MemText.Foreground = accentBrush;
         BatteryText.Foreground = accentBrush;
+
+        if (c.Theme.EnableAcrylic)
+            ApplyAcrylic(_hwnd, c.Theme.AcrylicOpacity);
 
         if (c.Theme.ColorFilterOpacity > 0)
             ApplyColorFilter(c.Theme.ColorFilter, c.Theme.ColorFilterOpacity);

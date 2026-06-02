@@ -73,10 +73,24 @@ public partial class MainWindow : Window
 
         Logger.Info($"MainWindow.OnSourceInitialized: HWND={_hwnd}, HwndSource={(_hwndSource != null ? "ok" : "NULL")}");
 
-        if (ServiceLocator.TryResolve<ConfigRoot>(out var acCfg)
-            && acCfg.Theme.EnableAcrylic)
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var acCfg))
         {
-            ApplyAcrylic(_hwnd, acCfg.Theme.AcrylicOpacity);
+            if (acCfg.Theme.EnableAcrylic)
+            {
+                ApplyAcrylic(_hwnd, acCfg.Theme.Background ?? "#1a1b26", acCfg.Theme.AcrylicOpacity);
+                OverlayGrid.Background = Brushes.Transparent;
+            }
+            else
+            {
+                try
+                {
+                    var bgColor = (Color)ColorConverter.ConvertFromString(acCfg.Theme.Background ?? "#1a1b26");
+                    var alpha = (byte)(Math.Clamp(acCfg.Theme.BackgroundOpacity, 0.0, 1.0) * 255);
+                    OverlayGrid.Background = new SolidColorBrush(
+                        Color.FromArgb(alpha, bgColor.R, bgColor.G, bgColor.B));
+                }
+                catch { }
+            }
         }
 
         SetWindowPos(_hwnd, new IntPtr(1), 0, 0, 0, 0,
@@ -299,12 +313,16 @@ public partial class MainWindow : Window
         return menu;
     }
 
-    private void ApplyAcrylic(IntPtr hwnd, double opacity = 0.25)
+    private void ApplyAcrylic(IntPtr hwnd, string bgHex, double opacity = 0.25)
     {
         try
         {
+            var bgColor = Color.FromRgb(0x1A, 0x1B, 0x26);
+            try { bgColor = (Color)ColorConverter.ConvertFromString(bgHex); } catch { }
+
             var alpha = (int)(Math.Clamp(opacity, 0.0, 1.0) * 255);
-            var gradientColor = unchecked((int)((uint)alpha << 24 | 0x001A1B26));
+            var gradientColor = unchecked((int)((uint)alpha << 24
+                | (uint)bgColor.R << 16 | (uint)bgColor.G << 8 | bgColor.B));
             var accent = new AccentPolicy
             {
                 AccentState = 4,
@@ -338,13 +356,23 @@ public partial class MainWindow : Window
         try { _mutedColor = (Color)ColorConverter.ConvertFromString(c.Theme.Muted ?? "#565f89"); }
         catch { }
 
-        var bgHex = c.Theme.Background ?? "#221a1b26";
-        try
+        if (c.Theme.EnableAcrylic)
         {
-            var color = (Color)ColorConverter.ConvertFromString(bgHex);
-            OverlayGrid.Background = new SolidColorBrush(color);
+            OverlayGrid.Background = Brushes.Transparent;
         }
-        catch { }
+        else
+        {
+            var bgHex = c.Theme.Background ?? "#221a1b26";
+            var bgOpacity = c.Theme.BackgroundOpacity;
+            try
+            {
+                var color = (Color)ColorConverter.ConvertFromString(bgHex);
+                var alpha = (byte)(Math.Clamp(bgOpacity, 0.0, 1.0) * 255);
+                OverlayGrid.Background = new SolidColorBrush(
+                    Color.FromArgb(alpha, color.R, color.G, color.B));
+            }
+            catch { }
+        }
 
         if (c.Theme.Accent is { Length: > 0 } accent)
         {
@@ -374,7 +402,7 @@ public partial class MainWindow : Window
         BatteryText.Foreground = accentBrush;
 
         if (c.Theme.EnableAcrylic)
-            ApplyAcrylic(_hwnd, c.Theme.AcrylicOpacity);
+            ApplyAcrylic(_hwnd, c.Theme.Background ?? "#1a1b26", c.Theme.AcrylicOpacity);
 
         _focusBackground?.UpdateStyle(_focusBgColor, c.Theme.FocusRadius,
             c.Theme.FocusActiveOpacity, c.Theme.FocusInactiveOpacity, c.Theme.FocusFill);

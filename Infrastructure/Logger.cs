@@ -9,6 +9,13 @@ internal static class Logger
         AppContext.BaseDirectory, "dwalia.log");
 
     private static readonly object _lock = new();
+    private static volatile bool _enabled;
+
+    public static bool Enabled
+    {
+        get => _enabled;
+        set => _enabled = value;
+    }
 
     public static void Info(string message) => Log("INFO", message);
     public static void Warn(string message) => Log("WARN", message);
@@ -21,6 +28,8 @@ internal static class Logger
         var entry = $"[{timestamp}] [{level}] {message}";
 
         Debug.WriteLine(entry);
+
+        if (!_enabled) return;
 
         lock (_lock)
         {

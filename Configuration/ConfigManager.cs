@@ -91,8 +91,10 @@ public class ConfigManager
     {
         return new List<KeybindingEntry>
         {
-            new() { Command = "focus_next", Binding = "Alt+J" },
-            new() { Command = "focus_previous", Binding = "Alt+K" },
+            new() { Command = "focus_down", Binding = "Alt+J" },
+            new() { Command = "focus_up", Binding = "Alt+K" },
+            new() { Command = "focus_left", Binding = "Alt+H" },
+            new() { Command = "focus_right", Binding = "Alt+L" },
             new() { Command = "swap_next", Binding = "Alt+Shift+J" },
             new() { Command = "swap_previous", Binding = "Alt+Shift+K" },
             new() { Command = "swap_left", Binding = "Alt+Shift+H" },
@@ -102,8 +104,8 @@ public class ConfigManager
             new() { Command = "toggle_float", Binding = "Alt+Shift+Space" },
             new() { Command = "close_window", Binding = "Alt+Q" },
             new() { Command = "quit", Binding = "Alt+Shift+Q" },
-            new() { Command = "dec_master", Binding = "Alt+H" },
-            new() { Command = "inc_master", Binding = "Alt+L" },
+            new() { Command = "dec_master", Binding = "Alt+OemOpenBrackets" },
+            new() { Command = "inc_master", Binding = "Alt+OemCloseBrackets" },
             new() { Command = "dec_gap", Binding = "Alt+OemComma" },
             new() { Command = "inc_gap", Binding = "Alt+OemPeriod" },
             new() { Command = "focus_1", Binding = "Alt+1" },

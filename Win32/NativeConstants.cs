@@ -76,6 +76,8 @@ internal static class NativeConstants
     public const uint VK_LWIN = 0x5B;
     public const uint VK_RWIN = 0x5C;
     public const uint VK_OEM_3 = 0xC0;
+    public const uint VK_OEM_4 = 0xDB;
+    public const uint VK_OEM_6 = 0xDD;
     public const uint VK_OEM_COMMA = 0xBC;
     public const uint VK_OEM_PERIOD = 0xBE;
     public const uint VK_LCONTROL = 0xA2;

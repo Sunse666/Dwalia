@@ -35,6 +35,7 @@ public partial class App : Application
 
         _configManager = new ConfigManager();
         _config = _configManager.Load();
+        Logger.Enabled = _config.General.EnableLogging;
 
         _windowManager = new WindowManager(_config.General.ExcludedProcesses);
         _hookManager = new WindowEventHookManager(_windowManager, Dispatcher);
@@ -106,6 +107,7 @@ public partial class App : Application
         if (c == null || _windowManager == null || _workspaceManager == null) return;
 
         _config = c;
+        Logger.Enabled = c.General.EnableLogging;
         ServiceLocator.Register(c);
         _configManager?.ApplyRules(c, _windowManager, _workspaceManager);
         _focusManager?.SetBorderColors(

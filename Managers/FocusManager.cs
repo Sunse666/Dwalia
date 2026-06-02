@@ -62,6 +62,42 @@ public class FocusManager
         DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref c, sizeof(int));
     }
 
+    public void FocusDown(List<ManagedWindow> tiled)
+    {
+        if (_activeWindow == null) return;
+        var other = LayoutManager.FindWindowBelow(_activeWindow, tiled);
+        if (other == null) { Logger.Info("FocusDown: no window below"); return; }
+        SetActiveWindow(other);
+        other.Focus();
+    }
+
+    public void FocusUp(List<ManagedWindow> tiled)
+    {
+        if (_activeWindow == null) return;
+        var other = LayoutManager.FindWindowAbove(_activeWindow, tiled);
+        if (other == null) { Logger.Info("FocusUp: no window above"); return; }
+        SetActiveWindow(other);
+        other.Focus();
+    }
+
+    public void FocusLeft(List<ManagedWindow> tiled)
+    {
+        if (_activeWindow == null) return;
+        var other = LayoutManager.FindWindowLeft(_activeWindow, tiled);
+        if (other == null) { Logger.Info("FocusLeft: no window left"); return; }
+        SetActiveWindow(other);
+        other.Focus();
+    }
+
+    public void FocusRight(List<ManagedWindow> tiled)
+    {
+        if (_activeWindow == null) return;
+        var other = LayoutManager.FindWindowRight(_activeWindow, tiled);
+        if (other == null) { Logger.Info("FocusRight: no window right"); return; }
+        SetActiveWindow(other);
+        other.Focus();
+    }
+
     public void FocusWindow(IntPtr hwnd)
     {
         var mw = _windowManager.GetManagedWindow(hwnd);

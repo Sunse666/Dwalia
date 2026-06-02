@@ -516,7 +516,7 @@ public class LayoutManager
         activeWs.Windows.AddRange(sorted);
     }
 
-    private static ManagedWindow? FindWindowBelow(ManagedWindow active, List<ManagedWindow> tiled)
+    internal static ManagedWindow? FindWindowBelow(ManagedWindow active, List<ManagedWindow> tiled)
     {
         var myBottom = active.LayoutBounds.Bottom;
         var myLeft = active.LayoutBounds.Left;
@@ -535,7 +535,7 @@ public class LayoutManager
             .FirstOrDefault();
     }
 
-    private static ManagedWindow? FindWindowAbove(ManagedWindow active, List<ManagedWindow> tiled)
+    internal static ManagedWindow? FindWindowAbove(ManagedWindow active, List<ManagedWindow> tiled)
     {
         var myTop = active.LayoutBounds.Top;
         var myLeft = active.LayoutBounds.Left;
@@ -554,7 +554,7 @@ public class LayoutManager
             .FirstOrDefault();
     }
 
-    private static ManagedWindow? FindWindowLeft(ManagedWindow active, List<ManagedWindow> tiled)
+    internal static ManagedWindow? FindWindowLeft(ManagedWindow active, List<ManagedWindow> tiled)
     {
         var myLeft = active.LayoutBounds.Left;
         var myTop = active.LayoutBounds.Top;
@@ -573,7 +573,7 @@ public class LayoutManager
             .FirstOrDefault();
     }
 
-    private static ManagedWindow? FindWindowRight(ManagedWindow active, List<ManagedWindow> tiled)
+    internal static ManagedWindow? FindWindowRight(ManagedWindow active, List<ManagedWindow> tiled)
     {
         var myRight = active.LayoutBounds.Right;
         var myTop = active.LayoutBounds.Top;

@@ -14,8 +14,12 @@ public static class CommandDispatcher
     {
         switch (cmd)
         {
-            case DwaliaCommand.FocusNext: fm.FocusNext(lm.GetOrderedWindows()); break;
-            case DwaliaCommand.FocusPrevious: fm.FocusPrevious(lm.GetOrderedWindows()); break;
+            case DwaliaCommand.FocusNext:
+            case DwaliaCommand.FocusDown: { var tiled = GetTiledWindows(ws); if (tiled != null) fm.FocusDown(tiled); break; }
+            case DwaliaCommand.FocusPrevious:
+            case DwaliaCommand.FocusUp: { var tiled = GetTiledWindows(ws); if (tiled != null) fm.FocusUp(tiled); break; }
+            case DwaliaCommand.FocusLeft: { var tiled = GetTiledWindows(ws); if (tiled != null) fm.FocusLeft(tiled); break; }
+            case DwaliaCommand.FocusRight: { var tiled = GetTiledWindows(ws); if (tiled != null) fm.FocusRight(tiled); break; }
             case DwaliaCommand.ToggleFloat: if (fm.ActiveWindow != null) lm.ToggleFloating(fm.ActiveWindow.Hwnd); break;
             case DwaliaCommand.ToggleFullscreen: if (fm.ActiveWindow != null) lm.ToggleFullscreen(fm.ActiveWindow.Hwnd); break;
             case DwaliaCommand.CloseWindow: if (fm.ActiveWindow != null) PostMessage(fm.ActiveWindow.Hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero); break;
@@ -55,6 +59,13 @@ public static class CommandDispatcher
             case DwaliaCommand.BarPrevious: cycleBar?.Invoke(-1); break;
             case DwaliaCommand.ToggleBar: toggleBar?.Invoke(); break;
         }
+    }
+
+    private static List<ManagedWindow>? GetTiledWindows(WorkspaceManager ws)
+    {
+        return ws.GetActiveWorkspace()?.Windows
+            .Where(w => w.State == WindowLayoutState.Tiled)
+            .ToList();
     }
 
     private static void FocusWindow(int index, FocusManager fm, LayoutManager lm)

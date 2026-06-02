@@ -37,6 +37,9 @@ public class GeneralConfig
         "SearchApp", "TextInputHost", "SystemSettings",
         "ApplicationFrameHost", "LockApp", "shellexperiencehost"
     };
+
+    [YamlMember(Alias = "enable_logging")]
+    public bool EnableLogging { get; set; } = false;
 }
 
 public class ThemeConfig

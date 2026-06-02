@@ -28,6 +28,10 @@ public class HotKeyManager : IDisposable
         {
             ["focus_next"] = DwaliaCommand.FocusNext,
             ["focus_previous"] = DwaliaCommand.FocusPrevious,
+            ["focus_down"] = DwaliaCommand.FocusDown,
+            ["focus_up"] = DwaliaCommand.FocusUp,
+            ["focus_left"] = DwaliaCommand.FocusLeft,
+            ["focus_right"] = DwaliaCommand.FocusRight,
             ["swap_next"] = DwaliaCommand.SwapNext,
             ["swap_previous"] = DwaliaCommand.SwapPrevious,
             ["swap_down"] = DwaliaCommand.SwapDown,
@@ -74,7 +78,8 @@ public class HotKeyManager : IDisposable
             ["Space"] = VK_SPACE, ["Enter"] = VK_RETURN, ["Return"] = VK_RETURN,
             ["Tab"] = VK_TAB, ["Escape"] = VK_ESCAPE,
             ["Left"] = VK_LEFT, ["Right"] = VK_RIGHT, ["Up"] = VK_UP, ["Down"] = VK_DOWN,
-            ["Oem3"] = VK_OEM_3, ["OemComma"] = VK_OEM_COMMA, ["OemPeriod"] = VK_OEM_PERIOD,
+            ["Oem3"] = VK_OEM_3, ["OemOpenBrackets"] = VK_OEM_4, ["OemCloseBrackets"] = VK_OEM_6,
+            ["OemComma"] = VK_OEM_COMMA, ["OemPeriod"] = VK_OEM_PERIOD,
         };
 
     public event EventHandler<DwaliaCommand>? CommandTriggered;
@@ -152,8 +157,12 @@ public class HotKeyManager : IDisposable
             }
         }
 
-        TryRegisterAlias(false, VK_UP, DwaliaCommand.FocusPrevious);
-        TryRegisterAlias(false, VK_DOWN, DwaliaCommand.FocusNext);
+        TryRegisterAlias(false, VK_J, DwaliaCommand.FocusDown);
+        TryRegisterAlias(false, VK_K, DwaliaCommand.FocusUp);
+        TryRegisterAlias(false, VK_H, DwaliaCommand.FocusLeft);
+        TryRegisterAlias(false, VK_L, DwaliaCommand.FocusRight);
+        TryRegisterAlias(false, VK_UP, DwaliaCommand.FocusUp);
+        TryRegisterAlias(false, VK_DOWN, DwaliaCommand.FocusDown);
         TryRegisterAlias(true, VK_H, DwaliaCommand.SwapLeft);
         TryRegisterAlias(true, VK_L, DwaliaCommand.SwapRight);
 
@@ -323,6 +332,10 @@ public enum DwaliaCommand
 {
     FocusNext,
     FocusPrevious,
+    FocusDown,
+    FocusUp,
+    FocusLeft,
+    FocusRight,
     SwapNext,
     SwapPrevious,
     SwapDown,

@@ -66,7 +66,7 @@ public class LayoutManager
         Relayout();
     }
 
-    public void Relayout()
+    public void Relayout(bool resetFocus = true)
     {
         var ws = _workspaceManager.GetActiveWorkspace();
         if (ws == null) return;
@@ -87,6 +87,13 @@ public class LayoutManager
 
         if (tiled.Count > 0)
             ArrangeTiled(tiled);
+
+        if (resetFocus)
+        {
+            var ordered = GetOrderedWindows();
+            if (ordered.Count > 0)
+                _focusManager.SetActiveWindow(ordered[0]);
+        }
 
         RelayoutCompleted?.Invoke();
     }
@@ -363,20 +370,20 @@ public class LayoutManager
                 if (mw != null) ordered.Add(mw);
             }
             var remaining = all.Except(ordered)
-                .OrderBy(w => GetWindowCenter(w).Y)
-                .ThenBy(w => GetWindowCenter(w).X)
+                .OrderBy(w => GetWindowTopLeft(w).Y)
+                .ThenBy(w => GetWindowTopLeft(w).X)
                 .ToList();
             ordered.AddRange(remaining);
             return ordered;
         }
 
         return all
-            .OrderBy(w => GetWindowCenter(w).Y)
-            .ThenBy(w => GetWindowCenter(w).X)
+            .OrderBy(w => GetWindowTopLeft(w).Y)
+            .ThenBy(w => GetWindowTopLeft(w).X)
             .ToList();
     }
 
-    private System.Windows.Point GetWindowCenter(ManagedWindow w)
+    private System.Windows.Point GetWindowTopLeft(ManagedWindow w)
     {
         if (w.State == WindowLayoutState.Fullscreen)
             return new System.Windows.Point(_area.X, _area.Y);
@@ -385,12 +392,10 @@ public class LayoutManager
         {
             var rect = Win32.WindowHelper.GetWindowRectSafe(w.Hwnd);
             if (rect.Width > 0 && rect.Height > 0)
-                return new System.Windows.Point(rect.Left + rect.Width / 2.0, rect.Top + rect.Height / 2.0);
+                return new System.Windows.Point(rect.Left, rect.Top);
         }
 
-        return new System.Windows.Point(
-            w.LayoutBounds.X + Math.Max(1, w.LayoutBounds.Width) / 2.0,
-            w.LayoutBounds.Y + Math.Max(1, w.LayoutBounds.Height) / 2.0);
+        return new System.Windows.Point(w.LayoutBounds.X, w.LayoutBounds.Y);
     }
 
     public void SetMasterFactor(double value)
@@ -470,7 +475,7 @@ public class LayoutManager
         list.Add(active);
 
         _focusManager.SetActiveWindow(other);
-        Relayout();
+        Relayout(resetFocus: false);
     }
 
     public void ToggleFloating(IntPtr hwnd)

@@ -91,6 +91,6 @@
         </Border>
 
         <Grid x:Name="OverlayGrid" Grid.Row="1"
-              Background="#221a1b26" IsHitTestVisible="False"/>
+              Background="Transparent" IsHitTestVisible="False"/>
     </Grid>
 </Window>

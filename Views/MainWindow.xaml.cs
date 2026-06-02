@@ -166,6 +166,16 @@ public partial class MainWindow : Window
             handled = true;
             return (IntPtr)MA_NOACTIVATE;
         }
+        if (msg == WM_WINDOWPOSCHANGING)
+        {
+            var wp = Marshal.PtrToStructure<WINDOWPOS>(lParam);
+            if (!wp.hwndInsertAfter.Equals(new IntPtr(1)))
+            {
+                wp.hwndInsertAfter = new IntPtr(1);
+                wp.flags &= ~4u;
+                Marshal.StructureToPtr(wp, lParam, false);
+            }
+        }
         if (msg == WM_DWALIA_COMMAND)
         {
             if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm))
@@ -325,7 +335,7 @@ public partial class MainWindow : Window
                 | (uint)bgColor.R << 16 | (uint)bgColor.G << 8 | bgColor.B));
             var accent = new AccentPolicy
             {
-                AccentState = 4,
+                AccentState = 3,
                 AccentFlags = 2,
                 GradientColor = gradientColor,
                 AnimationId = 0
@@ -731,4 +741,15 @@ public partial class MainWindow : Window
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPOS
+    {
+        public IntPtr hwnd;
+        public IntPtr hwndInsertAfter;
+        public int x;
+        public int y;
+        public int cx;
+        public int cy;
+        public uint flags;
+    }
 }

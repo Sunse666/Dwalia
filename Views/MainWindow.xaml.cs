@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -14,6 +15,8 @@ using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Views;
 
+public enum BarMode { Docker, Info, Launcher }
+
 public partial class MainWindow : Window
 {
     private readonly WindowManager _windowManager;
@@ -21,9 +24,13 @@ public partial class MainWindow : Window
     private IntPtr _hwnd;
     private HwndSource? _hwndSource;
     private DispatcherTimer? _statusTimer;
+    private DispatcherTimer? _infoTimer;
     private FocusBackground? _focusBackground;
     private ColorFilterOverlay? _colorFilter;
     private DispatcherTimer? _focusBgTimer;
+    private BarMode _barMode = BarMode.Docker;
+    private PerformanceCounter? _cpuCounter;
+    private PerformanceCounter? _memCounter;
     private Color _focusBgColor;
     private Color _foregroundColor;
     private Color _mutedColor;
@@ -184,6 +191,9 @@ public partial class MainWindow : Window
     {
         Logger.Info("Shutting down — restoring all windows...");
         _focusBgTimer?.Stop();
+        _infoTimer?.Stop();
+        _cpuCounter?.Dispose();
+        _memCounter?.Dispose();
         _colorFilter?.Dispose();
         _windowEventHookManager.Stop();
         _windowManager.RestoreAllWindows();
@@ -352,6 +362,11 @@ public partial class MainWindow : Window
         }
 
         LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
+        ClockText.Foreground = new SolidColorBrush(_foregroundColor);
+        var accentBrush = new SolidColorBrush(_focusBgColor);
+        CpuText.Foreground = accentBrush;
+        MemText.Foreground = accentBrush;
+        BatteryText.Foreground = accentBrush;
 
         if (c.Theme.ColorFilterOpacity > 0)
             ApplyColorFilter(c.Theme.ColorFilter, c.Theme.ColorFilterOpacity);
@@ -382,14 +397,146 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
     }
 
-    public void ToggleTaskBar()
+    public void CycleBarMode(int direction)
     {
-        TaskBar.Visibility = TaskBar.Visibility == Visibility.Visible
-            ? Visibility.Collapsed
-            : Visibility.Visible;
+        var modes = new[] { BarMode.Docker, BarMode.Info, BarMode.Launcher };
+        var idx = Array.IndexOf(modes, _barMode);
+        _barMode = modes[(idx + direction + modes.Length) % modes.Length];
+        ShowBarMode(_barMode);
+    }
 
+    public void ToggleBar()
+    {
+        if (TaskBar.Visibility == Visibility.Visible)
+        {
+            TaskBar.Visibility = Visibility.Collapsed;
+            InfoBar.Visibility = Visibility.Collapsed;
+            LauncherBar.Visibility = Visibility.Collapsed;
+            _infoTimer?.Stop();
+        }
+        else
+        {
+            ShowBarMode(_barMode);
+        }
+        UpdateBarArea();
+    }
+
+    private void ShowBarMode(BarMode mode)
+    {
+        _barMode = mode;
+        TaskBar.Visibility = mode == BarMode.Docker ? Visibility.Visible : Visibility.Collapsed;
+        InfoBar.Visibility = mode == BarMode.Info ? Visibility.Visible : Visibility.Collapsed;
+        LauncherBar.Visibility = mode == BarMode.Launcher ? Visibility.Visible : Visibility.Collapsed;
+
+        _infoTimer?.Stop();
+        if (mode == BarMode.Info)
+        {
+            UpdateInfoBar();
+            _infoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _infoTimer.Tick += (_, _) => UpdateInfoBar();
+            _infoTimer.Start();
+        }
+
+        if (mode == BarMode.Launcher)
+            BuildLauncherButtons();
+
+        UpdateBarArea();
+    }
+
+    private void UpdateBarArea()
+    {
+        bool visible = TaskBar.Visibility == Visibility.Visible
+                    || InfoBar.Visibility == Visibility.Visible
+                    || LauncherBar.Visibility == Visibility.Visible;
         if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
-            lm.SetArea(_hwnd, TaskBar.Visibility == Visibility.Visible ? TaskBar.Height : 0);
+            lm.SetArea(_hwnd, visible ? TaskBar.Height : 0);
+    }
+
+    private void UpdateInfoBar()
+    {
+        ClockText.Text = DateTime.Now.ToString("HH:mm:ss  yyyy-MM-dd");
+        try { CpuText.Text = $"CPU {(int)GetCpuUsage():D2}%"; } catch { CpuText.Text = "CPU --%"; }
+        try { MemText.Text = $"MEM {(int)GetMemUsage():D2}%"; } catch { MemText.Text = "MEM --%"; }
+        try { BatteryText.Text = GetBatteryText(); } catch { BatteryText.Text = "BAT --%"; }
+    }
+
+    private void BuildLauncherButtons()
+    {
+        LauncherButtons.Children.Clear();
+        if (!ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var cfg)) return;
+        if (cfg.Theme.LauncherApps.Length == 0)
+        {
+            LauncherButtons.Children.Add(new TextBlock
+            {
+                Text = "No apps configured. Add LauncherApps to config.json",
+                Foreground = new SolidColorBrush(_mutedColor),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            return;
+        }
+
+        foreach (var entry in cfg.Theme.LauncherApps)
+        {
+            var parts = entry.Split('|', 2);
+            var name = parts.Length > 1 ? parts[0].Trim() : parts[0].Trim();
+            var path = parts.Length > 1 ? parts[1].Trim() : parts[0].Trim();
+
+            var btn = new Button
+            {
+                Content = name,
+                Height = 28,
+                Margin = new Thickness(3, 0, 3, 0),
+                Padding = new Thickness(10, 0, 10, 0),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(_foregroundColor),
+                Background = new SolidColorBrush(Color.FromRgb(0x24, 0x28, 0x3e)),
+                BorderThickness = new Thickness(0),
+            };
+            var cmd = path;
+            btn.Click += (_, _) =>
+            {
+                try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); }
+                catch (Exception ex) { Logger.Warn($"Launch failed: {cmd}: {ex.Message}"); }
+            };
+            LauncherButtons.Children.Add(btn);
+        }
+    }
+
+    private double GetCpuUsage()
+    {
+        _cpuCounter ??= new PerformanceCounter("Processor", "% Processor Time", "_Total");
+        try { return _cpuCounter.NextValue() / Environment.ProcessorCount; }
+        catch { return 0; }
+    }
+
+    private double GetMemUsage()
+    {
+        _memCounter ??= new PerformanceCounter("Memory", "% Committed Bytes In Use");
+        try { return _memCounter.NextValue(); }
+        catch { return 0; }
+    }
+
+    private static string GetBatteryText()
+    {
+        if (!GetSystemPowerStatus(out var ps)) return "BAT --%";
+        if (ps.BatteryFlag == 128) return "BAT AC";
+        var pct = ps.BatteryLifePercent;
+        return pct <= 100 ? $"BAT {pct}%" : "BAT --%";
+    }
+
+    [DllImport("kernel32.dll")]
+    private static extern bool GetSystemPowerStatus(out SystemPowerStatus sps);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SystemPowerStatus
+    {
+        public byte ACLineStatus;
+        public byte BatteryFlag;
+        public byte BatteryLifePercent;
+        public byte Reserved1;
+        public int BatteryLifeTime;
+        public int BatteryFullLifeTime;
     }
 
     public void UpdateTaskBarColors()
@@ -397,6 +544,8 @@ public partial class MainWindow : Window
         UpdateTaskBar();
         UpdateWorkspacePills();
         LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
+        if (_barMode == BarMode.Launcher)
+            BuildLauncherButtons();
     }
 
     private void UpdateWorkspacePills()

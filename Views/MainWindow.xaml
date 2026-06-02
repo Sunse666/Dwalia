@@ -18,6 +18,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Docker Bar -->
         <Border x:Name="TaskBar"
                 Grid.Row="0"
                 Background="#5516161e"
@@ -33,7 +34,6 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <StackPanel x:Name="WorkspacePills" Orientation="Horizontal"
                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
-
                 </StackPanel>
                 <ItemsControl x:Name="TaskBarItems" Grid.Column="1"
                               VerticalAlignment="Center">
@@ -49,6 +49,48 @@
                            HorizontalAlignment="Right"
                            Margin="0,0,10,0"/>
             </Grid>
+        </Border>
+
+        <!-- Info Bar -->
+        <Border x:Name="InfoBar"
+                Grid.Row="0"
+                Background="#5516161e"
+                BorderBrush="#3b4261"
+                BorderThickness="0,0,0,1"
+                Height="40"
+                Visibility="Collapsed">
+            <Grid Margin="12,0">
+                <TextBlock x:Name="ClockText"
+                           Foreground="#c0caf5" FontSize="13"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <TextBlock x:Name="CpuText"
+                               Foreground="#7aa2f7" FontSize="12"
+                               Margin="0,0,16,0"/>
+                    <TextBlock x:Name="MemText"
+                               Foreground="#7aa2f7" FontSize="12"
+                               Margin="0,0,16,0"/>
+                    <TextBlock x:Name="BatteryText"
+                               Foreground="#7aa2f7" FontSize="12"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Launcher Bar -->
+        <Border x:Name="LauncherBar"
+                Grid.Row="0"
+                Background="#5516161e"
+                BorderBrush="#3b4261"
+                BorderThickness="0,0,0,1"
+                Height="40"
+                Visibility="Collapsed">
+            <StackPanel x:Name="LauncherButtons"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="8,0"/>
         </Border>
 
         <Grid x:Name="OverlayGrid" Grid.Row="1"

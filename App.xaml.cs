@@ -101,7 +101,8 @@ public partial class App : Application
                 sw.ShowDialog();
             }),
             quit: () => _mainWindow?.Dispatcher.Invoke(() => Shutdown()),
-            toggleTaskBar: () => _mainWindow?.Dispatcher.Invoke(() => _mainWindow.ToggleTaskBar()));
+            cycleBar: (dir) => _mainWindow?.Dispatcher.Invoke(() => _mainWindow.CycleBarMode(dir)),
+            toggleBar: () => _mainWindow?.Dispatcher.Invoke(() => _mainWindow.ToggleBar()));
     }
 
     private void ReloadConfig()

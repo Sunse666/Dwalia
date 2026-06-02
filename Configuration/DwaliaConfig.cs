@@ -29,6 +29,13 @@ public class ThemeConfig
     public bool EnableAcrylic { get; set; } = true;
     public string ColorFilter { get; set; } = "#7aa2f7";
     public double ColorFilterOpacity { get; set; } = 0.0;
+    public string[] LauncherApps { get; set; } = new[]
+    {
+        "Terminal|wt.exe",
+        "Chrome|chrome.exe",
+        "VS Code|code",
+        "Explorer|explorer.exe",
+    };
     public int TitleBarHeight { get; set; } = 28;
     public string FontFamily { get; set; } = "Segoe UI";
     public int FontSize { get; set; } = 12;

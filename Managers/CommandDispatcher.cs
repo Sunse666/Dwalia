@@ -9,7 +9,8 @@ public static class CommandDispatcher
 {
     public static void Execute(DwaliaCommand cmd,
         WorkspaceManager ws, FocusManager fm, LayoutManager lm,
-        string launchTerminal, Action? reloadConfig = null, Action? openSettings = null, Action? quit = null)
+        string launchTerminal, Action? reloadConfig = null, Action? openSettings = null, Action? quit = null,
+        Action? toggleTaskBar = null)
     {
         var aws = ws.GetActiveWorkspace();
 
@@ -49,6 +50,7 @@ public static class CommandDispatcher
             case DwaliaCommand.DecGap: lm.ResizeGap(-1); break;
             case DwaliaCommand.SwapNext: lm.SwapNext(); break;
             case DwaliaCommand.SwapPrevious: lm.SwapPrevious(); break;
+            case DwaliaCommand.ToggleTaskBar: toggleTaskBar?.Invoke(); break;
         }
     }
 

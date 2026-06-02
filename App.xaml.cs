@@ -97,7 +97,8 @@ public partial class App : Application
                 sw.Owner = _mainWindow;
                 sw.ShowDialog();
             }),
-            quit: () => _mainWindow?.Dispatcher.Invoke(() => Shutdown()));
+            quit: () => _mainWindow?.Dispatcher.Invoke(() => Shutdown()),
+            toggleTaskBar: () => _mainWindow?.Dispatcher.Invoke(() => _mainWindow.ToggleTaskBar()));
     }
 
     private void ReloadConfig()

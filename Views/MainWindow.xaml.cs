@@ -377,6 +377,16 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    public void ToggleTaskBar()
+    {
+        TaskBar.Visibility = TaskBar.Visibility == Visibility.Visible
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
+            lm.SetArea(_hwnd, TaskBar.Visibility == Visibility.Visible ? TaskBar.Height : 0);
+    }
+
     public void UpdateTaskBarColors()
     {
         UpdateTaskBar();

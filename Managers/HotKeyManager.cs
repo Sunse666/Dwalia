@@ -75,6 +75,7 @@ public class HotKeyManager : IDisposable
             [nameof(DwaliaCommand.Workspace3)] = "Shift+3",
             [nameof(DwaliaCommand.Workspace4)] = "Shift+4",
             [nameof(DwaliaCommand.Workspace5)] = "Shift+5",
+            [nameof(DwaliaCommand.ToggleTaskBar)] = "Shift+Down",
         };
     }
 
@@ -155,6 +156,7 @@ public class HotKeyManager : IDisposable
 
         TryRegisterAlias(false, VK_UP, DwaliaCommand.FocusPrevious);
         TryRegisterAlias(false, VK_DOWN, DwaliaCommand.FocusNext);
+        TryRegisterAlias(true, VK_UP, DwaliaCommand.ToggleTaskBar);
 
         _commandDisplayMap.Clear();
         foreach (var kv in bindings)
@@ -343,4 +345,5 @@ public enum DwaliaCommand
     CycleLayout,
     IncMaster, DecMaster,
     IncGap, DecGap,
+    ToggleTaskBar,
 }

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Win32;
 using static Dwalia.Win32.NativeMethods;
@@ -22,7 +23,46 @@ public class HotKeyManager : IDisposable
     private uint _altVkCode;
     private bool _shiftHeld;
 
-    private readonly Dictionary<DwaliaCommand, string> _commandDisplayMap = new();
+    private static readonly Dictionary<string, DwaliaCommand> CommandNameMap =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["focus_next"] = DwaliaCommand.FocusNext,
+            ["focus_previous"] = DwaliaCommand.FocusPrevious,
+            ["swap_next"] = DwaliaCommand.SwapNext,
+            ["swap_previous"] = DwaliaCommand.SwapPrevious,
+            ["toggle_float"] = DwaliaCommand.ToggleFloat,
+            ["toggle_fullscreen"] = DwaliaCommand.ToggleFullscreen,
+            ["close_window"] = DwaliaCommand.CloseWindow,
+            ["quit"] = DwaliaCommand.QuitDwalia,
+            ["reload_config"] = DwaliaCommand.ReloadConfig,
+            ["launch_terminal"] = DwaliaCommand.LaunchTerminal,
+            ["focus_1"] = DwaliaCommand.FocusWindow1,
+            ["focus_2"] = DwaliaCommand.FocusWindow2,
+            ["focus_3"] = DwaliaCommand.FocusWindow3,
+            ["focus_4"] = DwaliaCommand.FocusWindow4,
+            ["focus_5"] = DwaliaCommand.FocusWindow5,
+            ["focus_6"] = DwaliaCommand.FocusWindow6,
+            ["focus_7"] = DwaliaCommand.FocusWindow7,
+            ["focus_8"] = DwaliaCommand.FocusWindow8,
+            ["focus_9"] = DwaliaCommand.FocusWindow9,
+            ["workspace_1"] = DwaliaCommand.Workspace1,
+            ["workspace_2"] = DwaliaCommand.Workspace2,
+            ["workspace_3"] = DwaliaCommand.Workspace3,
+            ["workspace_4"] = DwaliaCommand.Workspace4,
+            ["workspace_5"] = DwaliaCommand.Workspace5,
+            ["workspace_next"] = DwaliaCommand.WorkspaceNext,
+            ["workspace_previous"] = DwaliaCommand.WorkspacePrevious,
+            ["move_to_workspace_next"] = DwaliaCommand.MoveToWorkspaceNext,
+            ["move_to_workspace_previous"] = DwaliaCommand.MoveToWorkspacePrevious,
+            ["cycle_layout"] = DwaliaCommand.CycleLayout,
+            ["inc_master"] = DwaliaCommand.IncMaster,
+            ["dec_master"] = DwaliaCommand.DecMaster,
+            ["inc_gap"] = DwaliaCommand.IncGap,
+            ["dec_gap"] = DwaliaCommand.DecGap,
+            ["bar_next"] = DwaliaCommand.BarNext,
+            ["bar_previous"] = DwaliaCommand.BarPrevious,
+            ["toggle_bar"] = DwaliaCommand.ToggleBar,
+        };
 
     private static readonly Dictionary<string, uint> KeyNameToVk =
         new(StringComparer.OrdinalIgnoreCase)
@@ -36,138 +76,86 @@ public class HotKeyManager : IDisposable
     public event EventHandler<DwaliaCommand>? CommandTriggered;
     public IReadOnlyList<string> FailedRegistrations => _failedRegistrations;
     public int RegisteredCount => _keyMap.Count;
-    public IReadOnlyDictionary<DwaliaCommand, string> CommandBindings => _commandDisplayMap;
 
-    public static Dictionary<string, string> GetDefaultBindings()
+    public static (uint vkCode, bool shift) ParseBinding(string binding)
     {
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [nameof(DwaliaCommand.FocusNext)] = "J",
-            [nameof(DwaliaCommand.FocusPrevious)] = "K",
-            [nameof(DwaliaCommand.SwapNext)] = "Shift+J",
-            [nameof(DwaliaCommand.SwapPrevious)] = "Shift+K",
-            [nameof(DwaliaCommand.ToggleFullscreen)] = "F",
-            [nameof(DwaliaCommand.CycleLayout)] = "T",
-            [nameof(DwaliaCommand.ToggleFloat)] = "Shift+Space",
-            [nameof(DwaliaCommand.CloseWindow)] = "Q",
-            [nameof(DwaliaCommand.QuitDwalia)] = "Shift+Q",
-            [nameof(DwaliaCommand.DecMaster)] = "H",
-            [nameof(DwaliaCommand.IncMaster)] = "L",
-            [nameof(DwaliaCommand.DecGap)] = "OemComma",
-            [nameof(DwaliaCommand.IncGap)] = "OemPeriod",
-            [nameof(DwaliaCommand.WorkspacePrevious)] = "Left",
-            [nameof(DwaliaCommand.WorkspaceNext)] = "Right",
-            [nameof(DwaliaCommand.MoveToWorkspacePrevious)] = "Shift+Left",
-            [nameof(DwaliaCommand.MoveToWorkspaceNext)] = "Shift+Right",
-            [nameof(DwaliaCommand.LaunchTerminal)] = "Enter",
-            [nameof(DwaliaCommand.OpenSettings)] = "Shift+S",
-            [nameof(DwaliaCommand.FocusWindow1)] = "1",
-            [nameof(DwaliaCommand.FocusWindow2)] = "2",
-            [nameof(DwaliaCommand.FocusWindow3)] = "3",
-            [nameof(DwaliaCommand.FocusWindow4)] = "4",
-            [nameof(DwaliaCommand.FocusWindow5)] = "5",
-            [nameof(DwaliaCommand.FocusWindow6)] = "6",
-            [nameof(DwaliaCommand.FocusWindow7)] = "7",
-            [nameof(DwaliaCommand.FocusWindow8)] = "8",
-            [nameof(DwaliaCommand.FocusWindow9)] = "9",
-            [nameof(DwaliaCommand.Workspace1)] = "Shift+1",
-            [nameof(DwaliaCommand.Workspace2)] = "Shift+2",
-            [nameof(DwaliaCommand.Workspace3)] = "Shift+3",
-            [nameof(DwaliaCommand.Workspace4)] = "Shift+4",
-            [nameof(DwaliaCommand.Workspace5)] = "Shift+5",
-            [nameof(DwaliaCommand.BarNext)] = "Shift+Down",
-            [nameof(DwaliaCommand.BarPrevious)] = "Shift+Up",
-            [nameof(DwaliaCommand.ToggleBar)] = "U",
-        };
-    }
+        if (string.IsNullOrWhiteSpace(binding))
+            throw new ArgumentException("Binding cannot be empty");
 
-    public static (uint vkCode, bool shift) ParseKeyString(string key)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentException("Key string cannot be empty");
+        var part = binding.Trim();
+
+        if (part.StartsWith("Alt+", StringComparison.OrdinalIgnoreCase))
+            part = part[4..].Trim();
+        else if (part.StartsWith("Alt", StringComparison.OrdinalIgnoreCase))
+            part = part[3..].Trim();
+
         bool shift = false;
-        string keyPart = key.Trim();
-        if (keyPart.StartsWith("Shift+", StringComparison.OrdinalIgnoreCase))
+        if (part.StartsWith("Shift+", StringComparison.OrdinalIgnoreCase))
         {
             shift = true;
-            keyPart = keyPart[6..].Trim();
+            part = part[6..].Trim();
         }
-        if (KeyNameToVk.TryGetValue(keyPart, out var vk))
+
+        if (string.IsNullOrEmpty(part))
+            throw new ArgumentException($"No key in binding: '{binding}'");
+
+        if (KeyNameToVk.TryGetValue(part, out var vk))
             return (vk, shift);
-        if (keyPart.Length == 1)
+
+        if (part.Length == 1)
         {
-            char c = keyPart[0];
-            if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))
+            char c = part[0];
+            if (c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z')
+                return ((uint)char.ToUpper(c), shift);
+            if (c >= '0' && c <= '9')
                 return ((uint)c, shift);
         }
-        throw new ArgumentException($"Unrecognized key: '{key}'");
-    }
 
-    public static string FormatKey(uint vkCode, bool shift)
-    {
-        string key = vkCode switch
-        {
-            VK_SPACE => "Space",
-            VK_RETURN => "Enter",
-            VK_TAB => "Tab",
-            VK_ESCAPE => "Escape",
-            VK_LEFT => "Left",
-            VK_RIGHT => "Right",
-            VK_UP => "Up",
-            VK_DOWN => "Down",
-            VK_OEM_3 => "Oem3",
-            VK_OEM_COMMA => "OemComma",
-            VK_OEM_PERIOD => "OemPeriod",
-            >= VK_0 and <= VK_9 => ((char)vkCode).ToString(),
-            >= VK_A and <= VK_Z => ((char)vkCode).ToString(),
-            _ => $"VK(0x{vkCode:X})"
-        };
-        return shift ? $"Shift+{key}" : key;
+        throw new ArgumentException($"Unrecognized key: '{part}' in '{binding}'");
     }
 
     public void Initialize(IntPtr dwaliaHwnd)
     {
         _dwaliaHwnd = dwaliaHwnd;
 
-        var bindings = new Dictionary<string, string>(
-            GetDefaultBindings(), StringComparer.OrdinalIgnoreCase);
-
-        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var config)
-            && config.Keybindings?.Bindings != null)
+        if (!ServiceLocator.TryResolve<ConfigRoot>(out var config))
         {
-            foreach (var kv in config.Keybindings.Bindings)
-            {
-                if (!string.IsNullOrWhiteSpace(kv.Value))
-                    bindings[kv.Key] = kv.Value;
-            }
+            _failedRegistrations.Add("ConfigRoot not found in ServiceLocator");
+            InstallHook();
+            return;
         }
 
-        foreach (var kv in bindings)
+        foreach (var entry in config.Keybindings)
         {
+            if (string.IsNullOrWhiteSpace(entry.Binding)) continue;
+            if (!CommandNameMap.TryGetValue(entry.Command, out var cmd))
+            {
+                _failedRegistrations.Add($"Unknown command: '{entry.Command}'");
+                continue;
+            }
+
             try
             {
-                var (vkCode, shift) = ParseKeyString(kv.Value);
-                if (Enum.TryParse<DwaliaCommand>(kv.Key, out var cmd))
-                    Register(shift, vkCode, cmd);
+                var (vkCode, shift) = ParseBinding(entry.Binding);
+                if (_keyMap.ContainsKey((vkCode, shift)))
+                    _failedRegistrations.Add($"{entry.Binding} (duplicate)");
+                else
+                    _keyMap[(vkCode, shift)] = cmd;
             }
             catch (Exception ex)
             {
-                _failedRegistrations.Add($"Invalid binding '{kv.Key}={kv.Value}': {ex.Message}");
+                _failedRegistrations.Add($"Invalid binding '{entry.Binding}': {ex.Message}");
             }
         }
 
         TryRegisterAlias(false, VK_UP, DwaliaCommand.FocusPrevious);
         TryRegisterAlias(false, VK_DOWN, DwaliaCommand.FocusNext);
-        TryRegisterAlias(true, VK_UP, DwaliaCommand.BarPrevious);
-        TryRegisterAlias(true, VK_DOWN, DwaliaCommand.BarNext);
 
-        _commandDisplayMap.Clear();
-        foreach (var kv in bindings)
-        {
-            if (Enum.TryParse<DwaliaCommand>(kv.Key, out var cmd))
-                _commandDisplayMap[cmd] = kv.Value;
-        }
+        InstallHook();
+    }
 
+    private void InstallHook()
+    {
         _hookProcDelegate = HookProc;
         _hookHandle = SetWindowsHookEx(WH_KEYBOARD_LL, _hookProcDelegate, IntPtr.Zero, 0);
 
@@ -180,9 +168,7 @@ public class HotKeyManager : IDisposable
         }
         else
         {
-            Logger.Info($"HotKeyManager: keyboard hook installed (Alt+key), bindings={_keyMap.Count}");
-            foreach (var kv in _keyMap)
-                Logger.Info($"  KeyMap: vk=0x{kv.Key.vkCode:X2} shift={kv.Key.shift} → {kv.Value}");
+            Logger.Info($"HotKeyManager: hook installed, {_keyMap.Count} bindings");
         }
     }
 
@@ -344,7 +330,6 @@ public enum DwaliaCommand
     Workspace1, Workspace2, Workspace3, Workspace4, Workspace5,
     WorkspaceNext, WorkspacePrevious,
     MoveToWorkspaceNext, MoveToWorkspacePrevious,
-    OpenSettings,
     CycleLayout,
     IncMaster, DecMaster,
     IncGap, DecGap,

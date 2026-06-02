@@ -9,7 +9,7 @@ public static class CommandDispatcher
 {
     public static void Execute(DwaliaCommand cmd,
         WorkspaceManager ws, FocusManager fm, LayoutManager lm,
-        string launchTerminal, Action? reloadConfig = null, Action? openSettings = null, Action? quit = null,
+        string launchTerminal, Action? reloadConfig = null, Action? quit = null,
         Action<int>? cycleBar = null, Action? toggleBar = null)
     {
         var aws = ws.GetActiveWorkspace();
@@ -42,7 +42,6 @@ public static class CommandDispatcher
             case DwaliaCommand.MoveToWorkspacePrevious: MoveActiveRelative(-1, fm, ws); break;
             case DwaliaCommand.LaunchTerminal: LaunchTerminal(launchTerminal); break;
             case DwaliaCommand.ReloadConfig: reloadConfig?.Invoke(); break;
-            case DwaliaCommand.OpenSettings: openSettings?.Invoke(); break;
             case DwaliaCommand.CycleLayout: lm.CycleLayout(); break;
             case DwaliaCommand.IncMaster: lm.ResizeMaster(0.05); break;
             case DwaliaCommand.DecMaster: lm.ResizeMaster(-0.05); break;

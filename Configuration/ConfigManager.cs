@@ -1,5 +1,6 @@
 using System.IO;
-using System.Text.Json;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 using Dwalia.Infrastructure;
 
 namespace Dwalia.Configuration;
@@ -7,21 +8,35 @@ namespace Dwalia.Configuration;
 public class ConfigManager
 {
     private static readonly string ConfigPath = Path.Combine(
-        AppContext.BaseDirectory, "config.json");
+        AppContext.BaseDirectory, "config.yaml");
 
-    public DwaliaConfig Load()
+    private static readonly IDeserializer Deserializer = new DeserializerBuilder()
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .IgnoreUnmatchedProperties()
+        .Build();
+
+    private static readonly ISerializer Serializer = new SerializerBuilder()
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .Build();
+
+    public ConfigRoot Load()
     {
+        if (!File.Exists(ConfigPath))
+        {
+            Logger.Info("config.yaml not found, generating defaults...");
+            var defaults = GetDefaults();
+            Save(defaults);
+            return defaults;
+        }
+
         try
         {
-            if (File.Exists(ConfigPath))
+            var yaml = File.ReadAllText(ConfigPath);
+            var config = Deserializer.Deserialize<ConfigRoot>(yaml);
+            if (config != null)
             {
-                var json = File.ReadAllText(ConfigPath);
-                var config = JsonSerializer.Deserialize<DwaliaConfig>(json);
-                if (config != null)
-                {
-                    Logger.Info($"Config loaded from {ConfigPath}");
-                    return config;
-                }
+                Logger.Info($"Config loaded from {ConfigPath}");
+                return config;
             }
         }
         catch (Exception ex)
@@ -29,16 +44,15 @@ public class ConfigManager
             Logger.Warn($"Failed to load config: {ex.Message}. Using defaults.");
         }
 
-        Logger.Info("Using default configuration");
         return GetDefaults();
     }
 
-    public void Save(DwaliaConfig config)
+    public void Save(ConfigRoot config)
     {
         try
         {
-            var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(ConfigPath, json);
+            var yaml = Serializer.Serialize(config);
+            File.WriteAllText(ConfigPath, yaml);
             Logger.Info($"Config saved to {ConfigPath}");
         }
         catch (Exception ex)
@@ -47,53 +61,105 @@ public class ConfigManager
         }
     }
 
-    public static DwaliaConfig GetDefaults()
+    public static ConfigRoot GetDefaults()
     {
-        return new DwaliaConfig
+        return new ConfigRoot
         {
+            General = new GeneralConfig(),
             Theme = new ThemeConfig(),
-            Layout = new LayoutConfig
+            Layout = new LayoutConfig(),
+            Workspaces = new List<WorkspaceEntry>
             {
-                EnabledLayouts = new[] { "MasterStack", "Monocle", "Grid", "HorizontalStack", "Columns", "VerticalStack", "BSP" }
+                new() { Name = "1: Term" },
+                new() { Name = "2: Code" },
+                new() { Name = "3: Web" },
+                new() { Name = "4: Comm" },
+                new() { Name = "5: Misc" },
             },
-            Workspaces = new WorkspaceConfig(),
-            ExcludeProcesses = new[]
+            Launcher = new List<LauncherEntry>
             {
-                "shellexperiencehost", "SearchApp",
-                "TextInputHost", "SystemSettings", "ApplicationFrameHost", "LockApp"
+                new() { Name = "Terminal", Path = "wt.exe" },
+                new() { Name = "Chrome", Path = "chrome.exe" },
+                new() { Name = "VS Code", Path = "code" },
+                new() { Name = "Explorer", Path = "explorer.exe" },
             },
-            Rules = Array.Empty<WindowRuleConfig>(),
-            LaunchTerminal = "wt.exe"
+            Keybindings = GetDefaultKeybindings(),
         };
     }
 
-    public void ApplyRules(DwaliaConfig config, Managers.WindowManager windowManager,
+    public static List<KeybindingEntry> GetDefaultKeybindings()
+    {
+        return new List<KeybindingEntry>
+        {
+            new() { Command = "focus_next", Binding = "Alt+J" },
+            new() { Command = "focus_previous", Binding = "Alt+K" },
+            new() { Command = "swap_next", Binding = "Alt+Shift+J" },
+            new() { Command = "swap_previous", Binding = "Alt+Shift+K" },
+            new() { Command = "toggle_fullscreen", Binding = "Alt+F" },
+            new() { Command = "cycle_layout", Binding = "Alt+T" },
+            new() { Command = "toggle_float", Binding = "Alt+Shift+Space" },
+            new() { Command = "close_window", Binding = "Alt+Q" },
+            new() { Command = "quit", Binding = "Alt+Shift+Q" },
+            new() { Command = "dec_master", Binding = "Alt+H" },
+            new() { Command = "inc_master", Binding = "Alt+L" },
+            new() { Command = "dec_gap", Binding = "Alt+OemComma" },
+            new() { Command = "inc_gap", Binding = "Alt+OemPeriod" },
+            new() { Command = "focus_1", Binding = "Alt+1" },
+            new() { Command = "focus_2", Binding = "Alt+2" },
+            new() { Command = "focus_3", Binding = "Alt+3" },
+            new() { Command = "focus_4", Binding = "Alt+4" },
+            new() { Command = "focus_5", Binding = "Alt+5" },
+            new() { Command = "focus_6", Binding = "Alt+6" },
+            new() { Command = "focus_7", Binding = "Alt+7" },
+            new() { Command = "focus_8", Binding = "Alt+8" },
+            new() { Command = "focus_9", Binding = "Alt+9" },
+            new() { Command = "workspace_1", Binding = "Alt+Shift+1" },
+            new() { Command = "workspace_2", Binding = "Alt+Shift+2" },
+            new() { Command = "workspace_3", Binding = "Alt+Shift+3" },
+            new() { Command = "workspace_4", Binding = "Alt+Shift+4" },
+            new() { Command = "workspace_5", Binding = "Alt+Shift+5" },
+            new() { Command = "workspace_next", Binding = "Alt+Shift+Right" },
+            new() { Command = "workspace_previous", Binding = "Alt+Shift+Left" },
+            new() { Command = "move_to_workspace_next", Binding = "Alt+Shift+N" },
+            new() { Command = "move_to_workspace_previous", Binding = "Alt+Shift+M" },
+            new() { Command = "launch_terminal", Binding = "Alt+Enter" },
+            new() { Command = "toggle_bar", Binding = "Alt+U" },
+            new() { Command = "bar_next", Binding = "Alt+Shift+Down" },
+            new() { Command = "bar_previous", Binding = "Alt+Shift+Up" },
+            new() { Command = "reload_config", Binding = "Alt+Shift+R" },
+        };
+    }
+
+    public void ApplyRules(ConfigRoot config, Managers.WindowManager windowManager,
         Managers.WorkspaceManager workspaceManager)
     {
         foreach (var mw in windowManager.ManagedWindows.Values)
             ApplyRulesToWindow(config, workspaceManager, mw);
     }
 
-    public void ApplyRulesToWindow(DwaliaConfig config,
+    public void ApplyRulesToWindow(ConfigRoot config,
         Managers.WorkspaceManager workspaceManager, Models.ManagedWindow mw)
     {
-        foreach (var rule in config.Rules)
+        foreach (var rule in config.WindowRules)
         {
             var normalizedRule = rule.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                 ? rule.Process[..^4] : rule.Process;
-            if (mw.ProcessName.Equals(normalizedRule, StringComparison.OrdinalIgnoreCase))
+            if (!mw.ProcessName.Equals(normalizedRule, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (rule.Workspace is { Length: > 0 } wsName)
             {
-                if (rule.Workspace.HasValue)
+                var ws = workspaceManager.Workspaces.FirstOrDefault(
+                    w => w.Name.Equals(wsName, StringComparison.OrdinalIgnoreCase));
+                if (ws != null)
                 {
-                    workspaceManager.MoveWindowToWorkspace(mw, rule.Workspace.Value);
-                    Logger.Info($"Rule applied: {mw.ProcessName} -> workspace {rule.Workspace}");
+                    workspaceManager.MoveWindowToWorkspace(mw, ws.Id);
+                    Logger.Info($"Rule: {mw.ProcessName} -> {ws.Name}");
                 }
-                if (rule.Floating.HasValue && rule.Floating.Value)
-                {
-                    mw.State = Models.WindowLayoutState.Floating;
-                }
-                break;
             }
+            if (rule.Floating)
+                mw.State = Models.WindowLayoutState.Floating;
+            break;
         }
     }
 }

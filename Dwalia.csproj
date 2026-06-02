@@ -10,4 +10,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="18.0.0" />
+  </ItemGroup>
+
 </Project>

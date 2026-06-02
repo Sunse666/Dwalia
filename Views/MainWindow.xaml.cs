@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Managers;
 using FocusMgr = Dwalia.Managers.FocusManager;
@@ -73,7 +74,7 @@ public partial class MainWindow : Window
 
         Logger.Info($"MainWindow.OnSourceInitialized: HWND={_hwnd}, HwndSource={(_hwndSource != null ? "ok" : "NULL")}");
 
-        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var acCfg)
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var acCfg)
             && acCfg.Theme.EnableAcrylic)
         {
             ApplyAcrylic(_hwnd);
@@ -95,7 +96,7 @@ public partial class MainWindow : Window
             Logger.Warn("HotKeyManager NOT FOUND in ServiceLocator during OnSourceInitialized!");
         }
 
-        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var cfg))
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
         {
             try { _focusBgColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent ?? "#7aa2f7"); }
             catch { _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7); }
@@ -135,7 +136,7 @@ public partial class MainWindow : Window
         _focusBgTimer.Tick += (_, _) => RefreshFloatingBackgroundPositions();
         _focusBgTimer.Start();
 
-        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var filterCfg)
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var filterCfg)
             && filterCfg.Theme.ColorFilterOpacity > 0)
         {
             ApplyColorFilter(filterCfg.Theme.ColorFilter, filterCfg.Theme.ColorFilterOpacity);
@@ -325,7 +326,7 @@ public partial class MainWindow : Window
 
     public void ApplyThemeFromConfig()
     {
-        if (!ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var c))
+        if (!ServiceLocator.TryResolve<ConfigRoot>(out var c))
             return;
 
         try { _foregroundColor = (Color)ColorConverter.ConvertFromString(c.Theme.Foreground ?? "#c0caf5"); }
@@ -463,12 +464,12 @@ public partial class MainWindow : Window
     private void BuildLauncherButtons()
     {
         LauncherButtons.Children.Clear();
-        if (!ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var cfg)) return;
-        if (cfg.Theme.LauncherApps.Length == 0)
+        if (!ServiceLocator.TryResolve<ConfigRoot>(out var cfg)) return;
+        if (cfg.Launcher.Count == 0)
         {
             LauncherButtons.Children.Add(new TextBlock
             {
-                Text = "No apps configured. Add LauncherApps to config.json",
+                Text = "No apps configured. Add launcher entries to config.yaml",
                 Foreground = new SolidColorBrush(_mutedColor),
                 FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -476,11 +477,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var entry in cfg.Theme.LauncherApps)
+        foreach (var entry in cfg.Launcher)
         {
-            var parts = entry.Split('|', 2);
-            var name = parts.Length > 1 ? parts[0].Trim() : parts[0].Trim();
-            var path = parts.Length > 1 ? parts[1].Trim() : parts[0].Trim();
+            var name = string.IsNullOrEmpty(entry.Name) ? entry.Path : entry.Name;
 
             var btn = new Button
             {
@@ -493,7 +492,7 @@ public partial class MainWindow : Window
                 Background = new SolidColorBrush(Color.FromRgb(0x24, 0x28, 0x3e)),
                 BorderThickness = new Thickness(0),
             };
-            var cmd = path;
+            var cmd = entry.Path;
             btn.Click += (_, _) =>
             {
                 try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); }
@@ -628,7 +627,7 @@ public partial class MainWindow : Window
 
         var area = lm.Area;
         int gap = 4;
-        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var cfg))
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
             gap = cfg.Layout.InnerGap;
 
         int expand = gap / 2;

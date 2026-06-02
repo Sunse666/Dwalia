@@ -32,7 +32,7 @@ public class LayoutManager
         _focusManager = fm;
         _area = new System.Windows.Rect(0, 0, 1920, 1040);
 
-        if (ServiceLocator.TryResolve<DwaliaConfig>(out var config))
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var config))
         {
             _masterFactor = config.Layout.MasterFactor;
             _gap = config.Layout.InnerGap;
@@ -381,7 +381,7 @@ public class LayoutManager
 
     private void SaveLayoutConfig()
     {
-        if (ServiceLocator.TryResolve<DwaliaConfig>(out var config) &&
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var config) &&
             ServiceLocator.TryResolve<ConfigManager>(out var cm))
         {
             config.Layout.MasterFactor = _masterFactor;

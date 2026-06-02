@@ -18,7 +18,6 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Docker Bar -->
         <Border x:Name="TaskBar"
                 Grid.Row="0"
                 Background="#5516161e"
@@ -51,7 +50,6 @@
             </Grid>
         </Border>
 
-        <!-- Info Bar -->
         <Border x:Name="InfoBar"
                 Grid.Row="0"
                 Background="#5516161e"
@@ -79,7 +77,6 @@
             </Grid>
         </Border>
 
-        <!-- Launcher Bar -->
         <Border x:Name="LauncherBar"
                 Grid.Row="0"
                 Background="#5516161e"

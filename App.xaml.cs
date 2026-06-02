@@ -17,7 +17,7 @@ public partial class App : Application
     private FocusManager? _focusManager;
     private HotKeyManager? _hotKeyManager;
     private ConfigManager? _configManager;
-    private DwaliaConfig? _config;
+    private ConfigRoot? _config;
     private MainWindow? _mainWindow;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -36,7 +36,7 @@ public partial class App : Application
         _configManager = new ConfigManager();
         _config = _configManager.Load();
 
-        _windowManager = new WindowManager(_config.ExcludeProcesses);
+        _windowManager = new WindowManager(_config.General.ExcludedProcesses);
         _hookManager = new WindowEventHookManager(_windowManager, Dispatcher);
         _workspaceManager = new WorkspaceManager();
         _windowManager.SetWorkspaceManager(_workspaceManager);
@@ -46,8 +46,9 @@ public partial class App : Application
             NativeConstants.ParseDwmColor(_config.Theme.InactiveBorder));
         _hotKeyManager = new HotKeyManager();
 
-        if (_config.Workspaces.Names.Length > 0)
-            _workspaceManager.Initialize(_config.Workspaces.Names);
+        var names = _config.Workspaces.Select(w => w.Name).ToArray();
+        if (names.Length > 0)
+            _workspaceManager.Initialize(names);
 
         ServiceLocator.Register(_config);
         ServiceLocator.Register(_windowManager);
@@ -92,14 +93,8 @@ public partial class App : Application
     {
         if (_workspaceManager == null || _focusManager == null || _layoutManager == null) return;
         CommandDispatcher.Execute(cmd, _workspaceManager, _focusManager, _layoutManager,
-            _config?.LaunchTerminal ?? "wt.exe",
+            _config?.General.LaunchTerminal ?? "wt.exe",
             reloadConfig: ReloadConfig,
-            openSettings: () => _mainWindow?.Dispatcher.Invoke(() =>
-            {
-                var sw = new Views.SettingsWindow();
-                sw.Owner = _mainWindow;
-                sw.ShowDialog();
-            }),
             quit: () => _mainWindow?.Dispatcher.Invoke(() => Shutdown()),
             cycleBar: (dir) => _mainWindow?.Dispatcher.Invoke(() => _mainWindow.CycleBarMode(dir)),
             toggleBar: () => _mainWindow?.Dispatcher.Invoke(() => _mainWindow.ToggleBar()));
@@ -108,8 +103,25 @@ public partial class App : Application
     private void ReloadConfig()
     {
         var c = _configManager?.Load();
-        if (c != null && _windowManager != null && _workspaceManager != null)
-            _configManager?.ApplyRules(c, _windowManager, _workspaceManager);
+        if (c == null || _windowManager == null || _workspaceManager == null) return;
+
+        _config = c;
+        ServiceLocator.Register(c);
+        _configManager?.ApplyRules(c, _windowManager, _workspaceManager);
+        _focusManager?.SetBorderColors(
+            NativeConstants.ParseDwmColor(c.Theme.ActiveBorder),
+            NativeConstants.ParseDwmColor(c.Theme.InactiveBorder));
+
+        _mainWindow?.Dispatcher.Invoke(() =>
+        {
+            _mainWindow.ApplyThemeFromConfig();
+            _mainWindow.UpdateTaskBarColors();
+            _hotKeyManager?.Dispose();
+            _hotKeyManager = new HotKeyManager();
+            _hotKeyManager.CommandTriggered += OnCommandTriggered;
+            _hotKeyManager.Initialize(_mainWindow.GetHwnd());
+            Logger.Info("Config reloaded");
+        });
     }
 
     protected override void OnExit(ExitEventArgs e)

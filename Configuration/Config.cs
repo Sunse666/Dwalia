@@ -68,12 +68,6 @@ public class ThemeConfig
     [YamlMember(Alias = "enable_acrylic")]
     public bool EnableAcrylic { get; set; } = true;
 
-    [YamlMember(Alias = "acrylic_opacity")]
-    public double AcrylicOpacity { get; set; } = 0.25;
-
-    [YamlMember(Alias = "background_opacity")]
-    public double BackgroundOpacity { get; set; } = 1.0;
-
     [YamlMember(Alias = "focus_active_opacity")]
     public double FocusActiveOpacity { get; set; } = 0.27;
 

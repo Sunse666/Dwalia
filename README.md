@@ -84,8 +84,6 @@ theme:
   active_border: "#7aa2f7"
   border_width: 2
   enable_acrylic: true
-  acrylic_opacity: 0.25           # 0.0 = fully transparent, 1.0 = fully opaque
-  background_opacity: 1.0         # bg opacity when acrylic is off (0=see wallpaper)
   focus_active_opacity: 0.27      # focus highlight opacity for active window
   focus_inactive_opacity: 0.09    # focus highlight opacity for inactive windows
   focus_radius: 8                 # corner radius for focus highlight

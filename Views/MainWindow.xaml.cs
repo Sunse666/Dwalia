@@ -77,20 +77,9 @@ public partial class MainWindow : Window
         {
             if (acCfg.Theme.EnableAcrylic)
             {
-                ApplyAcrylic(_hwnd, acCfg.Theme.Background ?? "#1a1b26", acCfg.Theme.AcrylicOpacity);
-                OverlayGrid.Background = Brushes.Transparent;
+                ApplyAcrylic(_hwnd, acCfg.Theme.Background ?? "#1a1b26");
             }
-            else
-            {
-                try
-                {
-                    var bgColor = (Color)ColorConverter.ConvertFromString(acCfg.Theme.Background ?? "#1a1b26");
-                    var alpha = (byte)(Math.Clamp(acCfg.Theme.BackgroundOpacity, 0.0, 1.0) * 255);
-                    OverlayGrid.Background = new SolidColorBrush(
-                        Color.FromArgb(alpha, bgColor.R, bgColor.G, bgColor.B));
-                }
-                catch { }
-            }
+            OverlayGrid.Background = Brushes.Transparent;
         }
 
         SetWindowPos(_hwnd, new IntPtr(1), 0, 0, 0, 0,
@@ -323,30 +312,14 @@ public partial class MainWindow : Window
         return menu;
     }
 
-    private void ApplyAcrylic(IntPtr hwnd, string bgHex, double opacity = 0.25)
+    private void ApplyAcrylic(IntPtr hwnd, string bgHex)
     {
         try
         {
-            if (opacity <= 0)
-            {
-                var disable = new AccentPolicy { AccentState = 0, AccentFlags = 0, GradientColor = 0, AnimationId = 0 };
-                var disableData = new WindowCompositionAttributeData
-                {
-                    Attribute = 19,
-                    Data = Marshal.AllocHGlobal(Marshal.SizeOf<AccentPolicy>()),
-                    SizeOfData = Marshal.SizeOf<AccentPolicy>()
-                };
-                Marshal.StructureToPtr(disable, disableData.Data, false);
-                SetWindowCompositionAttribute(hwnd, ref disableData);
-                Marshal.FreeHGlobal(disableData.Data);
-                return;
-            }
-
             var bgColor = Color.FromRgb(0x1A, 0x1B, 0x26);
             try { bgColor = (Color)ColorConverter.ConvertFromString(bgHex); } catch { }
 
-            var alpha = (int)(Math.Clamp(opacity, 0.0, 1.0) * 255);
-            var gradientColor = unchecked((int)((uint)alpha << 24
+            var gradientColor = unchecked((int)(0x40000000
                 | (uint)bgColor.R << 16 | (uint)bgColor.G << 8 | bgColor.B));
             var accent = new AccentPolicy
             {
@@ -384,19 +357,11 @@ public partial class MainWindow : Window
         if (c.Theme.EnableAcrylic)
         {
             OverlayGrid.Background = Brushes.Transparent;
+            ApplyAcrylic(_hwnd, c.Theme.Background ?? "#1a1b26");
         }
         else
         {
-            var bgHex = c.Theme.Background ?? "#221a1b26";
-            var bgOpacity = c.Theme.BackgroundOpacity;
-            try
-            {
-                var color = (Color)ColorConverter.ConvertFromString(bgHex);
-                var alpha = (byte)(Math.Clamp(bgOpacity, 0.0, 1.0) * 255);
-                OverlayGrid.Background = new SolidColorBrush(
-                    Color.FromArgb(alpha, color.R, color.G, color.B));
-            }
-            catch { }
+            OverlayGrid.Background = Brushes.Transparent;
         }
 
         if (c.Theme.Accent is { Length: > 0 } accent)
@@ -425,9 +390,6 @@ public partial class MainWindow : Window
         CpuText.Foreground = accentBrush;
         MemText.Foreground = accentBrush;
         BatteryText.Foreground = accentBrush;
-
-        if (c.Theme.EnableAcrylic)
-            ApplyAcrylic(_hwnd, c.Theme.Background ?? "#1a1b26", c.Theme.AcrylicOpacity);
 
         _focusBackground?.UpdateStyle(_focusBgColor, c.Theme.FocusRadius,
             c.Theme.FocusActiveOpacity, c.Theme.FocusInactiveOpacity, c.Theme.FocusFill);

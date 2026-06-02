@@ -95,8 +95,12 @@ internal static class NativeConstants
     public const uint LLKHF_ALTDOWN = 0x20;
 
     public const int WM_DWALIA_COMMAND = 0x8001;
+    public const int WM_NCHITTEST = 0x0084;
 
     public const uint KEYEVENTF_KEYUP = 0x0002;
+
+    public const int HTTRANSPARENT = -1;
+    public static readonly IntPtr HWND_TOPMOST = new(-1);
 
     public const uint DWMWA_BORDER_COLOR = 34;
     public const int DWM_ACTIVE_BORDER = unchecked((int)0xFF7AA2F7);

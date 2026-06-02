@@ -335,6 +335,40 @@
                             <CheckBox x:Name="ChkAcrylic" Content="Enable acrylic blur effect"
                                       Margin="0,16,0,12"/>
 
+                            <TextBlock Text="Color filter" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="#ffffff" Margin="0,0,0,8"/>
+                            <TextBlock Text="Subtle tint overlay above all windows for visual cohesion"
+                                       Foreground="#777777" FontSize="11" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Filter color" Foreground="#999999"
+                                       Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="FilterColorBox" Text="#7aa2f7"
+                                         TextChanged="OnFilterColorChanged"/>
+                                <Border Grid.Column="1" x:Name="FilterColorPreview"
+                                        Width="24" Height="24" CornerRadius="4"
+                                        Background="#7aa2f7" Margin="8,0,0,0"/>
+                            </Grid>
+
+                            <TextBlock Text="Filter opacity" Foreground="#999999"
+                                       Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider x:Name="FilterOpacitySlider" Minimum="0" Maximum="20"
+                                        Value="0" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                <TextBlock Grid.Column="1" Width="45" TextAlignment="Right"
+                                           Foreground="#7aa2f7" VerticalAlignment="Center">
+                                    <Run x:Name="FilterOpacityLabel" Text="0"/><Run Text="%"/>
+                                </TextBlock>
+                            </Grid>
+
                             <TextBlock Text="Text color" Foreground="#999999"
                                        Margin="0,0,0,4"/>
                             <Grid Margin="0,0,0,12">

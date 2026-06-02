@@ -28,6 +28,8 @@ public partial class SettingsWindow : Window
         MutedBox.TextChanged += OnMutedChanged;
         ActiveBorderBox.TextChanged += OnActiveBorderChanged;
         InactiveBorderBox.TextChanged += OnInactiveBorderChanged;
+        FilterColorBox.TextChanged += OnFilterColorChanged;
+        FilterOpacitySlider.ValueChanged += (_, _) => FilterOpacityLabel.Text = ((int)FilterOpacitySlider.Value).ToString();
         InnerGapSlider.ValueChanged += (_, _) => InnerGapLabel.Text = ((int)InnerGapSlider.Value).ToString();
         OuterGapSlider.ValueChanged += (_, _) => OuterGapLabel.Text = ((int)OuterGapSlider.Value).ToString();
         MasterFactorSlider.ValueChanged += (_, _) => MasterFactorLabel.Text = ((int)MasterFactorSlider.Value).ToString();
@@ -51,11 +53,15 @@ public partial class SettingsWindow : Window
         BorderWidthSlider.Value = _config.Theme.BorderWidth;
         BorderWidthLabel.Text = ((int)BorderWidthSlider.Value).ToString();
         ChkAcrylic.IsChecked = _config.Theme.EnableAcrylic;
+        FilterColorBox.Text = _config.Theme.ColorFilter;
+        FilterOpacitySlider.Value = (int)(_config.Theme.ColorFilterOpacity * 100);
+        FilterOpacityLabel.Text = ((int)FilterOpacitySlider.Value).ToString();
         OnAccentChanged(null!, null!);
         OnForegroundChanged(null!, null!);
         OnMutedChanged(null!, null!);
         OnActiveBorderChanged(null!, null!);
         OnInactiveBorderChanged(null!, null!);
+        OnFilterColorChanged(null!, null!);
 
         TerminalBox.Text = _config.LaunchTerminal;
         ExcludeBox.Text = string.Join(", ", _config.ExcludeProcesses);
@@ -176,6 +182,8 @@ public partial class SettingsWindow : Window
             _config.Theme.InactiveBorder = InactiveBorderBox.Text;
             _config.Theme.BorderWidth = (int)BorderWidthSlider.Value;
             _config.Theme.EnableAcrylic = ChkAcrylic.IsChecked == true;
+            _config.Theme.ColorFilter = FilterColorBox.Text;
+            _config.Theme.ColorFilterOpacity = FilterOpacitySlider.Value / 100.0;
             _config.LaunchTerminal = TerminalBox.Text;
             _config.ExcludeProcesses = ExcludeBox.Text
                 .Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -295,6 +303,10 @@ public partial class SettingsWindow : Window
         if (Owner is not MainWindow mw) return;
         mw.ApplyThemeFromConfig();
         mw.UpdateTaskBarColors();
+        if (_config.Theme.ColorFilterOpacity > 0)
+            mw.ApplyColorFilter(_config.Theme.ColorFilter, _config.Theme.ColorFilterOpacity);
+        else
+            mw.ApplyColorFilter("#00000000", 0);
     }
 
     private static Color TryParseColor(string hex)
@@ -367,6 +379,16 @@ public partial class SettingsWindow : Window
         {
             var color = (Color)ColorConverter.ConvertFromString(ActiveBorderBox.Text);
             ActiveBorderPreview.Background = new SolidColorBrush(color);
+        }
+        catch { }
+    }
+
+    private void OnFilterColorChanged(object sender, TextChangedEventArgs e)
+    {
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(FilterColorBox.Text);
+            FilterColorPreview.Background = new SolidColorBrush(color);
         }
         catch { }
     }

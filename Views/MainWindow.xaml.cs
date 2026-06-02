@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private HwndSource? _hwndSource;
     private DispatcherTimer? _statusTimer;
     private FocusBackground? _focusBackground;
+    private ColorFilterOverlay? _colorFilter;
     private DispatcherTimer? _focusBgTimer;
     private Color _focusBgColor;
     private Color _foregroundColor;
@@ -126,6 +127,12 @@ public partial class MainWindow : Window
         _focusBgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         _focusBgTimer.Tick += (_, _) => RefreshFloatingBackgroundPositions();
         _focusBgTimer.Start();
+
+        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var filterCfg)
+            && filterCfg.Theme.ColorFilterOpacity > 0)
+        {
+            ApplyColorFilter(filterCfg.Theme.ColorFilter, filterCfg.Theme.ColorFilterOpacity);
+        }
     }
 
     private IntPtr WndProcHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -177,6 +184,7 @@ public partial class MainWindow : Window
     {
         Logger.Info("Shutting down — restoring all windows...");
         _focusBgTimer?.Stop();
+        _colorFilter?.Dispose();
         _windowEventHookManager.Stop();
         _windowManager.RestoreAllWindows();
         _focusBackground?.Dispose();
@@ -344,6 +352,29 @@ public partial class MainWindow : Window
         }
 
         LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
+
+        if (c.Theme.ColorFilterOpacity > 0)
+            ApplyColorFilter(c.Theme.ColorFilter, c.Theme.ColorFilterOpacity);
+        else
+            _colorFilter?.Hide();
+    }
+
+    public void ApplyColorFilter(string hexColor, double opacity)
+    {
+        if (opacity <= 0)
+        {
+            _colorFilter?.Hide();
+            return;
+        }
+        try
+        {
+            var c = (Color)ColorConverter.ConvertFromString(hexColor);
+            var alpha = (byte)(Math.Min(opacity * 255, 255));
+            var filterColor = Color.FromArgb(alpha, c.R, c.G, c.B);
+            _colorFilter ??= new ColorFilterOverlay();
+            _colorFilter.Apply(filterColor);
+        }
+        catch { }
     }
 
     public void UpdateTaskBarColors()

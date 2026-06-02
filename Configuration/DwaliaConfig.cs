@@ -27,6 +27,8 @@ public class ThemeConfig
     public string ActiveBorder { get; set; } = "#7aa2f7";
     public int BorderWidth { get; set; } = 2;
     public bool EnableAcrylic { get; set; } = true;
+    public string ColorFilter { get; set; } = "#7aa2f7";
+    public double ColorFilterOpacity { get; set; } = 0.0;
     public int TitleBarHeight { get; set; } = 28;
     public string FontFamily { get; set; } = "Segoe UI";
     public int FontSize { get; set; } = 12;

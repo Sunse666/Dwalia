@@ -240,11 +240,4 @@ Dwalia 使用了以下 Windows API：
 
 ## 许可证
 
-GNU General Public License v3.0 — 详见 [LICENSE](LICENSE)。
-
-## 灵感来源
-
-- [dwm](https://dwm.suckless.org/) — 最初的动态窗口管理器
-- [i3](https://i3wm.org/) — 键盘驱动的树状布局平铺
-- [GlazeWM](https://github.com/glzr-io/glazewm) — 简洁的 YAML 配置，C# 实现
-- [Komorebi](https://github.com/LGUG2Z/komorebi) — Rust 驱动，Windows 上的 bspwm
+[LICENSE](LICENSE)

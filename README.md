@@ -41,13 +41,15 @@ Run `Dwalia.exe` from `bin/Release/net8.0-windows/`. On first launch, a default 
 
 | Action | Binding |
 |---|---|
-| Focus next / previous window | `Alt+J` / `Alt+K` |
-| Swap window positions | `Alt+Shift+J` / `Alt+Shift+K` |
+| Focus window below / above | `Alt+J` / `Alt+K` |
+| Focus window left / right | `Alt+H` / `Alt+L` |
+| Swap with window below / above | `Alt+Shift+J` / `Alt+Shift+K` |
+| Swap with window left / right | `Alt+Shift+H` / `Alt+Shift+L` |
 | Cycle tiling layout | `Alt+T` |
 | Toggle floating | `Alt+Shift+Space` |
 | Toggle fullscreen | `Alt+F` |
 | Close window | `Alt+Q` |
-| Adjust master ratio | `Alt+H` / `Alt+L` |
+| Adjust master ratio | `Alt+[` / `Alt+]` |
 | Adjust gaps | `Alt+OemComma` / `Alt+OemPeriod` |
 | Switch workspace | `Alt+Shift+1-5` |
 | Move window to workspace | `Alt+Shift+N` / `Alt+Shift+M` |
@@ -66,6 +68,7 @@ Dwalia reads `config.yaml` from the executable directory. Edit it and press `Alt
 
 general:
   launch_terminal: wt.exe
+  enable_logging: false            # set to true to write dwalia.log
   excluded_processes:
     - SearchApp
     - TextInputHost
@@ -123,10 +126,26 @@ window_rules:
     floating: true
 
 keybindings:
-  - command: focus_next
+  - command: focus_down
     binding: Alt+J
-  - command: focus_previous
+  - command: focus_up
     binding: Alt+K
+  - command: focus_left
+    binding: Alt+H
+  - command: focus_right
+    binding: Alt+L
+  - command: swap_down
+    binding: Alt+Shift+J
+  - command: swap_up
+    binding: Alt+Shift+K
+  - command: swap_left
+    binding: Alt+Shift+H
+  - command: swap_right
+    binding: Alt+Shift+L
+  - command: dec_master
+    binding: Alt+OemOpenBrackets
+  - command: inc_master
+    binding: Alt+OemCloseBrackets
   # ... see config.yaml for the full list
 
 launcher:
@@ -144,8 +163,10 @@ launcher:
 
 | Command | Description |
 |---|---|
-| `focus_next` / `focus_previous` | Focus next / previous window in workspace |
-| `swap_next` / `swap_previous` | Swap with next / previous window |
+| `focus_down` / `focus_up` | Focus window below / above current |
+| `focus_left` / `focus_right` | Focus window left / right of current |
+| `swap_down` / `swap_up` | Swap with window below / above |
+| `swap_left` / `swap_right` | Swap with window left / right |
 | `toggle_float` | Toggle focused window between tiled and floating |
 | `toggle_fullscreen` | Toggle focused window fullscreen |
 | `close_window` | Close focused window |

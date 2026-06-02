@@ -41,13 +41,15 @@ dotnet build -c Release
 
 | 操作 | 快捷键 |
 |---|---|
-| 聚焦下一个/上一个窗口 | `Alt+J` / `Alt+K` |
-| 交换窗口位置 | `Alt+Shift+J` / `Alt+Shift+K` |
+| 聚焦下方/上方窗口 | `Alt+J` / `Alt+K` |
+| 聚焦左方/右方窗口 | `Alt+H` / `Alt+L` |
+| 与下方/上方窗口交换 | `Alt+Shift+J` / `Alt+Shift+K` |
+| 与左方/右方窗口交换 | `Alt+Shift+H` / `Alt+Shift+L` |
 | 切换平铺布局 | `Alt+T` |
 | 切换浮动 | `Alt+Shift+Space` |
 | 切换全屏 | `Alt+F` |
 | 关闭窗口 | `Alt+Q` |
-| 调整主区域比例 | `Alt+H` / `Alt+L` |
+| 调整主区域比例 | `Alt+[` / `Alt+]` |
 | 调整窗口间距 | `Alt+,` / `Alt+.` |
 | 切换工作区 | `Alt+Shift+1-5` |
 | 移动窗口到工作区 | `Alt+Shift+N` / `Alt+Shift+M` |
@@ -68,6 +70,7 @@ Dwalia 从程序目录读取 `config.yaml`。编辑后按 `Alt+Shift+R` 即可�
 
 general:
   launch_terminal: wt.exe          # 终端命令
+  enable_logging: false            # 设 true 以启用日志文件
   excluded_processes:              # 不纳入管理的进程
     - SearchApp
     - TextInputHost
@@ -125,10 +128,26 @@ window_rules:
     floating: true
 
 keybindings:
-  - command: focus_next
+  - command: focus_down
     binding: Alt+J
-  - command: focus_previous
+  - command: focus_up
     binding: Alt+K
+  - command: focus_left
+    binding: Alt+H
+  - command: focus_right
+    binding: Alt+L
+  - command: swap_down
+    binding: Alt+Shift+J
+  - command: swap_up
+    binding: Alt+Shift+K
+  - command: swap_left
+    binding: Alt+Shift+H
+  - command: swap_right
+    binding: Alt+Shift+L
+  - command: dec_master
+    binding: Alt+OemOpenBrackets
+  - command: inc_master
+    binding: Alt+OemCloseBrackets
   # ... 完整列表见生成的 config.yaml
 
 launcher:
@@ -146,8 +165,10 @@ launcher:
 
 | 命令 | 说明 |
 |---|---|
-| `focus_next` / `focus_previous` | 聚焦下一个 / 上一个窗口 |
-| `swap_next` / `swap_previous` | 与下一个 / 上一个窗口交换位置 |
+| `focus_down` / `focus_up` | 聚焦下方 / 上方窗口 |
+| `focus_left` / `focus_right` | 聚焦左方 / 右方窗口 |
+| `swap_down` / `swap_up` | 与下方 / 上方窗口交换位置 |
+| `swap_left` / `swap_right` | 与左方 / 右方窗口交换位置 |
 | `toggle_float` | 切换焦点窗口的平铺 / 浮动状态 |
 | `toggle_fullscreen` | 切换焦点窗口全屏 |
 | `close_window` | 关闭焦点窗口 |

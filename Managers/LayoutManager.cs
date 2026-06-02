@@ -85,6 +85,14 @@ public class LayoutManager
             ShowWindow(mw.Hwnd, sw);
         }
 
+        if (resetFocus && tiled.Count > 0)
+        {
+            var first = tiled.OrderBy(w => GetWindowTopLeft(w).Y)
+                             .ThenBy(w => GetWindowTopLeft(w).X)
+                             .First();
+            _focusManager.SetActiveWindow(first);
+        }
+
         if (tiled.Count > 0)
             ArrangeTiled(tiled);
 

@@ -24,6 +24,8 @@ public partial class MainWindow : Window
     private FocusBackground? _focusBackground;
     private DispatcherTimer? _focusBgTimer;
     private Color _focusBgColor;
+    private Color _foregroundColor;
+    private Color _mutedColor;
     private int _focusBgRadius;
 
     public IntPtr GetHwnd() => _hwnd;
@@ -63,7 +65,11 @@ public partial class MainWindow : Window
 
         Logger.Info($"MainWindow.OnSourceInitialized: HWND={_hwnd}, HwndSource={(_hwndSource != null ? "ok" : "NULL")}");
 
-        ApplyAcrylic(_hwnd);
+        if (ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var acCfg)
+            && acCfg.Theme.EnableAcrylic)
+        {
+            ApplyAcrylic(_hwnd);
+        }
 
         SetWindowPos(_hwnd, new IntPtr(1), 0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -85,11 +91,17 @@ public partial class MainWindow : Window
         {
             try { _focusBgColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent ?? "#7aa2f7"); }
             catch { _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7); }
+            try { _foregroundColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Foreground ?? "#c0caf5"); }
+            catch { _foregroundColor = Color.FromRgb(0xc0, 0xca, 0xf5); }
+            try { _mutedColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Muted ?? "#565f89"); }
+            catch { _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89); }
             _focusBgRadius = cfg.Theme.BorderWidth > 0 ? cfg.Theme.BorderWidth + 6 : 8;
         }
         else
         {
             _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7);
+            _foregroundColor = Color.FromRgb(0xc0, 0xca, 0xf5);
+            _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89);
             _focusBgRadius = 8;
         }
 
@@ -198,8 +210,8 @@ public partial class MainWindow : Window
                 Height = 28, Margin = new Thickness(4, 0, 4, 0),
                 Padding = new Thickness(8, 0, 8, 0), FontSize = 11,
                 Foreground = mw.IsActive
-                    ? new SolidColorBrush(Color.FromRgb(0x7a, 0xa2, 0xf7))
-                    : new SolidColorBrush(Color.FromRgb(0xc0, 0xca, 0xf5)),
+                    ? new SolidColorBrush(_focusBgColor)
+                    : new SolidColorBrush(_foregroundColor),
                 Background = new SolidColorBrush(Color.FromRgb(0x24, 0x28, 0x3e)),
                 BorderThickness = new Thickness(0)
             };
@@ -298,6 +310,11 @@ public partial class MainWindow : Window
         if (!ServiceLocator.TryResolve<Configuration.DwaliaConfig>(out var c))
             return;
 
+        try { _foregroundColor = (Color)ColorConverter.ConvertFromString(c.Theme.Foreground ?? "#c0caf5"); }
+        catch { }
+        try { _mutedColor = (Color)ColorConverter.ConvertFromString(c.Theme.Muted ?? "#565f89"); }
+        catch { }
+
         var bgHex = c.Theme.Background ?? "#221a1b26";
         try
         {
@@ -325,6 +342,15 @@ public partial class MainWindow : Window
             }
             catch { }
         }
+
+        LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
+    }
+
+    public void UpdateTaskBarColors()
+    {
+        UpdateTaskBar();
+        UpdateWorkspacePills();
+        LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
     }
 
     private void UpdateWorkspacePills()
@@ -336,16 +362,23 @@ public partial class MainWindow : Window
         {
             var isActive = ws.Id == wsm.ActiveWorkspaceId;
             var hasWindows = ws.Windows.Count > 0;
+            Color pillColor;
+            if (isActive)
+                pillColor = _focusBgColor;
+            else if (hasWindows)
+                pillColor = _mutedColor;
+            else
+                pillColor = Color.FromRgb(
+                    (byte)(_mutedColor.R / 2),
+                    (byte)(_mutedColor.G / 2),
+                    (byte)(_mutedColor.B / 2));
             var pill = new Border
             {
                 Width = isActive ? 24 : 8,
                 Height = 8,
                 CornerRadius = new CornerRadius(4),
                 Margin = new Thickness(2, 0, 2, 0),
-                Background = new SolidColorBrush(Color.FromRgb(
-                    (byte)(isActive ? 0x7a : (hasWindows ? 0x56 : 0x3b)),
-                    (byte)(isActive ? 0xa2 : (hasWindows ? 0x5f : 0x42)),
-                    (byte)(isActive ? 0xf7 : (hasWindows ? 0x89 : 0x61))))
+                Background = new SolidColorBrush(pillColor)
             };
             WorkspacePills.Children.Add(pill);
         }

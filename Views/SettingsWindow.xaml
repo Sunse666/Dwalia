@@ -332,6 +332,37 @@
                                         Background="#3b4261" Margin="8,0,0,0"/>
                             </Grid>
 
+                            <CheckBox x:Name="ChkAcrylic" Content="Enable acrylic blur effect"
+                                      Margin="0,16,0,12"/>
+
+                            <TextBlock Text="Text color" Foreground="#999999"
+                                       Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="ForegroundBox" Text="#c0caf5"
+                                         TextChanged="OnForegroundChanged"/>
+                                <Border Grid.Column="1" x:Name="ForegroundPreview"
+                                        Width="24" Height="24" CornerRadius="4"
+                                        Background="#c0caf5" Margin="8,0,0,0"/>
+                            </Grid>
+
+                            <TextBlock Text="Muted color" Foreground="#999999"
+                                       Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="MutedBox" Text="#565f89"
+                                         TextChanged="OnMutedChanged"/>
+                                <Border Grid.Column="1" x:Name="MutedPreview"
+                                        Width="24" Height="24" CornerRadius="4"
+                                        Background="#565f89" Margin="8,0,0,0"/>
+                            </Grid>
+
                             <TextBlock Text="Border width" Foreground="#999999" Margin="0,16,0,4"/>
                             <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>

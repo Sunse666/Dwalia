@@ -24,6 +24,8 @@ public partial class SettingsWindow : Window
         BgOpacitySlider.ValueChanged += (_, _) => BgOpacityLabel.Text = ((int)BgOpacitySlider.Value).ToString();
         TbOpacitySlider.ValueChanged += (_, _) => TbOpacityLabel.Text = ((int)TbOpacitySlider.Value).ToString();
         AccentColorBox.TextChanged += OnAccentChanged;
+        ForegroundBox.TextChanged += OnForegroundChanged;
+        MutedBox.TextChanged += OnMutedChanged;
         ActiveBorderBox.TextChanged += OnActiveBorderChanged;
         InactiveBorderBox.TextChanged += OnInactiveBorderChanged;
         InnerGapSlider.ValueChanged += (_, _) => InnerGapLabel.Text = ((int)InnerGapSlider.Value).ToString();
@@ -42,11 +44,16 @@ public partial class SettingsWindow : Window
         BgOpacityLabel.Text = ((int)BgOpacitySlider.Value).ToString();
 
         AccentColorBox.Text = _config.Theme.Accent;
+        ForegroundBox.Text = _config.Theme.Foreground;
+        MutedBox.Text = _config.Theme.Muted;
         ActiveBorderBox.Text = _config.Theme.ActiveBorder;
         InactiveBorderBox.Text = _config.Theme.InactiveBorder;
         BorderWidthSlider.Value = _config.Theme.BorderWidth;
         BorderWidthLabel.Text = ((int)BorderWidthSlider.Value).ToString();
+        ChkAcrylic.IsChecked = _config.Theme.EnableAcrylic;
         OnAccentChanged(null!, null!);
+        OnForegroundChanged(null!, null!);
+        OnMutedChanged(null!, null!);
         OnActiveBorderChanged(null!, null!);
         OnInactiveBorderChanged(null!, null!);
 
@@ -163,9 +170,12 @@ public partial class SettingsWindow : Window
             _config.Theme.Background = $"#{bgAlpha:x2}1a1b26";
             _config.Theme.TaskbarBackground = $"#{tbAlpha:x2}16161e";
             _config.Theme.Accent = AccentColorBox.Text;
+            _config.Theme.Foreground = ForegroundBox.Text;
+            _config.Theme.Muted = MutedBox.Text;
             _config.Theme.ActiveBorder = ActiveBorderBox.Text;
             _config.Theme.InactiveBorder = InactiveBorderBox.Text;
             _config.Theme.BorderWidth = (int)BorderWidthSlider.Value;
+            _config.Theme.EnableAcrylic = ChkAcrylic.IsChecked == true;
             _config.LaunchTerminal = TerminalBox.Text;
             _config.ExcludeProcesses = ExcludeBox.Text
                 .Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -284,6 +294,7 @@ public partial class SettingsWindow : Window
 
         if (Owner is not MainWindow mw) return;
         mw.ApplyThemeFromConfig();
+        mw.UpdateTaskBarColors();
     }
 
     private static Color TryParseColor(string hex)
@@ -329,6 +340,26 @@ public partial class SettingsWindow : Window
     private void OnNavLayouts(object sender, RoutedEventArgs e) => SetActivePage(PageLayouts);
     private void OnNavWorkspaces(object sender, RoutedEventArgs e) => SetActivePage(PageWorkspaces);
     private void OnNavKeybindings(object sender, RoutedEventArgs e) => SetActivePage(PageKeybindings);
+
+    private void OnForegroundChanged(object sender, TextChangedEventArgs e)
+    {
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(ForegroundBox.Text);
+            ForegroundPreview.Background = new SolidColorBrush(color);
+        }
+        catch { }
+    }
+
+    private void OnMutedChanged(object sender, TextChangedEventArgs e)
+    {
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(MutedBox.Text);
+            MutedPreview.Background = new SolidColorBrush(color);
+        }
+        catch { }
+    }
 
     private void OnActiveBorderChanged(object sender, TextChangedEventArgs e)
     {

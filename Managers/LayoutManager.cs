@@ -24,6 +24,7 @@ public class LayoutManager
     private int _gap = 4;
     private int _outer = 2;
     private List<LayoutType> _enabledLayouts = new() { LayoutType.MasterStack, LayoutType.Monocle, LayoutType.Grid, LayoutType.HorizontalStack, LayoutType.Columns, LayoutType.VerticalStack, LayoutType.BSP };
+    private List<IntPtr> _bspOrderedHwnds = new();
 
     public LayoutManager(WindowManager wm, WorkspaceManager ws, FocusManager fm)
     {
@@ -234,9 +235,10 @@ public class LayoutManager
 
     private void ArrangeBSP(List<ManagedWindow> windows, System.Windows.Rect area)
     {
+        _bspOrderedHwnds.Clear();
         int n = windows.Count;
         if (n == 0) return;
-        if (n == 1) { Position(windows[0], area); return; }
+        if (n == 1) { Position(windows[0], area); _bspOrderedHwnds.Add(windows[0].Hwnd); return; }
 
         int leftCount = n / 2;
         int rightCount = n - leftCount;
@@ -255,6 +257,7 @@ public class LayoutManager
         if (count == 1)
         {
             Position(windows[start], area);
+            _bspOrderedHwnds.Add(windows[start].Hwnd);
             return;
         }
 
@@ -345,6 +348,51 @@ public class LayoutManager
         Relayout();
     }
 
+    public List<ManagedWindow> GetOrderedWindows()
+    {
+        var ws = _workspaceManager.GetActiveWorkspace();
+        if (ws == null) return new();
+        var all = ws.Windows.ToList();
+
+        if (_layout == LayoutType.BSP && _bspOrderedHwnds.Count > 0)
+        {
+            var ordered = new List<ManagedWindow>();
+            foreach (var hwnd in _bspOrderedHwnds)
+            {
+                var mw = all.FirstOrDefault(w => w.Hwnd == hwnd);
+                if (mw != null) ordered.Add(mw);
+            }
+            var remaining = all.Except(ordered)
+                .OrderBy(w => GetWindowCenter(w).Y)
+                .ThenBy(w => GetWindowCenter(w).X)
+                .ToList();
+            ordered.AddRange(remaining);
+            return ordered;
+        }
+
+        return all
+            .OrderBy(w => GetWindowCenter(w).Y)
+            .ThenBy(w => GetWindowCenter(w).X)
+            .ToList();
+    }
+
+    private System.Windows.Point GetWindowCenter(ManagedWindow w)
+    {
+        if (w.State == WindowLayoutState.Fullscreen)
+            return new System.Windows.Point(_area.X, _area.Y);
+
+        if (w.State == WindowLayoutState.Floating || w.LayoutBounds.Width <= 0)
+        {
+            var rect = Win32.WindowHelper.GetWindowRectSafe(w.Hwnd);
+            if (rect.Width > 0 && rect.Height > 0)
+                return new System.Windows.Point(rect.Left + rect.Width / 2.0, rect.Top + rect.Height / 2.0);
+        }
+
+        return new System.Windows.Point(
+            w.LayoutBounds.X + Math.Max(1, w.LayoutBounds.Width) / 2.0,
+            w.LayoutBounds.Y + Math.Max(1, w.LayoutBounds.Height) / 2.0);
+    }
+
     public void SetMasterFactor(double value)
     {
         _masterFactor = Math.Clamp(value, 0.3, 0.8);
@@ -403,28 +451,25 @@ public class LayoutManager
 
     private void SwapWindow(int direction)
     {
-        var ws = _workspaceManager.GetActiveWorkspace();
-        if (ws == null || _focusManager.ActiveWindow == null) return;
-        var list = ws.Windows;
+        var ordered = GetOrderedWindows();
+        if (ordered.Count < 2 || _focusManager.ActiveWindow == null) return;
         var active = _focusManager.ActiveWindow;
 
-        var tiled = list.Where(w => w.State == WindowLayoutState.Tiled).ToList();
-        if (tiled.Count < 2) return;
+        int activeIdx = ordered.IndexOf(active);
+        if (activeIdx < 0) return;
 
-        int activeTiledIdx = tiled.IndexOf(active);
-        if (activeTiledIdx < 0) return;
+        int otherIdx = (activeIdx + direction + ordered.Count) % ordered.Count;
+        var other = ordered[otherIdx];
 
-        int promoteTiledIdx = (activeTiledIdx + direction + tiled.Count) % tiled.Count;
-        var promote = tiled[promoteTiledIdx];
-
+        var list = _workspaceManager.GetActiveWorkspace()!.Windows;
         list.Remove(active);
-        if (promote != active)
-            list.Remove(promote);
+        if (other != active)
+            list.Remove(other);
 
-        list.Insert(0, promote);
+        list.Insert(0, other);
         list.Add(active);
 
-        _focusManager.SetActiveWindow(promote);
+        _focusManager.SetActiveWindow(other);
         Relayout();
     }
 

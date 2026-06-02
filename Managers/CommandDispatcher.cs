@@ -12,25 +12,23 @@ public static class CommandDispatcher
         string launchTerminal, Action? reloadConfig = null, Action? quit = null,
         Action<int>? cycleBar = null, Action? toggleBar = null)
     {
-        var aws = ws.GetActiveWorkspace();
-
         switch (cmd)
         {
-            case DwaliaCommand.FocusNext: fm.FocusNext(aws.Windows); break;
-            case DwaliaCommand.FocusPrevious: fm.FocusPrevious(aws.Windows); break;
+            case DwaliaCommand.FocusNext: fm.FocusNext(lm.GetOrderedWindows()); break;
+            case DwaliaCommand.FocusPrevious: fm.FocusPrevious(lm.GetOrderedWindows()); break;
             case DwaliaCommand.ToggleFloat: if (fm.ActiveWindow != null) lm.ToggleFloating(fm.ActiveWindow.Hwnd); break;
             case DwaliaCommand.ToggleFullscreen: if (fm.ActiveWindow != null) lm.ToggleFullscreen(fm.ActiveWindow.Hwnd); break;
             case DwaliaCommand.CloseWindow: if (fm.ActiveWindow != null) PostMessage(fm.ActiveWindow.Hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero); break;
             case DwaliaCommand.QuitDwalia: quit?.Invoke(); break;
-            case DwaliaCommand.FocusWindow1: FocusWindow(0, fm, aws); break;
-            case DwaliaCommand.FocusWindow2: FocusWindow(1, fm, aws); break;
-            case DwaliaCommand.FocusWindow3: FocusWindow(2, fm, aws); break;
-            case DwaliaCommand.FocusWindow4: FocusWindow(3, fm, aws); break;
-            case DwaliaCommand.FocusWindow5: FocusWindow(4, fm, aws); break;
-            case DwaliaCommand.FocusWindow6: FocusWindow(5, fm, aws); break;
-            case DwaliaCommand.FocusWindow7: FocusWindow(6, fm, aws); break;
-            case DwaliaCommand.FocusWindow8: FocusWindow(7, fm, aws); break;
-            case DwaliaCommand.FocusWindow9: FocusWindow(8, fm, aws); break;
+            case DwaliaCommand.FocusWindow1: FocusWindow(0, fm, lm); break;
+            case DwaliaCommand.FocusWindow2: FocusWindow(1, fm, lm); break;
+            case DwaliaCommand.FocusWindow3: FocusWindow(2, fm, lm); break;
+            case DwaliaCommand.FocusWindow4: FocusWindow(3, fm, lm); break;
+            case DwaliaCommand.FocusWindow5: FocusWindow(4, fm, lm); break;
+            case DwaliaCommand.FocusWindow6: FocusWindow(5, fm, lm); break;
+            case DwaliaCommand.FocusWindow7: FocusWindow(6, fm, lm); break;
+            case DwaliaCommand.FocusWindow8: FocusWindow(7, fm, lm); break;
+            case DwaliaCommand.FocusWindow9: FocusWindow(8, fm, lm); break;
             case DwaliaCommand.Workspace1: ws.SwitchToWorkspace(0); break;
             case DwaliaCommand.Workspace2: ws.SwitchToWorkspace(1); break;
             case DwaliaCommand.Workspace3: ws.SwitchToWorkspace(2); break;
@@ -55,15 +53,16 @@ public static class CommandDispatcher
         }
     }
 
-    private static void FocusWindow(int index, FocusManager fm, Workspace aws)
+    private static void FocusWindow(int index, FocusManager fm, LayoutManager lm)
     {
-        if (index < 0 || index >= aws.Windows.Count)
+        var ordered = lm.GetOrderedWindows();
+        if (index < 0 || index >= ordered.Count)
         {
-            Logger.Warn($"FocusWindow{index + 1}: only {aws.Windows.Count} windows in workspace");
+            Logger.Warn($"FocusWindow{index + 1}: only {ordered.Count} windows in workspace");
             return;
         }
-        fm.SetActiveWindow(aws.Windows[index]);
-        aws.Windows[index].Focus();
+        fm.SetActiveWindow(ordered[index]);
+        ordered[index].Focus();
     }
 
     private static void MoveActiveRelative(int direction, FocusManager fm, WorkspaceManager ws)

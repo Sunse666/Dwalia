@@ -36,6 +36,7 @@ public class LayoutManager
     private bool _preserveMaster;
 
     public event Action<List<ResizeZone>>? ResizeZonesUpdated;
+    public event Action? LayoutTargetsComputed;
 
     public LayoutManager(WindowManager wm, WorkspaceManager ws, FocusManager fm)
     {
@@ -186,6 +187,17 @@ public class LayoutManager
             return;
         }
 
+        LayoutTargetsComputed?.Invoke();
+    }
+
+    public void StartWindowAnimation()
+    {
+        if (_animFrames.Count == 0)
+        {
+            NotifyLayoutComplete();
+            return;
+        }
+
         int myVersion = _animVersion;
         var frames = _animFrames.ToList();
 
@@ -212,7 +224,7 @@ public class LayoutManager
 
             if (elapsedMs - lastFrameMs >= targetFrameMs || rawT >= 1.0)
             {
-                double t = EaseOutQuart(rawT);
+                double t = EaseInOutCubic(rawT);
                 ApplyDeferredFrame(frames, t, animFlags);
                 lastFrameMs = elapsedMs;
             }
@@ -258,6 +270,11 @@ public class LayoutManager
     private static double EaseOutQuart(double t)
     {
         return 1.0 - Math.Pow(1.0 - t, 4);
+    }
+
+    private static double EaseInOutCubic(double t)
+    {
+        return t < 0.5 ? 4.0 * t * t * t : 1.0 - Math.Pow(-2.0 * t + 2.0, 3.0) / 2.0;
     }
 
     private void NotifyLayoutComplete()

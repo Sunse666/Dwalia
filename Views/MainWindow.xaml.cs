@@ -135,6 +135,11 @@ public partial class MainWindow : Window
         if (ServiceLocator.TryResolve<LayoutManager>(out var lmg))
         {
             lmg.RelayoutCompleted += RefreshAllBackgroundPositions;
+            lmg.LayoutTargetsComputed += () =>
+            {
+                RefreshAllBackgroundPositions();
+                lmg.StartWindowAnimation();
+            };
         }
 
         _focusBgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };

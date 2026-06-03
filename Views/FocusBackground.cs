@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using Dwalia.Win32;
 using static Dwalia.Win32.NativeMethods;
 using static Dwalia.Win32.WindowStyles;
 
@@ -126,6 +127,99 @@ public class FocusBackground : IDisposable
         {
             bg.Pending = true;
         }
+    }
+
+    public void SetTarget(IntPtr ownerHwnd, int x, int y, int w, int h)
+    {
+        if (!_windows.TryGetValue(ownerHwnd, out var bg)) return;
+        bg.X = x; bg.Y = y; bg.W = w; bg.H = h;
+        bg.Pending = true;
+    }
+
+    public void AnimatePositions(int durationMs, Action onComplete)
+    {
+        var targets = _windows.Values
+            .Where(bg => bg.Hwnd != IntPtr.Zero && bg.Pending)
+            .ToList();
+
+        foreach (var bg in targets)
+        {
+            NativeMethods.RECT cr;
+            NativeMethods.GetWindowRect(bg.Hwnd, out cr);
+            if (cr.Width <= 1 || cr.Height <= 1)
+            {
+                SetWindowPos(bg.Hwnd, new IntPtr(1), bg.X, bg.Y, bg.W, bg.H, SWP_NOACTIVATE);
+                bg.Pending = false;
+            }
+        }
+
+        targets = targets.Where(bg => bg.Pending).ToList();
+        if (targets.Count == 0) { onComplete(); return; }
+
+        var frames = new List<(BgWindow Bg, int FromX, int FromY, int FromW, int FromH,
+                                        int ToX, int ToY, int ToW, int ToH)>();
+        foreach (var bg in targets)
+        {
+            NativeMethods.RECT rect;
+            if (NativeMethods.GetWindowRect(bg.Hwnd, out rect) && rect.Width > 1 && rect.Height > 1)
+                frames.Add((bg, rect.Left, rect.Top, rect.Width, rect.Height, bg.X, bg.Y, bg.W, bg.H));
+            else
+            {
+                SetWindowPos(bg.Hwnd, new IntPtr(1), bg.X, bg.Y, bg.W, bg.H, SWP_NOACTIVATE);
+                bg.Pending = false;
+            }
+        }
+
+        if (frames.Count == 0) { onComplete(); return; }
+
+        var thread = new System.Threading.Thread(() =>
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            const uint flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS;
+            const uint finalFlags = SWP_NOZORDER | SWP_NOACTIVATE;
+
+            long lastFrameMs = -16;
+            while (true)
+            {
+                long elapsedMs = sw.ElapsedMilliseconds;
+                double rawT = Math.Min(1.0, (double)elapsedMs / durationMs);
+
+                if (elapsedMs - lastFrameMs >= 16 || rawT >= 1.0)
+                {
+                    double t = EaseInOutCubic(rawT);
+                    foreach (var (bg, fx, fy, fw, fh, tx, ty, tw, th) in frames)
+                    {
+                        int x = (int)(fx + (tx - fx) * t);
+                        int y = (int)(fy + (ty - fy) * t);
+                        int w = (int)(fw + (tw - fw) * t);
+                        int h = (int)(fh + (th - fh) * t);
+                        SetWindowPos(bg.Hwnd, new IntPtr(1), x, y, w, h, flags);
+                    }
+                    lastFrameMs = elapsedMs;
+                }
+
+                if (rawT >= 1.0) break;
+                System.Threading.Thread.Sleep(1);
+            }
+
+            foreach (var (bg, _, _, _, _, tx, ty, tw, th) in frames)
+            {
+                SetWindowPos(bg.Hwnd, new IntPtr(1), tx, ty, tw, th, finalFlags);
+                bg.Pending = false;
+            }
+
+            onComplete();
+        })
+        {
+            IsBackground = true,
+            Name = "DwaliaBgAnim"
+        };
+        thread.Start();
+    }
+
+    private static double EaseInOutCubic(double t)
+    {
+        return t < 0.5 ? 4.0 * t * t * t : 1.0 - Math.Pow(-2.0 * t + 2.0, 3.0) / 2.0;
     }
 
     public void SetVisible(IntPtr ownerHwnd, bool visible)

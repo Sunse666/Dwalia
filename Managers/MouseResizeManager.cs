@@ -33,6 +33,7 @@ public class MouseResizeManager : IDisposable
     private double _dragStartMasterFactor;
     private ResizeEdge _dragEdge;
     private int _dragSplitId;
+    private long _lastDragTick;
 
     public Func<double>? GetCurrentMasterFactor;
     public event Action<double>? MasterFactorChanged;
@@ -105,6 +106,11 @@ public class MouseResizeManager : IDisposable
     {
         if (_isDragging)
         {
+            var tick = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (tick - _lastDragTick < System.Diagnostics.Stopwatch.Frequency / 60)
+                return IntPtr.Zero;
+            _lastDragTick = tick;
+
             var deltaX = ms.ptX - _dragStartX;
             var deltaY = ms.ptY - _dragStartY;
 
@@ -122,7 +128,7 @@ public class MouseResizeManager : IDisposable
                 MasterFactorChanged?.Invoke(newFactor);
 
             SetCursor(_dragEdge is ResizeEdge.Left or ResizeEdge.Right ? CursorWE : CursorNS);
-            return (IntPtr)1;
+            return IntPtr.Zero;
         }
 
         lock (_lock)

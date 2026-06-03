@@ -393,6 +393,7 @@ public class LayoutManager
     }
 
     private const int MinWindowWidth = 80;
+    private const int ZoneEdgeMargin = 24;
     private const int MinWindowHeight = 80;
 
     private void ArrangeTiled(List<ManagedWindow> windows, int workspaceId)
@@ -933,7 +934,7 @@ public class LayoutManager
     {
         SetWindowPos(mw.Hwnd, IntPtr.Zero,
             (int)r.X, (int)r.Y, (int)r.Width, (int)r.Height,
-            SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS);
     }
 
     public void SetEnabledLayouts(IEnumerable<string> names)
@@ -1024,10 +1025,10 @@ public class LayoutManager
         return new System.Windows.Point(w.LayoutBounds.X, w.LayoutBounds.Y);
     }
 
-    public void SetMasterFactor(double value)
+    public void SetMasterFactor(double value, bool save = true)
     {
         _masterFactor = Math.Clamp(value, 0.3, 0.8);
-        SaveLayoutConfig();
+        if (save) SaveLayoutConfig();
         Relayout();
     }
 
@@ -1066,10 +1067,13 @@ public class LayoutManager
         public SplitNode? Second;
         public bool Vertical;
         public double Ratio = 0.5;
+        public int Id;
+
+        private static int _nextId;
+        public SplitNode() { Id = System.Threading.Interlocked.Increment(ref _nextId); }
     }
 
     private readonly Dictionary<int, SplitNode?> _dynamicRoots = new();
-    private int _splitIdCounter;
     private readonly Dictionary<int, SplitNode> _splitNodes = new();
 
     private SplitNode? GetDynamicRoot(int workspaceId) =>
@@ -1167,7 +1171,7 @@ public class LayoutManager
         }
     }
 
-    private void SaveLayoutConfig()
+    public void SaveLayoutConfig()
     {
         if (ServiceLocator.TryResolve<ConfigRoot>(out var config) &&
             ServiceLocator.TryResolve<ConfigManager>(out var cm))
@@ -1362,9 +1366,6 @@ public class LayoutManager
 
     private void UpdateResizeZones()
     {
-        _splitNodes.Clear();
-        _splitIdCounter = 0;
-
         var ws = _workspaceManager.GetActiveWorkspace();
         if (ws == null) { ResizeZonesUpdated?.Invoke(new()); return; }
         var tiled = ws.Windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
@@ -1409,10 +1410,11 @@ public class LayoutManager
     private void AddMasterStackZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
     {
         double mw = (area.Width - _gap) * _masterFactor;
-        double zx = area.X + mw;
+        double zx = area.X + mw - ZoneEdgeMargin;
+        double zWidth = _gap + ZoneEdgeMargin * 2;
         zones.Add(new ResizeZone
         {
-            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zWidth, zoneSize), area.Height),
             Edge = ResizeEdge.Left
         });
     }
@@ -1421,10 +1423,11 @@ public class LayoutManager
     {
         if (tiled.Count < 2) return;
         double firstW = (area.Width - (tiled.Count - 1) * _gap) * _masterFactor;
-        double zx = area.X + firstW;
+        double zx = area.X + firstW - ZoneEdgeMargin;
+        double zWidth = _gap + ZoneEdgeMargin * 2;
         zones.Add(new ResizeZone
         {
-            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zWidth, zoneSize), area.Height),
             Edge = ResizeEdge.Left
         });
     }
@@ -1432,10 +1435,11 @@ public class LayoutManager
     private void AddVStackZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
     {
         double mh = (area.Height - _gap) * _masterFactor;
-        double zy = area.Y + mh;
+        double zy = area.Y + mh - ZoneEdgeMargin;
+        double zHeight = _gap + ZoneEdgeMargin * 2;
         zones.Add(new ResizeZone
         {
-            Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
+            Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zHeight, zoneSize)),
             Edge = ResizeEdge.Top
         });
     }
@@ -1447,20 +1451,22 @@ public class LayoutManager
         if (cols > 1)
         {
             double firstColW = (area.Width - (cols - 1) * _gap) * _masterFactor;
-            double zx = area.X + firstColW;
+            double zx = area.X + firstColW - ZoneEdgeMargin;
+            double zWidth = _gap + ZoneEdgeMargin * 2;
             zones.Add(new ResizeZone
             {
-                Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+                Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zWidth, zoneSize), area.Height),
                 Edge = ResizeEdge.Left
             });
         }
         if (rows > 1)
         {
             double firstRowH = (area.Height - (rows - 1) * _gap) * _masterFactor;
-            double zy = area.Y + firstRowH;
+            double zy = area.Y + firstRowH - ZoneEdgeMargin;
+            double zHeight = _gap + ZoneEdgeMargin * 2;
             zones.Add(new ResizeZone
             {
-                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
+                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zHeight, zoneSize)),
                 Edge = ResizeEdge.Top
             });
         }
@@ -1471,10 +1477,11 @@ public class LayoutManager
         double h = (area.Height - (tiled.Count - 1) * _gap) / tiled.Count;
         for (int i = 0; i < tiled.Count - 1; i++)
         {
-            double zy = area.Y + (i + 1) * h + i * _gap;
+            double zy = area.Y + (i + 1) * h + i * _gap - ZoneEdgeMargin;
+            double zHeight = _gap + ZoneEdgeMargin * 2;
             zones.Add(new ResizeZone
             {
-                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
+                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zHeight, zoneSize)),
                 Edge = ResizeEdge.Top
             });
         }
@@ -1483,10 +1490,11 @@ public class LayoutManager
     private void AddBSPZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
     {
         double leftW = (area.Width - _gap) * _masterFactor;
-        double zx = area.X + leftW;
+        double zx = area.X + leftW - ZoneEdgeMargin;
+        double zWidth = _gap + ZoneEdgeMargin * 2;
         zones.Add(new ResizeZone
         {
-            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zWidth, zoneSize), area.Height),
             Edge = ResizeEdge.Left
         });
     }
@@ -1505,19 +1513,19 @@ public class LayoutManager
         if (node.Window != null) return;
         if (node.First == null || node.Second == null) return;
 
-        int splitId = ++_splitIdCounter;
-        _splitNodes[splitId] = node;
+        _splitNodes[node.Id] = node;
 
         if (node.Vertical)
         {
             double firstW = Math.Max(MinWindowWidth, (area.Width - _gap) * node.Ratio);
             double secondW = Math.Max(MinWindowWidth, area.Width - firstW - _gap);
-            double zx = area.X + firstW;
+            double zx = area.X + firstW - ZoneEdgeMargin;
+            double zWidth = _gap + ZoneEdgeMargin * 2;
             zones.Add(new ResizeZone
             {
-                Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+                Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zWidth, zoneSize), area.Height),
                 Edge = ResizeEdge.Left,
-                SplitId = splitId
+                SplitId = node.Id
             });
             AddDynamicZonesRec(zones, node.First, new System.Windows.Rect(area.X, area.Y, firstW, area.Height), zoneSize);
             AddDynamicZonesRec(zones, node.Second, new System.Windows.Rect(area.X + firstW + _gap, area.Y, secondW, area.Height), zoneSize);
@@ -1526,12 +1534,13 @@ public class LayoutManager
         {
             double firstH = Math.Max(MinWindowHeight, (area.Height - _gap) * node.Ratio);
             double secondH = Math.Max(MinWindowHeight, area.Height - firstH - _gap);
-            double zy = area.Y + firstH;
+            double zy = area.Y + firstH - ZoneEdgeMargin;
+            double zHeight = _gap + ZoneEdgeMargin * 2;
             zones.Add(new ResizeZone
             {
-                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
+                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zHeight, zoneSize)),
                 Edge = ResizeEdge.Top,
-                SplitId = splitId
+                SplitId = node.Id
             });
             AddDynamicZonesRec(zones, node.First, new System.Windows.Rect(area.X, area.Y, area.Width, firstH), zoneSize);
             AddDynamicZonesRec(zones, node.Second, new System.Windows.Rect(area.X, area.Y + firstH + _gap, area.Width, secondH), zoneSize);
@@ -1543,10 +1552,50 @@ public class LayoutManager
 
     public void AdjustSplitRatio(int splitId, double newRatio)
     {
-        if (_splitNodes.TryGetValue(splitId, out var node))
+        if (!_splitNodes.TryGetValue(splitId, out var node)) return;
+        node.Ratio = Math.Clamp(newRatio, 0.15, 0.85);
+
+        var ws = _workspaceManager.GetActiveWorkspace();
+        if (ws == null) return;
+        var root = GetDynamicRoot(ws.Id);
+        if (root == null) return;
+
+        int effectiveOuter = (_smartGaps && ws.Windows.Count <= 1) ? 0 : _outer;
+        var layoutArea = new System.Windows.Rect(
+            Area.X + effectiveOuter, Area.Y + effectiveOuter,
+            Math.Max(MinWindowWidth, Area.Width - effectiveOuter * 2),
+            Math.Max(MinWindowHeight, Area.Height - effectiveOuter * 2));
+
+        LayoutSplitNodeDirect(root, layoutArea, _gap);
+    }
+
+    private void LayoutSplitNodeDirect(SplitNode node, System.Windows.Rect area, int gap)
+    {
+        if (node.Window != null) { DirectPosition(node.Window, area); return; }
+        if (node.First == null || node.Second == null) return;
+
+        if (node.Vertical)
         {
-            node.Ratio = Math.Clamp(newRatio, 0.15, 0.85);
-            Relayout(resetFocus: false);
+            double firstW = Math.Max(MinWindowWidth, (area.Width - gap) * node.Ratio);
+            double secondW = Math.Max(MinWindowWidth, area.Width - firstW - gap);
+            LayoutSplitNodeDirect(node.First, new System.Windows.Rect(area.X, area.Y, firstW, area.Height), gap);
+            LayoutSplitNodeDirect(node.Second, new System.Windows.Rect(area.X + firstW + gap, area.Y, secondW, area.Height), gap);
         }
+        else
+        {
+            double firstH = Math.Max(MinWindowHeight, (area.Height - gap) * node.Ratio);
+            double secondH = Math.Max(MinWindowHeight, area.Height - firstH - gap);
+            LayoutSplitNodeDirect(node.First, new System.Windows.Rect(area.X, area.Y, area.Width, firstH), gap);
+            LayoutSplitNodeDirect(node.Second, new System.Windows.Rect(area.X, area.Y + firstH + gap, area.Width, secondH), gap);
+        }
+    }
+
+    private static void DirectPosition(ManagedWindow mw, System.Windows.Rect r)
+    {
+        if (!IsWindow(mw.Hwnd)) return;
+        mw.LayoutBounds = r;
+        SetWindowPos(mw.Hwnd, IntPtr.Zero,
+            (int)r.X, (int)r.Y, (int)r.Width, (int)r.Height,
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
     }
 }

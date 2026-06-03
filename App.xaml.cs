@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
 using Dwalia.Configuration;
@@ -94,7 +95,7 @@ public partial class App : Application
             _mainWindow?.Dispatcher.Invoke(() =>
             {
                 _layoutManager.SetAnimationEnabled(false);
-                _layoutManager.SetMasterFactor(factor);
+                _layoutManager.SetMasterFactor(factor, save: false);
             });
 
         _mouseResizeManager.SplitFactorChanged += (splitId, factor) =>
@@ -108,6 +109,8 @@ public partial class App : Application
             _mainWindow?.Dispatcher.Invoke(() =>
             {
                 _layoutManager.SetAnimationEnabled(true);
+                _layoutManager.SaveLayoutConfig();
+                _layoutManager.Relayout(resetFocus: false);
             });
 
         if (_config.Theme.FocusFollowsMouse)

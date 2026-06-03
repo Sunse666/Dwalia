@@ -848,6 +848,27 @@ public class LayoutManager
         return FindParentSplit(node.First, hwnd) ?? FindParentSplit(node.Second, hwnd);
     }
 
+    private static SplitNode? FindDirectionalParentSplit(SplitNode? node, IntPtr hwnd, bool vertical)
+    {
+        if (node == null || node.Window != null) return null;
+
+        bool inFirst = ContainsWindow(node.First, hwnd);
+        var child = inFirst ? node.First : node.Second;
+
+        var deeper = FindDirectionalParentSplit(child, hwnd, vertical);
+        if (deeper != null) return deeper;
+
+        if (node.Vertical == vertical) return node;
+        return null;
+    }
+
+    private static bool ContainsWindow(SplitNode? node, IntPtr hwnd)
+    {
+        if (node == null) return false;
+        if (node.Window != null) return node.Window.Hwnd == hwnd;
+        return ContainsWindow(node.First, hwnd) || ContainsWindow(node.Second, hwnd);
+    }
+
     private static bool ReplaceLeaf(SplitNode node, IntPtr targetHwnd, SplitNode replacement)
     {
         if (node.First != null && node.First.Window?.Hwnd == targetHwnd)
@@ -1165,7 +1186,7 @@ public class LayoutManager
                     : _bspRoots.GetValueOrDefault(mw.WorkspaceId);
                 if (root != null)
                 {
-                    var parent = FindParentSplit(root, mw.Hwnd);
+                    var parent = FindDirectionalParentSplit(root, mw.Hwnd, !horizontal);
                     if (parent != null)
                     {
                         double d = decrease ? -0.05 : +0.05;
@@ -1173,6 +1194,7 @@ public class LayoutManager
                         StatusMessage?.Invoke($"Split: {parent.Ratio * 100:F0}%");
                         LayoutSplitNodeDirect(root, GetLayoutArea(), _gap);
                         UpdateResizeZones();
+                        RelayoutCompleted?.Invoke();
                         return;
                     }
                 }
@@ -1183,6 +1205,7 @@ public class LayoutManager
             StatusMessage?.Invoke($"Master: {_masterFactor * 100:F0}%");
             SaveLayoutConfig();
             DirectMasterFactorLayout();
+            RelayoutCompleted?.Invoke();
         }
         finally
         {

@@ -142,7 +142,7 @@ public class LayoutManager
             if (mw.IsScratchpad) continue;
             if (mw.State == WindowLayoutState.Floating) continue;
             var onActive = activeWorkspaceIds.Contains(mw.WorkspaceId);
-            var sw = onActive ? SW_RESTORE : SW_HIDE;
+            var sw = onActive ? SW_SHOWNOACTIVATE : SW_HIDE;
             ShowWindow(mw.Hwnd, sw);
         }
 

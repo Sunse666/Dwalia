@@ -1,4 +1,3 @@
-using System.Windows.Threading;
 using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Models;
@@ -31,11 +30,9 @@ public class LayoutManager
     // Animation state
     private bool _isAnimating;
     private readonly List<(ManagedWindow Window, System.Windows.Rect Target)> _pendingPositions = new();
-    private DispatcherTimer? _animTimer;
     private List<(ManagedWindow Window, System.Windows.Rect From, System.Windows.Rect To)> _animFrames = new();
-    private int _animElapsed;
+    private int _animVersion;
     private const int AnimDuration = 150;
-    private const int AnimInterval = 10;
     private bool _disableAnimation;
 
     public event Action<List<ResizeZone>>? ResizeZonesUpdated;
@@ -149,6 +146,8 @@ public class LayoutManager
             return;
         }
 
+        _animVersion++; // Cancel any running animation
+
         if (_disableAnimation)
         {
             foreach (var (mw, target) in _pendingPositions)
@@ -158,7 +157,6 @@ public class LayoutManager
         }
 
         _animFrames.Clear();
-        _animElapsed = 0;
 
         foreach (var (mw, target) in _pendingPositions)
         {
@@ -188,47 +186,85 @@ public class LayoutManager
             return;
         }
 
-        _animTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(AnimInterval) };
-        _animTimer.Tick += OnAnimTick;
-        _animTimer.Start();
+        int myVersion = _animVersion;
+        var frames = _animFrames.ToList();
+
+        var thread = new Thread(() => AnimateThread(frames, myVersion))
+        {
+            IsBackground = true,
+            Name = "DwaliaAnim"
+        };
+        thread.Start();
+    }
+
+    private void AnimateThread(List<(ManagedWindow Window, System.Windows.Rect From, System.Windows.Rect To)> frames, int version)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        const uint animFlags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS;
+        const uint finalFlags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW;
+        const int targetFrameMs = 16; // ~60fps
+
+        long lastFrameMs = -targetFrameMs;
+        while (version == _animVersion)
+        {
+            long elapsedMs = sw.ElapsedMilliseconds;
+            double rawT = Math.Min(1.0, (double)elapsedMs / AnimDuration);
+
+            if (elapsedMs - lastFrameMs >= targetFrameMs || rawT >= 1.0)
+            {
+                double t = EaseOutQuart(rawT);
+                ApplyDeferredFrame(frames, t, animFlags);
+                lastFrameMs = elapsedMs;
+            }
+
+            if (rawT >= 1.0) break;
+
+            Thread.Sleep(1);
+        }
+
+        if (version != _animVersion) return;
+
+        // Final precise frame
+        ApplyDeferredFrame(frames, 1.0, finalFlags);
+
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            if (version != _animVersion) return;
+            foreach (var (mw, _, to) in frames)
+                mw.LayoutBounds = to;
+            _animFrames.Clear();
+            NotifyLayoutComplete();
+        });
+    }
+
+    private static void ApplyDeferredFrame(
+        List<(ManagedWindow Window, System.Windows.Rect From, System.Windows.Rect To)> frames,
+        double t, uint flags)
+    {
+        var hdwp = BeginDeferWindowPos(frames.Count);
+        if (hdwp == IntPtr.Zero) return;
+
+        foreach (var (mw, from, to) in frames)
+        {
+            double x = from.X + (to.X - from.X) * t;
+            double y = from.Y + (to.Y - from.Y) * t;
+            double w = from.Width + (to.Width - from.Width) * t;
+            double h = from.Height + (to.Height - from.Height) * t;
+            hdwp = DeferWindowPos(hdwp, mw.Hwnd, IntPtr.Zero,
+                (int)x, (int)y, (int)w, (int)h, flags);
+        }
+        EndDeferWindowPos(hdwp);
+    }
+
+    private static double EaseOutQuart(double t)
+    {
+        return 1.0 - Math.Pow(1.0 - t, 4);
     }
 
     private void NotifyLayoutComplete()
     {
         UpdateResizeZones();
         RelayoutCompleted?.Invoke();
-    }
-
-    private void OnAnimTick(object? sender, EventArgs e)
-    {
-        _animElapsed += AnimInterval;
-        double rawT = Math.Min(1.0, (double)_animElapsed / AnimDuration);
-        double t = 1.0 - Math.Pow(1.0 - rawT, 3); // ease-out cubic
-
-        bool any = false;
-        foreach (var (mw, from, to) in _animFrames)
-        {
-            double x = from.X + (to.X - from.X) * t;
-            double y = from.Y + (to.Y - from.Y) * t;
-            double w = from.Width + (to.Width - from.Width) * t;
-            double h = from.Height + (to.Height - from.Height) * t;
-
-            SetWindowPos(mw.Hwnd, IntPtr.Zero,
-                (int)x, (int)y, (int)w, (int)h,
-                SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-
-            if (rawT < 1.0) any = true;
-        }
-
-        if (!any)
-        {
-            _animTimer?.Stop();
-            _animTimer = null;
-            foreach (var (mw, _, to) in _animFrames)
-                InstantPosition(mw, to);
-            _animFrames.Clear();
-            NotifyLayoutComplete();
-        }
     }
 
     private const int MinWindowWidth = 200;
@@ -638,8 +674,6 @@ public class LayoutManager
         active.Focus();
 
         StatusMessage?.Invoke($"Swapped {direction}");
-        if (_pendingPositions.Count == 0 && _animFrames.Count == 0)
-            NotifyLayoutComplete();
     }
 
     private void ReSortWorkspaceWindows()

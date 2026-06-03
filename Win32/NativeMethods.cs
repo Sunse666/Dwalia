@@ -54,6 +54,15 @@ public static partial class NativeMethods
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
     [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr BeginDeferWindowPos(int nNumWindows);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr DeferWindowPos(IntPtr hWinPosInfo, IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern bool EndDeferWindowPos(IntPtr hWinPosInfo);
+
+    [DllImport(User32, SetLastError = true)]
     public static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
 
     [DllImport(User32, SetLastError = true)]
@@ -202,6 +211,9 @@ public static partial class NativeMethods
 
     [DllImport(DwmApi)]
     public static extern int DwmSetWindowAttribute(IntPtr hwnd, uint dwAttribute, ref int pvAttribute, int cbAttribute);
+
+    [DllImport(DwmApi)]
+    public static extern int DwmFlush();
 
     #endregion
 

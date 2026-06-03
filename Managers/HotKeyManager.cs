@@ -19,7 +19,7 @@ public class HotKeyManager : IDisposable
     private bool _disposed;
 
     private bool _altHeld;
-    private bool _altConsumed;
+    private int _altConsumedCount;
     private uint _altVkCode;
     private bool _shiftHeld;
 
@@ -265,13 +265,13 @@ public class HotKeyManager : IDisposable
         {
             _altHeld = true;
             _altVkCode = kb.vkCode;
-            _altConsumed = false;
+            _altConsumedCount = 0;
             return IntPtr.Zero;
         }
 
         if (_altHeld && _keyMap.TryGetValue((kb.vkCode, _shiftHeld), out var cmd))
         {
-            _altConsumed = true;
+            _altConsumedCount++;
             keybd_event((byte)_altVkCode, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
             Logger.Info($"Dwalia: Alt+{(char)kb.vkCode} shift={_shiftHeld} → {cmd}");
             PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)cmd, IntPtr.Zero);
@@ -291,9 +291,9 @@ public class HotKeyManager : IDisposable
 
         if (kb.vkCode is VK_LMENU or VK_RMENU)
         {
-            if (_altConsumed)
+            if (_altConsumedCount > 0)
             {
-                _altConsumed = false;
+                _altConsumedCount--;
                 return (IntPtr)1;
             }
             _altHeld = false;
@@ -325,11 +325,11 @@ public class HotKeyManager : IDisposable
 
     private void ReleaseStuckModifiers()
     {
-        if (_altConsumed)
+        if (_altConsumedCount > 0 || _altHeld)
         {
             keybd_event((byte)VK_LMENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
             keybd_event((byte)VK_RMENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-            _altConsumed = false;
+            _altConsumedCount = 0;
             _altHeld = false;
         }
     }

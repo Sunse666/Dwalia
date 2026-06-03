@@ -6,6 +6,7 @@ namespace Dwalia.Win32;
 public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 public delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
 public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+public delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
 public static partial class NativeMethods
 {
@@ -119,10 +120,13 @@ public static partial class NativeMethods
 
     #endregion
 
-    #region Keyboard Hook
+    #region Hook
 
     [DllImport(User32, SetLastError = true)]
     public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelMouseProc lpfn, IntPtr hMod, uint dwThreadId);
 
     [DllImport(User32, SetLastError = true)]
     public static extern bool UnhookWindowsHookEx(IntPtr hHook);
@@ -144,6 +148,30 @@ public static partial class NativeMethods
         public uint flags;
         public uint time;
         public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSLLHOOKSTRUCT
+    {
+        public int ptX;
+        public int ptY;
+        public uint mouseData;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    [DllImport(User32)]
+    public static extern IntPtr SetCursor(IntPtr hCursor);
+
+    [DllImport(User32)]
+    public static extern bool GetCursorPos(out POINT lpPoint);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X;
+        public int Y;
     }
 
     #endregion

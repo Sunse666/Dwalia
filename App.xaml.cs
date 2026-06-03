@@ -16,6 +16,7 @@ public partial class App : Application
     private LayoutManager? _layoutManager;
     private FocusManager? _focusManager;
     private HotKeyManager? _hotKeyManager;
+    private MouseResizeManager? _mouseResizeManager;
     private ConfigManager? _configManager;
     private ConfigRoot? _config;
     private MainWindow? _mainWindow;
@@ -66,6 +67,26 @@ public partial class App : Application
         _layoutManager.SetEnabledLayouts(_config.Layout.EnabledLayouts);
         ServiceLocator.Register(_layoutManager);
 
+        _mouseResizeManager = new MouseResizeManager();
+        ServiceLocator.Register(_mouseResizeManager);
+        _mouseResizeManager.GetCurrentMasterFactor = () => _layoutManager?.CurrentMasterFactor ?? 0.6;
+
+        _layoutManager.ResizeZonesUpdated += zones =>
+            _mainWindow?.Dispatcher.Invoke(() => _mouseResizeManager.UpdateZones(zones));
+
+        _mouseResizeManager.MasterFactorChanged += factor =>
+            _mainWindow?.Dispatcher.Invoke(() =>
+            {
+                _layoutManager.SetAnimationEnabled(false);
+                _layoutManager.SetMasterFactor(factor);
+            });
+
+        _mouseResizeManager.ResizeEnded += () =>
+            _mainWindow?.Dispatcher.Invoke(() =>
+            {
+                _layoutManager.SetAnimationEnabled(true);
+            });
+
         _hookManager.FocusChanged += (_, hwnd) => _focusManager.OnFocusEvent(hwnd);
         _hookManager.WindowDiscovered += (_, hwnd) =>
             _mainWindow.Dispatcher.Invoke(() =>
@@ -84,6 +105,8 @@ public partial class App : Application
         };
 
         _mainWindow.Show();
+
+        _mouseResizeManager.Initialize(_mainWindow.GetHwnd());
 
         _configManager.ApplyRules(_config, _windowManager, _workspaceManager);
 
@@ -134,6 +157,7 @@ public partial class App : Application
         _configManager?.StopWatching();
         try { _windowManager?.RestoreAllWindows(); } catch { }
         _hotKeyManager?.Dispose();
+        _mouseResizeManager?.Dispose();
         base.OnExit(e);
         Logger.Info("Dwalia exited");
     }

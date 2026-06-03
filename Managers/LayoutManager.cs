@@ -1,3 +1,4 @@
+using System.Windows.Threading;
 using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Models;
@@ -15,6 +16,7 @@ public class LayoutManager
     private readonly FocusManager _focusManager;
     private System.Windows.Rect _area;
     public System.Windows.Rect Area => _area;
+    public double CurrentMasterFactor => _masterFactor;
     public event EventHandler<LayoutType>? LayoutChanged;
     public event Action<string>? StatusMessage;
     public event Action? RelayoutCompleted;
@@ -25,6 +27,18 @@ public class LayoutManager
     private int _outer = 2;
     private List<LayoutType> _enabledLayouts = new() { LayoutType.MasterStack, LayoutType.Monocle, LayoutType.Grid, LayoutType.HorizontalStack, LayoutType.Columns, LayoutType.VerticalStack, LayoutType.BSP };
     private List<IntPtr> _bspOrderedHwnds = new();
+
+    // Animation state
+    private bool _isAnimating;
+    private readonly List<(ManagedWindow Window, System.Windows.Rect Target)> _pendingPositions = new();
+    private DispatcherTimer? _animTimer;
+    private List<(ManagedWindow Window, System.Windows.Rect From, System.Windows.Rect To)> _animFrames = new();
+    private int _animElapsed;
+    private const int AnimDuration = 150;
+    private const int AnimInterval = 10;
+    private bool _disableAnimation;
+
+    public event Action<List<ResizeZone>>? ResizeZonesUpdated;
 
     public LayoutManager(WindowManager wm, WorkspaceManager ws, FocusManager fm)
     {
@@ -42,7 +56,16 @@ public class LayoutManager
 
         _windowManager.WindowManaged += (_, _) => Relayout();
         _windowManager.WindowUnmanaged += (_, _) => Relayout();
-        _workspaceManager.WorkspaceChanged += (_, _) => Relayout();
+        _workspaceManager.WorkspaceChanged += (_, id) =>
+        {
+            var ws = _workspaceManager.GetWorkspace(id);
+            if (ws != null)
+            {
+                _layout = ws.Layout;
+                LayoutChanged?.Invoke(this, _layout);
+            }
+            Relayout();
+        };
     }
 
     public void SetArea(IntPtr mainHwnd, double taskbarHeight)
@@ -94,7 +117,13 @@ public class LayoutManager
         }
 
         if (tiled.Count > 0)
+        {
+            _isAnimating = true;
+            _pendingPositions.Clear();
             ArrangeTiled(tiled);
+            _isAnimating = false;
+            ApplyAnimated();
+        }
 
         if (resetFocus)
         {
@@ -103,7 +132,103 @@ public class LayoutManager
                 _focusManager.SetActiveWindow(ordered[0]);
         }
 
+        if (tiled.Count == 0)
+            NotifyLayoutComplete();
+    }
+
+    public void SetAnimationEnabled(bool enabled)
+    {
+        _disableAnimation = !enabled;
+    }
+
+    private void ApplyAnimated()
+    {
+        if (_pendingPositions.Count == 0)
+        {
+            NotifyLayoutComplete();
+            return;
+        }
+
+        if (_disableAnimation)
+        {
+            foreach (var (mw, target) in _pendingPositions)
+                InstantPosition(mw, target);
+            NotifyLayoutComplete();
+            return;
+        }
+
+        _animFrames.Clear();
+        _animElapsed = 0;
+
+        foreach (var (mw, target) in _pendingPositions)
+        {
+            var raw = Win32.WindowHelper.GetWindowRectSafe(mw.Hwnd);
+            if (raw.Width > 0 && raw.Height > 0)
+            {
+                var from = new System.Windows.Rect(raw.Left, raw.Top, raw.Width, raw.Height);
+                if (Math.Abs(from.X - target.X) > 2 || Math.Abs(from.Y - target.Y) > 2
+                    || Math.Abs(from.Width - target.Width) > 2 || Math.Abs(from.Height - target.Height) > 2)
+                {
+                    _animFrames.Add((mw, from, target));
+                }
+                else
+                {
+                    InstantPosition(mw, target);
+                }
+            }
+            else
+            {
+                InstantPosition(mw, target);
+            }
+        }
+
+        if (_animFrames.Count == 0)
+        {
+            NotifyLayoutComplete();
+            return;
+        }
+
+        _animTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(AnimInterval) };
+        _animTimer.Tick += OnAnimTick;
+        _animTimer.Start();
+    }
+
+    private void NotifyLayoutComplete()
+    {
+        UpdateResizeZones();
         RelayoutCompleted?.Invoke();
+    }
+
+    private void OnAnimTick(object? sender, EventArgs e)
+    {
+        _animElapsed += AnimInterval;
+        double rawT = Math.Min(1.0, (double)_animElapsed / AnimDuration);
+        double t = 1.0 - Math.Pow(1.0 - rawT, 3); // ease-out cubic
+
+        bool any = false;
+        foreach (var (mw, from, to) in _animFrames)
+        {
+            double x = from.X + (to.X - from.X) * t;
+            double y = from.Y + (to.Y - from.Y) * t;
+            double w = from.Width + (to.Width - from.Width) * t;
+            double h = from.Height + (to.Height - from.Height) * t;
+
+            SetWindowPos(mw.Hwnd, IntPtr.Zero,
+                (int)x, (int)y, (int)w, (int)h,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+
+            if (rawT < 1.0) any = true;
+        }
+
+        if (!any)
+        {
+            _animTimer?.Stop();
+            _animTimer = null;
+            foreach (var (mw, _, to) in _animFrames)
+                InstantPosition(mw, to);
+            _animFrames.Clear();
+            NotifyLayoutComplete();
+        }
     }
 
     private const int MinWindowWidth = 200;
@@ -326,10 +451,18 @@ public class LayoutManager
         }
     }
 
-    private static void Position(ManagedWindow mw, System.Windows.Rect r)
+    private void Position(ManagedWindow mw, System.Windows.Rect r)
     {
         if (!IsWindow(mw.Hwnd)) return;
         mw.LayoutBounds = r;
+        if (_isAnimating)
+            _pendingPositions.Add((mw, r));
+        else
+            InstantPosition(mw, r);
+    }
+
+    private static void InstantPosition(ManagedWindow mw, System.Windows.Rect r)
+    {
         SetWindowPos(mw.Hwnd, IntPtr.Zero,
             (int)r.X, (int)r.Y, (int)r.Width, (int)r.Height,
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
@@ -357,6 +490,8 @@ public class LayoutManager
     {
         var idx = _enabledLayouts.IndexOf(_layout);
         _layout = _enabledLayouts[(idx + 1) % _enabledLayouts.Count];
+        var ws = _workspaceManager.GetActiveWorkspace();
+        if (ws != null) ws.Layout = _layout;
         Logger.Info($"Layout: {_layout}");
         LayoutChanged?.Invoke(this, _layout);
         StatusMessage?.Invoke($"{_layout}");
@@ -491,15 +626,20 @@ public class LayoutManager
         ReSortWorkspaceWindows();
         _bspOrderedHwnds.Clear();
 
+        _isAnimating = true;
+        _pendingPositions.Clear();
         Position(active, active.LayoutBounds);
         Position(other, other.LayoutBounds);
+        _isAnimating = false;
+        ApplyAnimated();
 
         _focusManager.SetActiveWindow(null);
         _focusManager.SetActiveWindow(active);
         active.Focus();
 
         StatusMessage?.Invoke($"Swapped {direction}");
-        RelayoutCompleted?.Invoke();
+        if (_pendingPositions.Count == 0 && _animFrames.Count == 0)
+            NotifyLayoutComplete();
     }
 
     private void ReSortWorkspaceWindows()
@@ -626,7 +766,132 @@ public class LayoutManager
             mw.PreFullscreenRect = Win32.WindowHelper.GetWindowRectSafe(hwnd);
             mw.State = WindowLayoutState.Fullscreen;
             Position(mw, _area);
-            RelayoutCompleted?.Invoke();
+            NotifyLayoutComplete();
         }
+    }
+
+    private void UpdateResizeZones()
+    {
+        var ws = _workspaceManager.GetActiveWorkspace();
+        if (ws == null) { ResizeZonesUpdated?.Invoke(new()); return; }
+        var tiled = ws.Windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
+        if (tiled.Count < 2) { ResizeZonesUpdated?.Invoke(new()); return; }
+
+        var innerArea = new System.Windows.Rect(
+            _area.X + _outer, _area.Y + _outer,
+            Math.Max(MinWindowWidth, _area.Width - _outer * 2),
+            Math.Max(MinWindowHeight, _area.Height - _outer * 2));
+
+        var zones = new List<ResizeZone>();
+        int zoneSize = Math.Max(8, _gap);
+
+        switch (_layout)
+        {
+            case LayoutType.MasterStack:
+                AddMasterStackZones(zones, tiled, innerArea, zoneSize);
+                break;
+            case LayoutType.Columns:
+                AddColumnsZones(zones, tiled, innerArea, zoneSize);
+                break;
+            case LayoutType.VerticalStack:
+                AddVStackZones(zones, tiled, innerArea, zoneSize);
+                break;
+            case LayoutType.Grid:
+                AddGridZones(zones, tiled, innerArea, zoneSize);
+                break;
+            case LayoutType.HorizontalStack:
+                AddHStackZones(zones, tiled, innerArea, zoneSize);
+                break;
+            case LayoutType.BSP:
+                AddBSPZones(zones, tiled, innerArea, zoneSize);
+                break;
+        }
+
+        ResizeZonesUpdated?.Invoke(zones);
+    }
+
+    private void AddMasterStackZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
+    {
+        double mw = (area.Width - _gap) * _masterFactor;
+        double zx = area.X + mw;
+        zones.Add(new ResizeZone
+        {
+            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+            Edge = ResizeEdge.Left
+        });
+    }
+
+    private void AddColumnsZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
+    {
+        if (tiled.Count < 2) return;
+        double firstW = (area.Width - (tiled.Count - 1) * _gap) * _masterFactor;
+        double zx = area.X + firstW;
+        zones.Add(new ResizeZone
+        {
+            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+            Edge = ResizeEdge.Left
+        });
+    }
+
+    private void AddVStackZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
+    {
+        double mh = (area.Height - _gap) * _masterFactor;
+        double zy = area.Y + mh;
+        zones.Add(new ResizeZone
+        {
+            Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
+            Edge = ResizeEdge.Top
+        });
+    }
+
+    private void AddGridZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
+    {
+        int cols = (int)Math.Ceiling(Math.Sqrt(tiled.Count));
+        int rows = (int)Math.Ceiling((double)tiled.Count / cols);
+        if (cols > 1)
+        {
+            double firstColW = (area.Width - (cols - 1) * _gap) * _masterFactor;
+            double zx = area.X + firstColW;
+            zones.Add(new ResizeZone
+            {
+                Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+                Edge = ResizeEdge.Left
+            });
+        }
+        if (rows > 1)
+        {
+            double firstRowH = (area.Height - (rows - 1) * _gap) * _masterFactor;
+            double zy = area.Y + firstRowH;
+            zones.Add(new ResizeZone
+            {
+                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
+                Edge = ResizeEdge.Top
+            });
+        }
+    }
+
+    private void AddHStackZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
+    {
+        double h = (area.Height - (tiled.Count - 1) * _gap) / tiled.Count;
+        for (int i = 0; i < tiled.Count - 1; i++)
+        {
+            double zy = area.Y + (i + 1) * h + i * _gap;
+            zones.Add(new ResizeZone
+            {
+                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
+                Edge = ResizeEdge.Top
+            });
+        }
+    }
+
+    private void AddBSPZones(List<ResizeZone> zones, List<ManagedWindow> tiled, System.Windows.Rect area, int zoneSize)
+    {
+        double leftW = (area.Width - _gap) * _masterFactor;
+        double zx = area.X + leftW;
+        zones.Add(new ResizeZone
+        {
+            Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+            Edge = ResizeEdge.Left
+        });
     }
 }

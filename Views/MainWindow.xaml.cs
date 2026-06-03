@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     private Color _focusBgColor;
     private Color _foregroundColor;
     private Color _mutedColor;
+    private readonly List<System.Windows.Controls.Border> _monitorBars = new();
 
     public IntPtr GetHwnd() => _hwnd;
 
@@ -56,11 +57,10 @@ public partial class MainWindow : Window
             wsm.WorkspaceChanged += (_, _) => { UpdateTaskBar(); UpdateWorkspacePills(); };
         }
 
-        var wa = System.Windows.SystemParameters.WorkArea;
-        Left = wa.Left;
-        Top = wa.Top;
-        Width = wa.Width;
-        Height = wa.Height;
+        Left = System.Windows.SystemParameters.VirtualScreenLeft;
+        Top = System.Windows.SystemParameters.VirtualScreenTop;
+        Width = System.Windows.SystemParameters.VirtualScreenWidth;
+        Height = System.Windows.SystemParameters.VirtualScreenHeight;
 
         SourceInitialized += OnSourceInitialized;
     }
@@ -177,6 +177,13 @@ public partial class MainWindow : Window
                 hkm.DispatchCommand((DwaliaCommand)wParam.ToInt32());
                 handled = true;
             }
+            return IntPtr.Zero;
+        }
+        if (msg == WM_DISPLAYCHANGE)
+        {
+            Logger.Info("Display change detected, re-enumerating monitors");
+            Dispatcher.BeginInvoke(() => HandleDisplayChange());
+            handled = true;
             return IntPtr.Zero;
         }
         return IntPtr.Zero;
@@ -655,6 +662,17 @@ public partial class MainWindow : Window
         var activeWs = wsm.GetActiveWorkspace();
         if (activeWs == null) return;
 
+        var activeWorkspaceIds = new HashSet<int>();
+        if (ServiceLocator.TryResolve<MonitorManager>(out var mm) && mm.MonitorCount > 0)
+        {
+            foreach (var m in mm.Monitors)
+                activeWorkspaceIds.Add(wsm.GetActiveWorkspaceIdForMonitor(m.Id));
+        }
+        else
+        {
+            activeWorkspaceIds.Add(activeWs.Id);
+        }
+
         var area = lm.Area;
         int gap = 4;
         if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
@@ -664,7 +682,7 @@ public partial class MainWindow : Window
 
         foreach (var mw in wm.ManagedWindows.Values)
         {
-            bool onActiveWs = mw.WorkspaceId == activeWs.Id;
+            bool onActiveWs = activeWorkspaceIds.Contains(mw.WorkspaceId);
             bool isFullscreen = mw.State == Dwalia.Models.WindowLayoutState.Fullscreen;
 
             if (!onActiveWs || isFullscreen)
@@ -733,5 +751,92 @@ public partial class MainWindow : Window
         public int cx;
         public int cy;
         public uint flags;
+    }
+
+    private void HandleDisplayChange()
+    {
+        if (ServiceLocator.TryResolve<MonitorManager>(out var mm))
+            mm.RefreshMonitors();
+
+        Left = System.Windows.SystemParameters.VirtualScreenLeft;
+        Top = System.Windows.SystemParameters.VirtualScreenTop;
+        Width = System.Windows.SystemParameters.VirtualScreenWidth;
+        Height = System.Windows.SystemParameters.VirtualScreenHeight;
+
+        RebuildMonitorBars();
+        UpdateBarArea();
+
+        if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
+            lm.Relayout();
+    }
+
+    public void RebuildMonitorBars()
+    {
+        foreach (var bar in _monitorBars)
+        {
+            OverlayGrid.Children.Remove(bar);
+        }
+        _monitorBars.Clear();
+
+        if (!ServiceLocator.TryResolve<MonitorManager>(out var mm)) return;
+        if (mm.MonitorCount <= 1) return;
+
+        foreach (var monitor in mm.Monitors)
+        {
+            if (monitor.IsPrimary) continue;
+
+            var bar = new System.Windows.Controls.Border
+            {
+                Height = 28,
+                Background = new SolidColorBrush(Color.FromArgb(0x55, 0x16, 0x16, 0x1e)),
+                BorderBrush = _mutedColor is Color c ? new SolidColorBrush(c) : new SolidColorBrush(Color.FromRgb(0x3b, 0x42, 0x61)),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+            };
+
+            var stack = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                Margin = new Thickness(8, 0, 0, 0),
+                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            };
+
+            if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
+            {
+                foreach (var ws in wsm.Workspaces)
+                {
+                    var activeWsId = wsm.GetActiveWorkspaceIdForMonitor(monitor.Id);
+                    var isActive = ws.Id == activeWsId;
+                    var hasWindows = ws.Windows.Count > 0;
+                    Color pillColor;
+                    if (isActive) pillColor = _focusBgColor;
+                    else if (hasWindows) pillColor = _mutedColor;
+                    else pillColor = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
+                    var pill = new System.Windows.Controls.Border
+                    {
+                        Width = isActive ? 16 : 6, Height = 6,
+                        CornerRadius = new CornerRadius(3),
+                        Margin = new Thickness(2, 0, 2, 0),
+                        Background = new SolidColorBrush(pillColor)
+                    };
+                    stack.Children.Add(pill);
+                }
+            }
+
+            bar.Child = stack;
+
+            double left = monitor.WorkArea.Left - System.Windows.SystemParameters.VirtualScreenLeft;
+            double top = monitor.WorkArea.Top - System.Windows.SystemParameters.VirtualScreenTop;
+            bar.Width = monitor.WorkArea.Width;
+            bar.Margin = new Thickness(left, top, 0, 0);
+
+            if (OverlayGrid.Children.Count > 1)
+                OverlayGrid.Children.Insert(OverlayGrid.Children.Count - 1, bar);
+            else
+                OverlayGrid.Children.Add(bar);
+
+            _monitorBars.Add(bar);
+        }
     }
 }

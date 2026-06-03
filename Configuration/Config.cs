@@ -107,6 +107,9 @@ public class LayoutConfig
         "MasterStack", "Monocle", "Grid", "HorizontalStack",
         "Columns", "VerticalStack", "BSP"
     };
+
+    [YamlMember(Alias = "smart_gaps")]
+    public bool SmartGaps { get; set; } = false;
 }
 
 public class WorkspaceEntry
@@ -119,6 +122,12 @@ public class WindowRuleConfig
 {
     [YamlMember(Alias = "process")]
     public string Process { get; set; } = "";
+
+    [YamlMember(Alias = "title")]
+    public string? Title { get; set; }
+
+    [YamlMember(Alias = "title_match_mode")]
+    public string TitleMatchMode { get; set; } = "Exact";
 
     [YamlMember(Alias = "workspace")]
     public string? Workspace { get; set; }

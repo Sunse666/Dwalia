@@ -200,9 +200,25 @@ public class ConfigManager
     {
         foreach (var rule in config.WindowRules)
         {
-            var normalizedRule = rule.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                ? rule.Process[..^4] : rule.Process;
-            if (!mw.ProcessName.Equals(normalizedRule, StringComparison.OrdinalIgnoreCase))
+            bool processMatch = string.IsNullOrEmpty(rule.Process)
+                || mw.ProcessName.Equals(
+                    rule.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                        ? rule.Process[..^4] : rule.Process,
+                    StringComparison.OrdinalIgnoreCase);
+
+            bool titleMatch = true;
+            if (!string.IsNullOrEmpty(rule.Title))
+            {
+                titleMatch = rule.TitleMatchMode.ToLowerInvariant() switch
+                {
+                    "contains" => mw.Title.Contains(rule.Title, StringComparison.OrdinalIgnoreCase),
+                    "startswith" => mw.Title.StartsWith(rule.Title, StringComparison.OrdinalIgnoreCase),
+                    "regex" => MatchTitleRegex(mw.Title, rule.Title),
+                    _ => mw.Title.Equals(rule.Title, StringComparison.OrdinalIgnoreCase),
+                };
+            }
+
+            if (!processMatch || !titleMatch)
                 continue;
 
             if (rule.Workspace is { Length: > 0 } wsName)
@@ -218,6 +234,20 @@ public class ConfigManager
             if (rule.Floating)
                 mw.State = Models.WindowLayoutState.Floating;
             break;
+        }
+    }
+
+    private static bool MatchTitleRegex(string title, string pattern)
+    {
+        try
+        {
+            return System.Text.RegularExpressions.Regex.IsMatch(
+                title, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
+        catch (System.Text.RegularExpressions.RegexParseException ex)
+        {
+            Logger.Warn($"Invalid regex in window rule: {ex.Message}");
+            return false;
         }
     }
 }

@@ -6,10 +6,20 @@ namespace Dwalia.Managers;
 public class WorkspaceManager
 {
     private readonly List<Workspace> _workspaces = new();
-    private int _activeWorkspaceId;
+    private readonly Dictionary<int, int> _monitorActiveWs = new();
+    private int _currentMonitorId;
 
     public IReadOnlyList<Workspace> Workspaces => _workspaces;
-    public int ActiveWorkspaceId => _activeWorkspaceId;
+    public int ActiveWorkspaceId => _monitorActiveWs.GetValueOrDefault(_currentMonitorId, 0);
+
+    public int CurrentMonitorId
+    {
+        get => _currentMonitorId;
+        set => _currentMonitorId = value;
+    }
+
+    public int GetActiveWorkspaceIdForMonitor(int monitorId) =>
+        _monitorActiveWs.GetValueOrDefault(monitorId, 0);
 
     public event EventHandler<int>? WorkspaceChanged;
 
@@ -20,7 +30,8 @@ public class WorkspaceManager
         {
             _workspaces.Add(new Workspace(i, defaultNames[i]));
         }
-        _activeWorkspaceId = 0;
+        _monitorActiveWs[0] = 0;
+        _currentMonitorId = 0;
     }
 
     public void Initialize(string[] names)
@@ -32,26 +43,38 @@ public class WorkspaceManager
         }
     }
 
+    public void InitializeForMonitor(int monitorId)
+    {
+        if (!_monitorActiveWs.ContainsKey(monitorId))
+            _monitorActiveWs[monitorId] = 0;
+    }
+
     public void SwitchToWorkspace(int id)
     {
+        SwitchToWorkspaceOnMonitor(_currentMonitorId, id);
+    }
+
+    public void SwitchToWorkspaceOnMonitor(int monitorId, int id)
+    {
         if (id < 0 || id >= _workspaces.Count) return;
+        if (_monitorActiveWs.GetValueOrDefault(monitorId, 0) == id) return;
 
-        if (_activeWorkspaceId == id) return;
-
-        Logger.Info($"Switching to workspace {id}: {_workspaces[id].Name}");
-        _activeWorkspaceId = id;
+        Logger.Info($"Switching monitor {monitorId} to workspace {id}: {_workspaces[id].Name}");
+        _monitorActiveWs[monitorId] = id;
         WorkspaceChanged?.Invoke(this, id);
     }
 
     public void NextWorkspace()
     {
-        var next = (_activeWorkspaceId + 1) % _workspaces.Count;
+        var current = _monitorActiveWs.GetValueOrDefault(_currentMonitorId, 0);
+        var next = (current + 1) % _workspaces.Count;
         SwitchToWorkspace(next);
     }
 
     public void PreviousWorkspace()
     {
-        var prev = (_activeWorkspaceId - 1 + _workspaces.Count) % _workspaces.Count;
+        var current = _monitorActiveWs.GetValueOrDefault(_currentMonitorId, 0);
+        var prev = (current - 1 + _workspaces.Count) % _workspaces.Count;
         SwitchToWorkspace(prev);
     }
 
@@ -72,7 +95,9 @@ public class WorkspaceManager
     public void AddWindow(ManagedWindow mw, int workspaceId)
     {
         if (workspaceId < 0 || workspaceId >= _workspaces.Count)
-            workspaceId = _activeWorkspaceId;
+        {
+            workspaceId = _monitorActiveWs.GetValueOrDefault(mw.MonitorId, 0);
+        }
 
         var ws = _workspaces[workspaceId];
         ws.Windows.Add(mw);
@@ -91,5 +116,13 @@ public class WorkspaceManager
         return _workspaces[id];
     }
 
-    public Workspace GetActiveWorkspace() => _workspaces[_activeWorkspaceId];
+    public Workspace GetActiveWorkspace()
+    {
+        return _workspaces[_monitorActiveWs.GetValueOrDefault(_currentMonitorId, 0)];
+    }
+
+    public Workspace GetActiveWorkspaceForMonitor(int monitorId)
+    {
+        return _workspaces[_monitorActiveWs.GetValueOrDefault(monitorId, 0)];
+    }
 }

@@ -47,6 +47,10 @@ public static class CommandDispatcher
             case DwaliaCommand.CycleLayout: lm.CycleLayout(); break;
             case DwaliaCommand.IncGap: lm.ResizeGap(1); break;
             case DwaliaCommand.DecGap: lm.ResizeGap(-1); break;
+            case DwaliaCommand.IncInnerGap: lm.ResizeInnerGap(2); break;
+            case DwaliaCommand.DecInnerGap: lm.ResizeInnerGap(-2); break;
+            case DwaliaCommand.IncOuterGap: lm.ResizeOuterGap(2); break;
+            case DwaliaCommand.DecOuterGap: lm.ResizeOuterGap(-2); break;
             case DwaliaCommand.ResizeLeft: lm.ResizeLeft(); break;
             case DwaliaCommand.ResizeDown: lm.ResizeDown(); break;
             case DwaliaCommand.ResizeUp: lm.ResizeUp(); break;
@@ -60,6 +64,10 @@ public static class CommandDispatcher
             case DwaliaCommand.BarNext: cycleBar?.Invoke(1); break;
             case DwaliaCommand.BarPrevious: cycleBar?.Invoke(-1); break;
             case DwaliaCommand.ToggleBar: toggleBar?.Invoke(); break;
+            case DwaliaCommand.ToggleScratchpad:
+                if (ServiceLocator.TryResolve<ScratchpadManager>(out var sp))
+                    sp.ToggleScratchpad(fm.ActiveWindow, ws, lm, fm);
+                break;
         }
     }
 

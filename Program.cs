@@ -10,8 +10,17 @@ internal class Program
         using var mutex = new Mutex(true, "Dwalia_WindowManager_Mutex", out bool createdNew);
         if (!createdNew)
         {
-            MessageBox.Show("Dwalia is already running.", "Dwalia",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            if (args.Length > 0)
+            {
+                var command = string.Join(" ", args);
+                var result = Managers.IpcServer.SendCommandAndExit(command);
+                Console.WriteLine(result);
+            }
+            else
+            {
+                MessageBox.Show("Dwalia is already running.", "Dwalia",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
             return;
         }
 

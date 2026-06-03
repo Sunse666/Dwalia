@@ -14,9 +14,11 @@ public partial class App : Application
     private WindowEventHookManager? _hookManager;
     private WorkspaceManager? _workspaceManager;
     private LayoutManager? _layoutManager;
+    private MonitorManager? _monitorManager;
     private FocusManager? _focusManager;
     private HotKeyManager? _hotKeyManager;
     private MouseResizeManager? _mouseResizeManager;
+    private IpcServer? _ipcServer;
     private ConfigManager? _configManager;
     private ConfigRoot? _config;
     private MainWindow? _mainWindow;
@@ -61,6 +63,14 @@ public partial class App : Application
         ServiceLocator.Register(_focusManager);
 
         _mainWindow = new MainWindow(_windowManager, _hookManager);
+
+        _monitorManager = new MonitorManager();
+        _monitorManager.RefreshMonitors();
+        ServiceLocator.Register(_monitorManager);
+
+        foreach (var m in _monitorManager.Monitors)
+            _workspaceManager.InitializeForMonitor(m.Id);
+
         _hotKeyManager.CommandTriggered += OnCommandTriggered;
 
         _layoutManager = new LayoutManager(_windowManager, _workspaceManager, _focusManager);
@@ -70,6 +80,9 @@ public partial class App : Application
         _mouseResizeManager = new MouseResizeManager();
         ServiceLocator.Register(_mouseResizeManager);
         _mouseResizeManager.GetCurrentMasterFactor = () => _layoutManager?.CurrentMasterFactor ?? 0.6;
+
+        var scratchpadManager = new ScratchpadManager();
+        ServiceLocator.Register(scratchpadManager);
 
         _layoutManager.ResizeZonesUpdated += zones =>
             _mainWindow?.Dispatcher.Invoke(() => _mouseResizeManager.UpdateZones(zones));
@@ -87,7 +100,15 @@ public partial class App : Application
                 _layoutManager.SetAnimationEnabled(true);
             });
 
-        _hookManager.FocusChanged += (_, hwnd) => _focusManager.OnFocusEvent(hwnd);
+        _hookManager.FocusChanged += (_, hwnd) =>
+        {
+            _focusManager.OnFocusEvent(hwnd);
+            if (_monitorManager != null)
+            {
+                var monitorId = _monitorManager.GetMonitorIdForWindow(hwnd);
+                _workspaceManager!.CurrentMonitorId = monitorId;
+            }
+        };
         _hookManager.WindowDiscovered += (_, hwnd) =>
             _mainWindow.Dispatcher.Invoke(() =>
             {
@@ -113,6 +134,9 @@ public partial class App : Application
         _configManager.StartWatching(() =>
             _mainWindow?.Dispatcher.Invoke(() => ReloadConfig()));
 
+        _ipcServer = new IpcServer(Dispatcher);
+        _ipcServer.Start();
+
         Logger.Info("Dwalia started");
     }
 
@@ -136,6 +160,7 @@ public partial class App : Application
         Logger.Enabled = c.General.EnableLogging;
         ServiceLocator.Register(c);
         _configManager?.ApplyRules(c, _windowManager, _workspaceManager);
+        if (_layoutManager != null) _layoutManager.SmartGaps = c.Layout.SmartGaps;
         _focusManager?.SetBorderColors(
             NativeConstants.ParseDwmColor(c.Theme.ActiveBorder),
             NativeConstants.ParseDwmColor(c.Theme.InactiveBorder));
@@ -155,6 +180,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _configManager?.StopWatching();
+        _ipcServer?.Dispose();
         try { _windowManager?.RestoreAllWindows(); } catch { }
         _hotKeyManager?.Dispose();
         _mouseResizeManager?.Dispose();

@@ -22,7 +22,11 @@ public class ManagedWindow
 
     public int WorkspaceId { get; set; }
 
+    public int MonitorId { get; set; }
+
     public bool IsActive { get; set; }
+
+    public bool IsScratchpad { get; set; }
 
     public System.Windows.Rect LayoutBounds { get; set; }
 

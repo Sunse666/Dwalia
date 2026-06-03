@@ -106,6 +106,7 @@ internal static class NativeConstants
     public const int WM_DWALIA_COMMAND = 0x8001;
     public const int WM_NCHITTEST = 0x0084;
     public const int WM_WINDOWPOSCHANGING = 0x0046;
+    public const int WM_DISPLAYCHANGE = 0x007E;
 
     public const uint KEYEVENTF_KEYUP = 0x0002;
 

@@ -14,8 +14,15 @@ public class LayoutManager
     private readonly WorkspaceManager _workspaceManager;
     private readonly FocusManager _focusManager;
     private System.Windows.Rect _area;
-    public System.Windows.Rect Area => _area;
+    private readonly Dictionary<int, System.Windows.Rect> _monitorAreas = new();
+    public System.Windows.Rect Area => _monitorAreas.TryGetValue(_workspaceManager.CurrentMonitorId, out var a) ? a : _area;
+    public System.Windows.Rect GetAreaForMonitor(int monitorId) => _monitorAreas.TryGetValue(monitorId, out var a) ? a : _area;
     public double CurrentMasterFactor => _masterFactor;
+    public bool SmartGaps
+    {
+        get => _smartGaps;
+        set { _smartGaps = value; Relayout(); }
+    }
     public event EventHandler<LayoutType>? LayoutChanged;
     public event Action<string>? StatusMessage;
     public event Action? RelayoutCompleted;
@@ -24,6 +31,7 @@ public class LayoutManager
     private double _masterFactor = 0.6;
     private int _gap = 4;
     private int _outer = 2;
+    private bool _smartGaps;
     private List<LayoutType> _enabledLayouts = new() { LayoutType.MasterStack, LayoutType.Monocle, LayoutType.Grid, LayoutType.HorizontalStack, LayoutType.Columns, LayoutType.VerticalStack, LayoutType.BSP };
     private List<IntPtr> _bspOrderedHwnds = new();
 
@@ -51,6 +59,7 @@ public class LayoutManager
             _masterFactor = config.Layout.MasterFactor;
             _gap = config.Layout.InnerGap;
             _outer = config.Layout.OuterGap;
+            _smartGaps = config.Layout.SmartGaps;
         }
 
         _windowManager.WindowManaged += (_, _) => Relayout();
@@ -69,70 +78,155 @@ public class LayoutManager
 
     public void SetArea(IntPtr mainHwnd, double taskbarHeight)
     {
-        var monitor = MonitorFromWindow(mainHwnd, MONITOR_DEFAULTTONEAREST);
-        var mi = new MONITORINFO();
-        mi.cbSize = System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>();
-        if (!GetMonitorInfo(monitor, ref mi))
+        _monitorAreas.Clear();
+
+        if (ServiceLocator.TryResolve<MonitorManager>(out var mm) && mm.MonitorCount > 0)
         {
-            Logger.Warn("GetMonitorInfo failed, using fallback area");
-            return;
+            foreach (var m in mm.Monitors)
+            {
+                var area = new System.Windows.Rect(
+                    m.WorkArea.Left,
+                    m.WorkArea.Top + taskbarHeight,
+                    m.WorkArea.Width,
+                    Math.Max(200, m.WorkArea.Height - taskbarHeight));
+                _monitorAreas[m.Id] = area;
+                Logger.Info($"Monitor {m.Id} work area: {area.Width:F0}x{area.Height:F0} @ ({area.X:F0},{area.Y:F0})");
+            }
+            _area = _monitorAreas.GetValueOrDefault(0, _area);
         }
-
-        _area = new System.Windows.Rect(
-            mi.rcWork.Left,
-            mi.rcWork.Top + taskbarHeight,
-            mi.rcWork.Width,
-            Math.Max(200, mi.rcWork.Height - taskbarHeight));
-
-        Logger.Info($"Work area: {_area.Width:F0}x{_area.Height:F0} @ ({_area.X:F0},{_area.Y:F0})");
+        else
+        {
+            var monitor = MonitorFromWindow(mainHwnd, MONITOR_DEFAULTTONEAREST);
+            var mi = new MONITORINFO();
+            mi.cbSize = System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>();
+            if (GetMonitorInfo(monitor, ref mi))
+            {
+                _area = new System.Windows.Rect(
+                    mi.rcWork.Left,
+                    mi.rcWork.Top + taskbarHeight,
+                    mi.rcWork.Width,
+                    Math.Max(200, mi.rcWork.Height - taskbarHeight));
+            }
+            _monitorAreas[0] = _area;
+            Logger.Info($"Work area: {_area.Width:F0}x{_area.Height:F0} @ ({_area.X:F0},{_area.Y:F0})");
+        }
         Relayout();
     }
 
     public void Relayout(bool resetFocus = true)
     {
-        var ws = _workspaceManager.GetActiveWorkspace();
-        if (ws == null) return;
+        _isAnimating = true;
+        _pendingPositions.Clear();
 
-        var windows = ws.Windows.ToList();
-        var tiled = windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
+        var activeWorkspaceIds = new HashSet<int>();
+        if (ServiceLocator.TryResolve<MonitorManager>(out var mm) && mm.MonitorCount > 0)
+        {
+            foreach (var m in mm.Monitors)
+                activeWorkspaceIds.Add(_workspaceManager.GetActiveWorkspaceIdForMonitor(m.Id));
+        }
+        else
+        {
+            activeWorkspaceIds.Add(_workspaceManager.ActiveWorkspaceId);
+        }
 
-        Logger.Info($"Relayout: {tiled.Count} tiled / {_windowManager.ManagedWindows.Count} total, area={_area.Width:F0}x{_area.Height:F0}");
+        Logger.Info($"Relayout: {_windowManager.ManagedWindows.Count} managed, active workspaces: [{string.Join(",", activeWorkspaceIds)}]");
 
         foreach (var mw in _windowManager.ManagedWindows.Values)
         {
             if (!IsWindow(mw.Hwnd)) continue;
+            if (mw.IsScratchpad) continue;
             if (mw.State == WindowLayoutState.Floating) continue;
-            var onActive = mw.WorkspaceId == _workspaceManager.ActiveWorkspaceId;
+            var onActive = activeWorkspaceIds.Contains(mw.WorkspaceId);
             var sw = onActive ? SW_RESTORE : SW_HIDE;
             ShowWindow(mw.Hwnd, sw);
         }
 
-        if (resetFocus && tiled.Count > 0)
+        if (ServiceLocator.TryResolve<MonitorManager>(out var monitorMgr) && monitorMgr.MonitorCount > 0)
         {
-            var first = tiled.OrderBy(w => GetWindowTopLeft(w).Y)
-                             .ThenBy(w => GetWindowTopLeft(w).X)
-                             .First();
-            _focusManager.SetActiveWindow(first);
-        }
+            foreach (var monitor in monitorMgr.Monitors)
+            {
+                var activeWsId = _workspaceManager.GetActiveWorkspaceIdForMonitor(monitor.Id);
+                var ws = _workspaceManager.GetWorkspace(activeWsId);
+                if (ws == null) continue;
+                _layout = ws.Layout;
 
-        if (tiled.Count > 0)
-        {
-            _isAnimating = true;
-            _pendingPositions.Clear();
-            ArrangeTiled(tiled);
+                var area = GetAreaForMonitor(monitor.Id);
+                var windows = ws.Windows.ToList();
+                var tiled = windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
+
+                if (tiled.Count > 0)
+                    ArrangeTiledInArea(tiled, area);
+            }
+
             _isAnimating = false;
             ApplyAnimated();
-        }
 
-        if (resetFocus)
+            if (resetFocus)
+            {
+                var currentMonitorActiveWsId = _workspaceManager.GetActiveWorkspaceIdForMonitor(_workspaceManager.CurrentMonitorId);
+                var currentWs = _workspaceManager.GetWorkspace(currentMonitorActiveWsId);
+                if (currentWs != null && currentWs.Windows.Count > 0)
+                {
+                    _layout = currentWs.Layout;
+                    var ordered = GetOrderedWindows();
+                    if (ordered.Count > 0)
+                        _focusManager.SetActiveWindow(ordered[0]);
+                }
+            }
+        }
+        else
         {
-            var ordered = GetOrderedWindows();
-            if (ordered.Count > 0)
-                _focusManager.SetActiveWindow(ordered[0]);
+            var ws = _workspaceManager.GetActiveWorkspace();
+            if (ws == null) return;
+            _layout = ws.Layout;
+
+            var windows = ws.Windows.ToList();
+            var tiled = windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
+
+            if (tiled.Count > 0)
+                ArrangeTiled(tiled);
+
+            _isAnimating = false;
+            ApplyAnimated();
+
+            if (resetFocus)
+            {
+                var ordered = GetOrderedWindows();
+                if (ordered.Count > 0)
+                    _focusManager.SetActiveWindow(ordered[0]);
+            }
+        }
+    }
+
+    private void ArrangeTiledInArea(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        if (!_preserveMaster)
+        {
+            var active = _focusManager.ActiveWindow;
+            if (active != null && windows.Count > 1 && windows.Contains(active))
+            {
+                windows.Remove(active);
+                windows.Insert(0, active);
+            }
         }
 
-        if (tiled.Count == 0)
-            NotifyLayoutComplete();
+        int effectiveOuter = (_smartGaps && windows.Count <= 1) ? 0 : _outer;
+
+        var layoutArea = new System.Windows.Rect(
+            area.X + effectiveOuter, area.Y + effectiveOuter,
+            Math.Max(MinWindowWidth, area.Width - effectiveOuter * 2),
+            Math.Max(MinWindowHeight, area.Height - effectiveOuter * 2));
+
+        switch (_layout)
+        {
+            case LayoutType.Monocle: ArrangeMonocle(windows, layoutArea); break;
+            case LayoutType.Grid: ArrangeGrid(windows, layoutArea); break;
+            case LayoutType.HorizontalStack: ArrangeHStack(windows, layoutArea); break;
+            case LayoutType.Columns: ArrangeColumns(windows, layoutArea); break;
+            case LayoutType.VerticalStack: ArrangeVStack(windows, layoutArea); break;
+            case LayoutType.BSP: ArrangeBSP(windows, layoutArea); break;
+            default: ArrangeMasterStack(windows, layoutArea); break;
+        }
     }
 
     public void SetAnimationEnabled(bool enabled)
@@ -299,10 +393,12 @@ public class LayoutManager
             }
         }
 
+        int effectiveOuter = (_smartGaps && windows.Count <= 1) ? 0 : _outer;
+
         var area = new System.Windows.Rect(
-            _area.X + _outer, _area.Y + _outer,
-            Math.Max(MinWindowWidth, _area.Width - _outer * 2),
-            Math.Max(MinWindowHeight, _area.Height - _outer * 2));
+            _area.X + effectiveOuter, _area.Y + effectiveOuter,
+            Math.Max(MinWindowWidth, _area.Width - effectiveOuter * 2),
+            Math.Max(MinWindowHeight, _area.Height - effectiveOuter * 2));
 
         switch (_layout)
         {
@@ -632,6 +728,24 @@ public class LayoutManager
         _outer = Math.Clamp(_outer + delta, 0, 12);
         Logger.Info($"Gap: {_gap}, Outer: {_outer}");
         StatusMessage?.Invoke($"Gap: {_gap} Inner / {_outer} Outer");
+        SaveLayoutConfig();
+        Relayout();
+    }
+
+    public void ResizeInnerGap(int delta)
+    {
+        _gap = Math.Clamp(_gap + delta, 0, 24);
+        Logger.Info($"Inner gap: {_gap}");
+        StatusMessage?.Invoke($"Inner gap: {_gap}");
+        SaveLayoutConfig();
+        Relayout();
+    }
+
+    public void ResizeOuterGap(int delta)
+    {
+        _outer = Math.Clamp(_outer + delta, 0, 12);
+        Logger.Info($"Outer gap: {_outer}");
+        StatusMessage?.Invoke($"Outer gap: {_outer}");
         SaveLayoutConfig();
         Relayout();
     }

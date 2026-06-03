@@ -94,6 +94,8 @@ internal static class WindowStyles
     public const uint WM_DPICHANGED = 0x02E0;
 
     public const uint MONITOR_DEFAULTTONEAREST = 2;
+    public const uint MONITOR_DEFAULTTONULL = 0;
+    public const uint MONITOR_DEFAULTTOPRIMARY = 1;
 
     public const uint DWMWA_CLOAKED = 14;
     public const uint DWMWA_NCRENDERING_POLICY = 2;

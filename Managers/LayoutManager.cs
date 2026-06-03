@@ -200,7 +200,7 @@ public class LayoutManager
 
     private void ArrangeTiledInArea(List<ManagedWindow> windows, System.Windows.Rect area)
     {
-        if (!_preserveMaster)
+        if (!_preserveMaster && _layout == LayoutType.Monocle)
         {
             var active = _focusManager.ActiveWindow;
             if (active != null && windows.Count > 1 && windows.Contains(active))
@@ -473,11 +473,21 @@ public class LayoutManager
     {
         int n = windows.Count;
         if (n == 0) return;
-        double h = (area.Height - (n - 1) * _gap) / n;
+
+        double totalH = area.Height - (n - 1) * _gap;
+        double totalRatio = 0;
+        foreach (var w in windows) totalRatio += Math.Max(0.1, w.StackRatio);
+
+        double yOff = 0;
         for (int i = 0; i < n; i++)
         {
-            var r = new System.Windows.Rect(area.X, area.Y + i * (h + _gap), area.Width, h);
+            double ratio = Math.Max(0.1, windows[i].StackRatio) / totalRatio;
+            double h = Math.Max(MinWindowHeight, totalH * ratio);
+            if (i == n - 1) h = area.Height - yOff;
+
+            var r = new System.Windows.Rect(area.X, area.Y + yOff, area.Width, h);
             Position(windows[i], r);
+            yOff += h + _gap;
         }
     }
 
@@ -523,11 +533,18 @@ public class LayoutManager
         int s = stack.Count;
         if (s > 0)
         {
-            double blockH = (sh - (s - 1) * _gap) / s;
+            double totalRatio = 0;
+            foreach (var w in stack) totalRatio += Math.Max(0.1, w.StackRatio);
+            double yOff = 0;
             for (int i = 0; i < s; i++)
             {
-                var r = new System.Windows.Rect(area.X, area.Y + mh + _gap + i * (blockH + _gap), area.Width, blockH);
+                double ratio = Math.Max(0.1, stack[i].StackRatio) / totalRatio;
+                double h = Math.Max(MinWindowHeight, (sh - (s - 1) * _gap) * ratio);
+                if (i == s - 1) h = sh - yOff;
+
+                var r = new System.Windows.Rect(area.X, area.Y + mh + _gap + yOff, area.Width, h);
                 Position(stack[i], r);
+                yOff += h + _gap;
             }
         }
     }
@@ -664,6 +681,18 @@ public class LayoutManager
     {
         var idx = _enabledLayouts.IndexOf(_layout);
         _layout = _enabledLayouts[(idx + 1) % _enabledLayouts.Count];
+        ApplyLayoutChange();
+    }
+
+    public void CycleLayoutPrevious()
+    {
+        var idx = _enabledLayouts.IndexOf(_layout);
+        _layout = _enabledLayouts[(idx - 1 + _enabledLayouts.Count) % _enabledLayouts.Count];
+        ApplyLayoutChange();
+    }
+
+    private void ApplyLayoutChange()
+    {
         var ws = _workspaceManager.GetActiveWorkspace();
         if (ws != null) ws.Layout = _layout;
         Logger.Info($"Layout: {_layout}");
@@ -768,26 +797,7 @@ public class LayoutManager
             var bounds = mw.LayoutBounds;
             if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
-            bool leftAlive = bounds.X > _area.X + _outer + 4;
-            bool rightAlive = bounds.Right < _area.Right - _outer - 4;
-            bool topAlive = bounds.Y > _area.Y + _outer + 4;
-            bool bottomAlive = bounds.Bottom < _area.Bottom - _outer - 4;
-
-            EdgeDir edge;
-            if (horizontal)
-            {
-                if (topAlive) edge = EdgeDir.Top;
-                else if (bottomAlive) edge = EdgeDir.Bottom;
-                else return;
-            }
-            else
-            {
-                if (leftAlive) edge = EdgeDir.Left;
-                else if (rightAlive) edge = EdgeDir.Right;
-                else return;
-            }
-
-            if (edge is EdgeDir.Left or EdgeDir.Right)
+            if (!horizontal)
             {
                 double delta = decrease ? -0.03 : +0.03;
                 _masterFactor = Math.Clamp(_masterFactor + delta, 0.2, 0.85);
@@ -796,6 +806,15 @@ public class LayoutManager
                 Relayout(resetFocus: false);
                 return;
             }
+
+            var area = GetAreaForMonitor(_workspaceManager.CurrentMonitorId);
+            bool topAlive = bounds.Y > area.Y + _outer + 4;
+            bool bottomAlive = bounds.Bottom < area.Bottom - _outer - 4;
+
+            EdgeDir edge;
+            if (topAlive) edge = EdgeDir.Top;
+            else if (bottomAlive) edge = EdgeDir.Bottom;
+            else return;
 
             var ws = _workspaceManager.GetActiveWorkspace();
             if (ws == null) return;
@@ -806,6 +825,13 @@ public class LayoutManager
                 : FindWindowBelow(mw, tiled);
 
             if (neighbor == null) return;
+
+            if (_layout == LayoutType.VerticalStack)
+            {
+                double mDelta = decrease ? -0.03 : +0.03;
+                _masterFactor = Math.Clamp(_masterFactor + mDelta, 0.2, 0.85);
+                SaveLayoutConfig();
+            }
 
             double ratioStep = 0.15;
             double adjust = decrease

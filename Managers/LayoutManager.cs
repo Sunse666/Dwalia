@@ -42,6 +42,7 @@ public class LayoutManager
     private const int AnimDuration = 150;
     private bool _disableAnimation;
     private bool _preserveMaster;
+    private bool _layoutJustSwitched;
     private ManagedWindow? _currentMaster;
 
     public event Action<List<ResizeZone>>? ResizeZonesUpdated;
@@ -159,6 +160,7 @@ public class LayoutManager
             }
 
             _isAnimating = false;
+            _layoutJustSwitched = false;
             ApplyAnimated();
 
             if (resetFocus)
@@ -177,7 +179,7 @@ public class LayoutManager
         else
         {
             var ws = _workspaceManager.GetActiveWorkspace();
-            if (ws == null) return;
+            if (ws == null) { _layoutJustSwitched = false; return; }
             _layout = ws.Layout;
 
             var windows = ws.Windows.ToList();
@@ -187,6 +189,7 @@ public class LayoutManager
                 ArrangeTiled(tiled);
 
             _isAnimating = false;
+            _layoutJustSwitched = false;
             ApplyAnimated();
 
             if (resetFocus)
@@ -196,6 +199,8 @@ public class LayoutManager
                     _focusManager.SetActiveWindow(ordered[0]);
             }
         }
+
+        _layoutJustSwitched = false;
     }
 
     private void ArrangeTiledInArea(List<ManagedWindow> windows, System.Windows.Rect area)
@@ -518,6 +523,8 @@ public class LayoutManager
         ManagedWindow masterV;
         if (_preserveMaster)
             masterV = _currentMaster ?? windows[0];
+        else if (_layoutJustSwitched)
+            masterV = windows[0];
         else
         {
             var active = _focusManager.ActiveWindow;
@@ -610,6 +617,8 @@ public class LayoutManager
         ManagedWindow master;
         if (_preserveMaster)
             master = _currentMaster ?? windows[0];
+        else if (_layoutJustSwitched)
+            master = windows[0];
         else
         {
             var active = _focusManager.ActiveWindow;
@@ -693,6 +702,7 @@ public class LayoutManager
 
     private void ApplyLayoutChange()
     {
+        _layoutJustSwitched = true;
         var ws = _workspaceManager.GetActiveWorkspace();
         if (ws != null) ws.Layout = _layout;
         Logger.Info($"Layout: {_layout}");

@@ -23,13 +23,12 @@ public class HotKeyManager : IDisposable
     private bool _shiftHeld;
     private bool _ctrlHeld;
 
-    // Software auto-repeat
     private System.Threading.Timer? _repeatTimer;
     private uint _repeatVk;
     private DwaliaCommand _repeatCmd;
     private bool _repeatFast;
-    private const int RepeatDelay = 400;  // ms before first repeat
-    private const int RepeatRate = 30;     // ms between repeats
+    private const int RepeatDelay = 400;
+    private const int RepeatRate = 30;
 
     private static readonly Dictionary<string, DwaliaCommand> CommandNameMap =
         new(StringComparer.OrdinalIgnoreCase)
@@ -293,9 +292,16 @@ public class HotKeyManager : IDisposable
             return IntPtr.Zero;
         }
 
-        if (_altHeld && _keyMap.TryGetValue((kb.vkCode, _shiftHeld, _ctrlHeld), out var cmd))
+        bool shift = _shiftHeld || (GetAsyncKeyState((int)VK_LSHIFT) & 0x8000) != 0 || (GetAsyncKeyState((int)VK_RSHIFT) & 0x8000) != 0;
+        bool ctrl = _ctrlHeld || (GetAsyncKeyState((int)VK_LCONTROL) & 0x8000) != 0 || (GetAsyncKeyState((int)VK_RCONTROL) & 0x8000) != 0;
+        bool alt = _altHeld || (GetAsyncKeyState((int)VK_LMENU) & 0x8000) != 0 || (GetAsyncKeyState((int)VK_RMENU) & 0x8000) != 0;
+
+        if (alt && _keyMap.TryGetValue((kb.vkCode, shift, ctrl), out var cmd))
         {
-            Logger.Info($"Dwalia: Alt+{(char)kb.vkCode} shift={_shiftHeld} → {cmd}");
+            _shiftHeld = shift;
+            _ctrlHeld = ctrl;
+            _altHeld = alt;
+            Logger.Info($"Dwalia: Alt+{(char)kb.vkCode} shift={shift} ctrl={ctrl} → {cmd}");
             PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)cmd, IntPtr.Zero);
 
             if (kb.vkCode != _repeatVk)
@@ -343,7 +349,10 @@ public class HotKeyManager : IDisposable
         }
 
         if (kb.vkCode == _repeatVk)
+        {
             StopRepeat();
+            return (IntPtr)1;
+        }
 
         return IntPtr.Zero;
     }

@@ -23,6 +23,7 @@ public class ConfigManager
     private System.Timers.Timer? _debounceTimer;
     private Action? _onConfigChanged;
     private readonly object _watcherLock = new();
+    private DateTime _lastInternalSave = DateTime.MinValue;
 
     public void StartWatching(Action onConfigChanged)
     {
@@ -49,6 +50,8 @@ public class ConfigManager
             };
             _watcher.Changed += (_, _) =>
             {
+                if ((DateTime.UtcNow - _lastInternalSave).TotalMilliseconds < 500)
+                    return;
                 _debounceTimer?.Stop();
                 _debounceTimer?.Start();
             };
@@ -100,9 +103,9 @@ public class ConfigManager
     {
         try
         {
+            _lastInternalSave = DateTime.UtcNow;
             var yaml = Serializer.Serialize(config);
             File.WriteAllText(ConfigPath, yaml);
-            Logger.Info($"Config saved to {ConfigPath}");
         }
         catch (Exception ex)
         {

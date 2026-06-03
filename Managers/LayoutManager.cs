@@ -27,7 +27,6 @@ public class LayoutManager
     private List<LayoutType> _enabledLayouts = new() { LayoutType.MasterStack, LayoutType.Monocle, LayoutType.Grid, LayoutType.HorizontalStack, LayoutType.Columns, LayoutType.VerticalStack, LayoutType.BSP };
     private List<IntPtr> _bspOrderedHwnds = new();
 
-    // Animation state
     private bool _isAnimating;
     private readonly List<(ManagedWindow Window, System.Windows.Rect Target)> _pendingPositions = new();
     private List<(ManagedWindow Window, System.Windows.Rect From, System.Windows.Rect To)> _animFrames = new();
@@ -147,7 +146,7 @@ public class LayoutManager
             return;
         }
 
-        _animVersion++; // Cancel any running animation
+        _animVersion++;
 
         if (_disableAnimation)
         {
@@ -203,7 +202,7 @@ public class LayoutManager
         var sw = System.Diagnostics.Stopwatch.StartNew();
         const uint animFlags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS;
         const uint finalFlags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW;
-        const int targetFrameMs = 16; // ~60fps
+        const int targetFrameMs = 16;
 
         long lastFrameMs = -targetFrameMs;
         while (version == _animVersion)
@@ -225,7 +224,6 @@ public class LayoutManager
 
         if (version != _animVersion) return;
 
-        // Final precise frame
         ApplyDeferredFrame(frames, 1.0, finalFlags);
 
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -393,13 +391,19 @@ public class LayoutManager
         int n = windows.Count;
         if (n == 1) { Position(windows[0], area); return; }
 
-        var active = _focusManager.ActiveWindow;
-        var master = (active != null && windows.Contains(active)) ? active : windows[0];
-        var stack = windows.Where(w => w != master).ToList();
+        ManagedWindow masterV;
+        if (_preserveMaster)
+            masterV = windows[0];
+        else
+        {
+            var active = _focusManager.ActiveWindow;
+            masterV = (active != null && windows.Contains(active)) ? active : windows[0];
+        }
+        var stack = windows.Where(w => w != masterV).ToList();
 
         double mh = (area.Height - _gap) * _masterFactor;
         double sh = area.Height - mh - _gap;
-        Position(master, new System.Windows.Rect(area.X, area.Y, area.Width, mh));
+        Position(masterV, new System.Windows.Rect(area.X, area.Y, area.Width, mh));
 
         int s = stack.Count;
         if (s > 0)
@@ -471,8 +475,14 @@ public class LayoutManager
             return;
         }
 
-        var active = _focusManager.ActiveWindow;
-        var master = (active != null && windows.Contains(active)) ? active : windows[0];
+        ManagedWindow master;
+        if (_preserveMaster)
+            master = windows[0];
+        else
+        {
+            var active = _focusManager.ActiveWindow;
+            master = (active != null && windows.Contains(active)) ? active : windows[0];
+        }
         var stack = windows.Where(w => w != master).ToList();
 
         double mw = (area.Width - _gap) * _masterFactor;
@@ -490,7 +500,7 @@ public class LayoutManager
                 double ratio = Math.Max(0.1, stack[i].StackRatio) / totalRatio;
                 double h = Math.Max(MinWindowHeight, (area.Height - (s - 1) * _gap) * ratio);
                 if (i == s - 1)
-                    h = area.Height - yOff; // last window fills remaining space
+                    h = area.Height - yOff;
 
                 var r = new System.Windows.Rect(area.X + mw + _gap, area.Y + yOff, sw, h);
                 Position(stack[i], r);
@@ -608,10 +618,10 @@ public class LayoutManager
 
     private enum EdgeDir { Left, Right, Top, Bottom, None }
 
-    public void ResizeLeft() => DoResize(false, true);   // H: move edge left  (decrease X)
-    public void ResizeRight() => DoResize(false, false);  // L: move edge right (increase X)
-    public void ResizeDown() => DoResize(true, false);    // J: move edge down  (increase Y)
-    public void ResizeUp() => DoResize(true, true);       // K: move edge up    (decrease Y)
+    public void ResizeLeft() => DoResize(false, true);
+    public void ResizeRight() => DoResize(false, false);
+    public void ResizeDown() => DoResize(true, false);
+    public void ResizeUp() => DoResize(true, true);
 
     private void DoResize(bool horizontal, bool decrease)
     {

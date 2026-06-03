@@ -23,8 +23,8 @@ public class MouseResizeManager : IDisposable
 
     private readonly List<ResizeZone> _zones = new();
     private readonly object _lock = new();
-    private static readonly IntPtr CursorWE = LoadCursor(IntPtr.Zero, 32644); // IDC_SIZEWE
-    private static readonly IntPtr CursorNS = LoadCursor(IntPtr.Zero, 32645); // IDC_SIZENS
+    private static readonly IntPtr CursorWE = LoadCursor(IntPtr.Zero, 32644);
+    private static readonly IntPtr CursorNS = LoadCursor(IntPtr.Zero, 32645);
 
     private bool _isDragging;
     private int _dragStartX;
@@ -102,7 +102,7 @@ public class MouseResizeManager : IDisposable
 
             double delta;
             if (_dragEdge is ResizeEdge.Left or ResizeEdge.Right)
-                delta = (double)deltaX / 800.0; // normalize to screen width estimate
+                delta = (double)deltaX / 800.0;
             else
                 delta = (double)deltaY / 600.0;
 

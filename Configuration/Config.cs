@@ -83,6 +83,9 @@ public class ThemeConfig
     [YamlMember(Alias = "focus_fill")]
     public bool FocusFill { get; set; } = true;
 
+    [YamlMember(Alias = "focus_follows_mouse")]
+    public bool FocusFollowsMouse { get; set; } = false;
+
     [YamlMember(Alias = "color_filter")]
     public string ColorFilter { get; set; } = "#7aa2f7";
 

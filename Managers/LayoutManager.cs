@@ -319,24 +319,28 @@ public class LayoutManager
         var sw = System.Diagnostics.Stopwatch.StartNew();
         const uint animFlags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS;
         const uint finalFlags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW;
-        const int targetFrameMs = 16;
+        const long frameInterval = 16;
 
-        long lastFrameMs = -targetFrameMs;
+        long nextFrameAt = 0;
         while (version == _animVersion)
         {
             long elapsedMs = sw.ElapsedMilliseconds;
             double rawT = Math.Min(1.0, (double)elapsedMs / AnimDuration);
 
-            if (elapsedMs - lastFrameMs >= targetFrameMs || rawT >= 1.0)
+            if (elapsedMs >= nextFrameAt || rawT >= 1.0)
             {
                 double t = EaseInOutCubic(rawT);
                 ApplyDeferredFrame(frames, t, animFlags);
-                lastFrameMs = elapsedMs;
+                nextFrameAt += frameInterval;
             }
 
             if (rawT >= 1.0) break;
 
-            Thread.Sleep(1);
+            long remaining = nextFrameAt - sw.ElapsedMilliseconds;
+            if (remaining > 2)
+                Thread.Sleep((int)(remaining - 1));
+            while (sw.ElapsedMilliseconds < nextFrameAt && version == _animVersion)
+                Thread.SpinWait(50);
         }
 
         if (version != _animVersion) return;
@@ -757,6 +761,9 @@ public class LayoutManager
         if (node.First == null && node.Second == null) return null;
         if (node.First == null) return node.Second;
         if (node.Second == null) return node.First;
+        if (node.Ratio < 0.25 || node.Ratio > 0.75)
+            node.Ratio = 0.5;
+
         return node;
     }
 
@@ -1062,6 +1069,8 @@ public class LayoutManager
     }
 
     private readonly Dictionary<int, SplitNode?> _dynamicRoots = new();
+    private int _splitIdCounter;
+    private readonly Dictionary<int, SplitNode> _splitNodes = new();
 
     private SplitNode? GetDynamicRoot(int workspaceId) =>
         _dynamicRoots.TryGetValue(workspaceId, out var r) ? r : null;
@@ -1353,6 +1362,9 @@ public class LayoutManager
 
     private void UpdateResizeZones()
     {
+        _splitNodes.Clear();
+        _splitIdCounter = 0;
+
         var ws = _workspaceManager.GetActiveWorkspace();
         if (ws == null) { ResizeZonesUpdated?.Invoke(new()); return; }
         var tiled = ws.Windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
@@ -1493,6 +1505,9 @@ public class LayoutManager
         if (node.Window != null) return;
         if (node.First == null || node.Second == null) return;
 
+        int splitId = ++_splitIdCounter;
+        _splitNodes[splitId] = node;
+
         if (node.Vertical)
         {
             double firstW = Math.Max(MinWindowWidth, (area.Width - _gap) * node.Ratio);
@@ -1501,7 +1516,8 @@ public class LayoutManager
             zones.Add(new ResizeZone
             {
                 Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
-                Edge = ResizeEdge.Left
+                Edge = ResizeEdge.Left,
+                SplitId = splitId
             });
             AddDynamicZonesRec(zones, node.First, new System.Windows.Rect(area.X, area.Y, firstW, area.Height), zoneSize);
             AddDynamicZonesRec(zones, node.Second, new System.Windows.Rect(area.X + firstW + _gap, area.Y, secondW, area.Height), zoneSize);
@@ -1514,10 +1530,23 @@ public class LayoutManager
             zones.Add(new ResizeZone
             {
                 Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
-                Edge = ResizeEdge.Top
+                Edge = ResizeEdge.Top,
+                SplitId = splitId
             });
             AddDynamicZonesRec(zones, node.First, new System.Windows.Rect(area.X, area.Y, area.Width, firstH), zoneSize);
             AddDynamicZonesRec(zones, node.Second, new System.Windows.Rect(area.X, area.Y + firstH + _gap, area.Width, secondH), zoneSize);
+        }
+    }
+
+    public double GetSplitRatio(int splitId) =>
+        _splitNodes.TryGetValue(splitId, out var node) ? node.Ratio : 0.5;
+
+    public void AdjustSplitRatio(int splitId, double newRatio)
+    {
+        if (_splitNodes.TryGetValue(splitId, out var node))
+        {
+            node.Ratio = Math.Clamp(newRatio, 0.15, 0.85);
+            Relayout(resetFocus: false);
         }
     }
 }

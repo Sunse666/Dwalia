@@ -5,6 +5,7 @@ using Dwalia.Infrastructure;
 using Dwalia.Managers;
 using Dwalia.Views;
 using Dwalia.Win32;
+using static Dwalia.Win32.NativeMethods;
 
 namespace Dwalia;
 
@@ -27,6 +28,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
         Logger.Info("Dwalia starting...");
+        timeBeginPeriod(1);
 
         DispatcherUnhandledException += (_, ex) =>
         { Logger.Error("UI exception", ex.Exception); ex.Handled = true; };
@@ -80,6 +82,7 @@ public partial class App : Application
         _mouseResizeManager = new MouseResizeManager();
         ServiceLocator.Register(_mouseResizeManager);
         _mouseResizeManager.GetCurrentMasterFactor = () => _layoutManager?.CurrentMasterFactor ?? 0.6;
+        _mouseResizeManager.GetSplitRatio = (splitId) => _layoutManager?.GetSplitRatio(splitId) ?? 0.5;
 
         var scratchpadManager = new ScratchpadManager();
         ServiceLocator.Register(scratchpadManager);
@@ -94,11 +97,35 @@ public partial class App : Application
                 _layoutManager.SetMasterFactor(factor);
             });
 
+        _mouseResizeManager.SplitFactorChanged += (splitId, factor) =>
+            _mainWindow?.Dispatcher.Invoke(() =>
+            {
+                _layoutManager.SetAnimationEnabled(false);
+                _layoutManager.AdjustSplitRatio(splitId, factor);
+            });
+
         _mouseResizeManager.ResizeEnded += () =>
             _mainWindow?.Dispatcher.Invoke(() =>
             {
                 _layoutManager.SetAnimationEnabled(true);
             });
+
+        if (_config.Theme.FocusFollowsMouse)
+        {
+            _mouseResizeManager.FindWindowAtPoint = (x, y) =>
+            {
+                var hwnd = WindowFromPoint(x, y);
+                if (hwnd != IntPtr.Zero && _windowManager.IsManaged(hwnd))
+                    return hwnd;
+                return IntPtr.Zero;
+            };
+            _mouseResizeManager.FocusWindowAtPoint = (hwnd) =>
+            {
+                var mw = _windowManager.GetManagedWindow(hwnd);
+                if (mw != null)
+                    _focusManager.SetActiveWindow(mw);
+            };
+        }
 
         _hookManager.FocusChanged += (_, hwnd) =>
         {
@@ -186,6 +213,7 @@ public partial class App : Application
         try { _windowManager?.RestoreAllWindows(); } catch { }
         _hotKeyManager?.Dispose();
         _mouseResizeManager?.Dispose();
+        timeEndPeriod(1);
         base.OnExit(e);
         Logger.Info("Dwalia exited");
     }

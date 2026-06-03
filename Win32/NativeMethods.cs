@@ -75,7 +75,16 @@ public static partial class NativeMethods
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr WindowFromPoint(int x, int y);
+
+    [DllImport(User32, SetLastError = true)]
     public static extern bool FlashWindow(IntPtr hWnd, bool bInvert);
+
+    [DllImport("winmm.dll")]
+    public static extern uint timeBeginPeriod(uint uPeriod);
+
+    [DllImport("winmm.dll")]
+    public static extern uint timeEndPeriod(uint uPeriod);
 
     [DllImport(User32, SetLastError = true)]
     public static extern IntPtr GetForegroundWindow();

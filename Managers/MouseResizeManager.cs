@@ -12,6 +12,7 @@ public struct ResizeZone
 {
     public System.Windows.Rect Bounds;
     public ResizeEdge Edge;
+    public int SplitId;
 }
 
 public class MouseResizeManager : IDisposable
@@ -31,10 +32,17 @@ public class MouseResizeManager : IDisposable
     private int _dragStartY;
     private double _dragStartMasterFactor;
     private ResizeEdge _dragEdge;
+    private int _dragSplitId;
 
     public Func<double>? GetCurrentMasterFactor;
     public event Action<double>? MasterFactorChanged;
     public event Action? ResizeEnded;
+    public Func<int, double>? GetSplitRatio;
+    public event Action<int, double>? SplitFactorChanged;
+    public Func<int, int, IntPtr>? FindWindowAtPoint;
+    public Action<IntPtr>? FocusWindowAtPoint;
+    private IntPtr _lastFocusedHwnd;
+    private long _lastFocusMoveTicks;
 
     [DllImport("user32.dll")]
     private static extern IntPtr LoadCursor(IntPtr hInstance, int lpCursorName);
@@ -106,8 +114,12 @@ public class MouseResizeManager : IDisposable
             else
                 delta = (double)deltaY / 600.0;
 
-            double newFactor = Math.Clamp(_dragStartMasterFactor + delta, 0.3, 0.8);
-            MasterFactorChanged?.Invoke(newFactor);
+            double newFactor = Math.Clamp(_dragStartMasterFactor + delta, 0.15, 0.85);
+
+            if (_dragSplitId > 0)
+                SplitFactorChanged?.Invoke(_dragSplitId, newFactor);
+            else
+                MasterFactorChanged?.Invoke(newFactor);
 
             SetCursor(_dragEdge is ResizeEdge.Left or ResizeEdge.Right ? CursorWE : CursorNS);
             return (IntPtr)1;
@@ -126,6 +138,21 @@ public class MouseResizeManager : IDisposable
             }
         }
 
+        if (FindWindowAtPoint != null && FocusWindowAtPoint != null)
+        {
+            var now = DateTime.UtcNow.Ticks;
+            if (now - _lastFocusMoveTicks > 50 * TimeSpan.TicksPerMillisecond)
+            {
+                var hwnd = FindWindowAtPoint(ms.ptX, ms.ptY);
+                if (hwnd != IntPtr.Zero && hwnd != _lastFocusedHwnd)
+                {
+                    FocusWindowAtPoint(hwnd);
+                    _lastFocusedHwnd = hwnd;
+                }
+                _lastFocusMoveTicks = now;
+            }
+        }
+
         return IntPtr.Zero;
     }
 
@@ -141,7 +168,10 @@ public class MouseResizeManager : IDisposable
                     _isDragging = true;
                     _dragStartX = ms.ptX;
                     _dragStartY = ms.ptY;
-                    _dragStartMasterFactor = GetCurrentMasterFactor?.Invoke() ?? 0.6;
+                    _dragSplitId = zone.SplitId;
+                    _dragStartMasterFactor = zone.SplitId > 0 && GetSplitRatio != null
+                        ? GetSplitRatio(zone.SplitId)
+                        : (GetCurrentMasterFactor?.Invoke() ?? 0.6);
                     _dragEdge = zone.Edge;
                     return (IntPtr)1;
                 }

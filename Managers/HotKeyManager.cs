@@ -84,6 +84,7 @@ public class HotKeyManager : IDisposable
             ["bar_next"] = DwaliaCommand.BarNext,
             ["bar_previous"] = DwaliaCommand.BarPrevious,
             ["toggle_bar"] = DwaliaCommand.ToggleBar,
+            ["activate_window"] = DwaliaCommand.ActivateWindow,
         };
 
     private static readonly Dictionary<string, uint> KeyNameToVk =
@@ -157,6 +158,7 @@ public class HotKeyManager : IDisposable
         ("Alt+F", "toggle_fullscreen"),
         ("Alt+T", "cycle_layout"),
         ("Alt+Shift+Space", "toggle_float"),
+        ("Alt+Space", "activate_window"),
         ("Alt+Shift+S", "toggle_scratchpad"),
         ("Alt+Q", "close_window"),
         ("Alt+Shift+Q", "quit"),
@@ -439,4 +441,5 @@ public enum DwaliaCommand
     ResizeLeft, ResizeDown, ResizeUp, ResizeRight,
     BarNext, BarPrevious,
     ToggleBar,
+    ActivateWindow,
 }

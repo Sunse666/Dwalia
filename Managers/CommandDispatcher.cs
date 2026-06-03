@@ -68,6 +68,9 @@ public static class CommandDispatcher
                 if (ServiceLocator.TryResolve<ScratchpadManager>(out var sp))
                     sp.ToggleScratchpad(fm.ActiveWindow, ws, lm, fm);
                 break;
+            case DwaliaCommand.ActivateWindow:
+                fm.ActivateActiveWindow();
+                break;
         }
     }
 
@@ -87,7 +90,6 @@ public static class CommandDispatcher
             return;
         }
         fm.SetActiveWindow(ordered[index]);
-        ordered[index].Focus();
     }
 
     private static void MoveActiveRelative(int direction, FocusManager fm, WorkspaceManager ws)

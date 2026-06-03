@@ -50,8 +50,6 @@ public class FocusManager
         {
             _activeWindow.IsActive = true;
             ApplyBorderColor(_activeWindow.Hwnd, _activeBorderColor);
-            SetWindowPos(_activeWindow.Hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
         }
         FocusChanged?.Invoke();
     }
@@ -68,7 +66,6 @@ public class FocusManager
         var other = LayoutManager.FindWindowBelow(_activeWindow, tiled);
         if (other == null) { Logger.Info("FocusDown: no window below"); return; }
         SetActiveWindow(other);
-        other.Focus();
     }
 
     public void FocusUp(List<ManagedWindow> tiled)
@@ -77,7 +74,6 @@ public class FocusManager
         var other = LayoutManager.FindWindowAbove(_activeWindow, tiled);
         if (other == null) { Logger.Info("FocusUp: no window above"); return; }
         SetActiveWindow(other);
-        other.Focus();
     }
 
     public void FocusLeft(List<ManagedWindow> tiled)
@@ -86,7 +82,6 @@ public class FocusManager
         var other = LayoutManager.FindWindowLeft(_activeWindow, tiled);
         if (other == null) { Logger.Info("FocusLeft: no window left"); return; }
         SetActiveWindow(other);
-        other.Focus();
     }
 
     public void FocusRight(List<ManagedWindow> tiled)
@@ -95,13 +90,12 @@ public class FocusManager
         var other = LayoutManager.FindWindowRight(_activeWindow, tiled);
         if (other == null) { Logger.Info("FocusRight: no window right"); return; }
         SetActiveWindow(other);
-        other.Focus();
     }
 
     public void FocusWindow(IntPtr hwnd)
     {
         var mw = _windowManager.GetManagedWindow(hwnd);
-        if (mw != null) { SetActiveWindow(mw); mw.Focus(); }
+        if (mw != null) SetActiveWindow(mw);
     }
 
     public void FocusNext(IList<ManagedWindow> windows)
@@ -114,7 +108,6 @@ public class FocusManager
         int idx = _activeWindow != null ? windows.IndexOf(_activeWindow) : -1;
         var next = windows[(idx + 1) % windows.Count];
         SetActiveWindow(next);
-        next.Focus();
     }
 
     public void FocusPrevious(IList<ManagedWindow> windows)
@@ -127,7 +120,13 @@ public class FocusManager
         int idx = _activeWindow != null ? windows.IndexOf(_activeWindow) : -1;
         var prev = windows[(idx - 1 + windows.Count) % windows.Count];
         SetActiveWindow(prev);
-        prev.Focus();
+    }
+
+    public void ActivateActiveWindow()
+    {
+        if (_activeWindow == null) return;
+        Logger.Info($"Activating: '{_activeWindow.Title}'");
+        _activeWindow.Focus();
     }
 
     private ManagedWindow? ResolveManagedWindow(IntPtr hwnd)

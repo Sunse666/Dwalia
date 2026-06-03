@@ -26,6 +26,8 @@ public class ManagedWindow
 
     public System.Windows.Rect LayoutBounds { get; set; }
 
+    public double StackRatio { get; set; } = 1.0;
+
     public NativeMethods.RECT? PreFullscreenRect { get; set; }
     public WindowLayoutState? PreFullscreenState { get; set; }
 

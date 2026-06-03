@@ -34,6 +34,7 @@ public class LayoutManager
     private int _animVersion;
     private const int AnimDuration = 150;
     private bool _disableAnimation;
+    private bool _preserveMaster;
 
     public event Action<List<ResizeZone>>? ResizeZonesUpdated;
 
@@ -272,11 +273,14 @@ public class LayoutManager
 
     private void ArrangeTiled(List<ManagedWindow> windows)
     {
-        var active = _focusManager.ActiveWindow;
-        if (active != null && windows.Count > 1 && windows.Contains(active))
+        if (!_preserveMaster)
         {
-            windows.Remove(active);
-            windows.Insert(0, active);
+            var active = _focusManager.ActiveWindow;
+            if (active != null && windows.Count > 1 && windows.Contains(active))
+            {
+                windows.Remove(active);
+                windows.Insert(0, active);
+            }
         }
 
         var area = new System.Windows.Rect(
@@ -478,11 +482,19 @@ public class LayoutManager
         int s = stack.Count;
         if (s > 0)
         {
-            double sh = (area.Height - (s - 1) * _gap) / s;
+            double totalRatio = 0;
+            foreach (var w in stack) totalRatio += Math.Max(0.1, w.StackRatio);
+            double yOff = 0;
             for (int i = 0; i < s; i++)
             {
-                var r = new System.Windows.Rect(area.X + mw + _gap, area.Y + i * (sh + _gap), sw, sh);
+                double ratio = Math.Max(0.1, stack[i].StackRatio) / totalRatio;
+                double h = Math.Max(MinWindowHeight, (area.Height - (s - 1) * _gap) * ratio);
+                if (i == s - 1)
+                    h = area.Height - yOff; // last window fills remaining space
+
+                var r = new System.Windows.Rect(area.X + mw + _gap, area.Y + yOff, sw, h);
                 Position(stack[i], r);
+                yOff += h + _gap;
             }
         }
     }
@@ -584,23 +596,6 @@ public class LayoutManager
         Relayout();
     }
 
-    public void SetGaps(int inner, int outer)
-    {
-        _gap = Math.Clamp(inner, 0, 24);
-        _outer = Math.Clamp(outer, 0, 12);
-        SaveLayoutConfig();
-        Relayout();
-    }
-
-    public void ResizeMaster(double delta)
-    {
-        _masterFactor = Math.Clamp(_masterFactor + delta, 0.3, 0.8);
-        Logger.Info($"Master factor: {_masterFactor:F2}");
-        StatusMessage?.Invoke($"Master: {_masterFactor * 100:F0}%");
-        SaveLayoutConfig();
-        Relayout();
-    }
-
     public void ResizeGap(int delta)
     {
         _gap = Math.Clamp(_gap + delta, 0, 24);
@@ -609,6 +604,79 @@ public class LayoutManager
         StatusMessage?.Invoke($"Gap: {_gap} Inner / {_outer} Outer");
         SaveLayoutConfig();
         Relayout();
+    }
+
+    private enum EdgeDir { Left, Right, Top, Bottom, None }
+
+    public void ResizeLeft() => DoResize(false, true);   // H: move edge left  (decrease X)
+    public void ResizeRight() => DoResize(false, false);  // L: move edge right (increase X)
+    public void ResizeDown() => DoResize(true, false);    // J: move edge down  (increase Y)
+    public void ResizeUp() => DoResize(true, true);       // K: move edge up    (decrease Y)
+
+    private void DoResize(bool horizontal, bool decrease)
+    {
+        _preserveMaster = true;
+        try
+        {
+            var mw = _focusManager.ActiveWindow;
+            if (mw == null || mw.State != WindowLayoutState.Tiled) return;
+
+            var bounds = mw.LayoutBounds;
+            if (bounds.Width <= 0 || bounds.Height <= 0) return;
+
+            bool leftAlive = bounds.X > _area.X + _outer + 4;
+            bool rightAlive = bounds.Right < _area.Right - _outer - 4;
+            bool topAlive = bounds.Y > _area.Y + _outer + 4;
+            bool bottomAlive = bounds.Bottom < _area.Bottom - _outer - 4;
+
+            EdgeDir edge;
+            if (horizontal)
+            {
+                if (topAlive) edge = EdgeDir.Top;
+                else if (bottomAlive) edge = EdgeDir.Bottom;
+                else return;
+            }
+            else
+            {
+                if (leftAlive) edge = EdgeDir.Left;
+                else if (rightAlive) edge = EdgeDir.Right;
+                else return;
+            }
+
+            if (edge is EdgeDir.Left or EdgeDir.Right)
+            {
+                double delta = decrease ? -0.03 : +0.03;
+                _masterFactor = Math.Clamp(_masterFactor + delta, 0.2, 0.85);
+                StatusMessage?.Invoke($"Master: {_masterFactor * 100:F0}%");
+                SaveLayoutConfig();
+                Relayout(resetFocus: false);
+                return;
+            }
+
+            var ws = _workspaceManager.GetActiveWorkspace();
+            if (ws == null) return;
+            var tiled = ws.Windows.Where(w => w.State == WindowLayoutState.Tiled && w != mw).ToList();
+
+            ManagedWindow? neighbor = edge == EdgeDir.Top
+                ? FindWindowAbove(mw, tiled)
+                : FindWindowBelow(mw, tiled);
+
+            if (neighbor == null) return;
+
+            double ratioStep = 0.15;
+            double adjust = decrease
+                ? (edge == EdgeDir.Top ? +ratioStep : -ratioStep)
+                : (edge == EdgeDir.Top ? -ratioStep : +ratioStep);
+
+            mw.StackRatio = Math.Max(0.1, mw.StackRatio + adjust);
+            neighbor.StackRatio = Math.Max(0.1, neighbor.StackRatio - adjust);
+            StatusMessage?.Invoke($"Ratio {mw.StackRatio:F1}/{neighbor.StackRatio:F1}");
+            Relayout(resetFocus: false);
+        }
+        finally
+        {
+            _preserveMaster = false;
+        }
     }
 
     private void SaveLayoutConfig()

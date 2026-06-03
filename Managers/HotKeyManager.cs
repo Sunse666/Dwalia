@@ -10,7 +10,7 @@ namespace Dwalia.Managers;
 
 public class HotKeyManager : IDisposable
 {
-    private readonly Dictionary<(uint vkCode, bool shift), DwaliaCommand> _keyMap = new();
+    private readonly Dictionary<(uint vkCode, bool shift, bool ctrl), DwaliaCommand> _keyMap = new();
     private readonly List<string> _failedRegistrations = new();
 
     private IntPtr _hookHandle;
@@ -19,9 +19,17 @@ public class HotKeyManager : IDisposable
     private bool _disposed;
 
     private bool _altHeld;
-    private int _altConsumedCount;
     private uint _altVkCode;
     private bool _shiftHeld;
+    private bool _ctrlHeld;
+
+    // Software auto-repeat
+    private System.Threading.Timer? _repeatTimer;
+    private uint _repeatVk;
+    private DwaliaCommand _repeatCmd;
+    private bool _repeatFast;
+    private const int RepeatDelay = 400;  // ms before first repeat
+    private const int RepeatRate = 30;     // ms between repeats
 
     private static readonly Dictionary<string, DwaliaCommand> CommandNameMap =
         new(StringComparer.OrdinalIgnoreCase)
@@ -63,10 +71,12 @@ public class HotKeyManager : IDisposable
             ["move_to_workspace_next"] = DwaliaCommand.MoveToWorkspaceNext,
             ["move_to_workspace_previous"] = DwaliaCommand.MoveToWorkspacePrevious,
             ["cycle_layout"] = DwaliaCommand.CycleLayout,
-            ["inc_master"] = DwaliaCommand.IncMaster,
-            ["dec_master"] = DwaliaCommand.DecMaster,
             ["inc_gap"] = DwaliaCommand.IncGap,
             ["dec_gap"] = DwaliaCommand.DecGap,
+            ["resize_left"] = DwaliaCommand.ResizeLeft,
+            ["resize_down"] = DwaliaCommand.ResizeDown,
+            ["resize_up"] = DwaliaCommand.ResizeUp,
+            ["resize_right"] = DwaliaCommand.ResizeRight,
             ["bar_next"] = DwaliaCommand.BarNext,
             ["bar_previous"] = DwaliaCommand.BarPrevious,
             ["toggle_bar"] = DwaliaCommand.ToggleBar,
@@ -86,7 +96,7 @@ public class HotKeyManager : IDisposable
     public IReadOnlyList<string> FailedRegistrations => _failedRegistrations;
     public int RegisteredCount => _keyMap.Count;
 
-    public static (uint vkCode, bool shift) ParseBinding(string binding)
+    public static (uint vkCode, bool shift, bool ctrl) ParseBinding(string binding)
     {
         if (string.IsNullOrWhiteSpace(binding))
             throw new ArgumentException("Binding cannot be empty");
@@ -97,6 +107,13 @@ public class HotKeyManager : IDisposable
             part = part[4..].Trim();
         else if (part.StartsWith("Alt", StringComparison.OrdinalIgnoreCase))
             part = part[3..].Trim();
+
+        bool ctrl = false;
+        if (part.StartsWith("Ctrl+", StringComparison.OrdinalIgnoreCase))
+        {
+            ctrl = true;
+            part = part[5..].Trim();
+        }
 
         bool shift = false;
         if (part.StartsWith("Shift+", StringComparison.OrdinalIgnoreCase))
@@ -109,15 +126,15 @@ public class HotKeyManager : IDisposable
             throw new ArgumentException($"No key in binding: '{binding}'");
 
         if (KeyNameToVk.TryGetValue(part, out var vk))
-            return (vk, shift);
+            return (vk, shift, ctrl);
 
         if (part.Length == 1)
         {
             char c = part[0];
             if (c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z')
-                return ((uint)char.ToUpper(c), shift);
+                return ((uint)char.ToUpper(c), shift, ctrl);
             if (c >= '0' && c <= '9')
-                return ((uint)c, shift);
+                return ((uint)c, shift, ctrl);
         }
 
         throw new ArgumentException($"Unrecognized key: '{part}' in '{binding}'");
@@ -138,8 +155,6 @@ public class HotKeyManager : IDisposable
         ("Alt+Shift+Space", "toggle_float"),
         ("Alt+Q", "close_window"),
         ("Alt+Shift+Q", "quit"),
-        ("Alt+OemOpenBrackets", "dec_master"),
-        ("Alt+OemCloseBrackets", "inc_master"),
         ("Alt+OemComma", "dec_gap"),
         ("Alt+OemPeriod", "inc_gap"),
         ("Alt+1", "focus_1"), ("Alt+2", "focus_2"), ("Alt+3", "focus_3"),
@@ -157,6 +172,10 @@ public class HotKeyManager : IDisposable
         ("Alt+Shift+Down", "bar_next"),
         ("Alt+Shift+Up", "bar_previous"),
         ("Alt+Shift+R", "reload_config"),
+        ("Alt+Ctrl+H", "resize_left"),
+        ("Alt+Ctrl+J", "resize_down"),
+        ("Alt+Ctrl+K", "resize_up"),
+        ("Alt+Ctrl+L", "resize_right"),
     };
 
     public void Initialize(IntPtr dwaliaHwnd)
@@ -174,8 +193,8 @@ public class HotKeyManager : IDisposable
             }
             try
             {
-                var (vkCode, shift) = ParseBinding(binding);
-                _keyMap[(vkCode, shift)] = cmd;
+                var (vkCode, shift, ctrl) = ParseBinding(binding);
+                _keyMap[(vkCode, shift, ctrl)] = cmd;
             }
             catch (Exception ex)
             {
@@ -195,8 +214,8 @@ public class HotKeyManager : IDisposable
                 }
                 try
                 {
-                    var (vkCode, shift) = ParseBinding(entry.Binding);
-                    _keyMap[(vkCode, shift)] = cmd;
+                    var (vkCode, shift, ctrl) = ParseBinding(entry.Binding);
+                    _keyMap[(vkCode, shift, ctrl)] = cmd;
                 }
                 catch (Exception ex)
                 {
@@ -261,20 +280,41 @@ public class HotKeyManager : IDisposable
             return IntPtr.Zero;
         }
 
+        if (kb.vkCode is VK_LCONTROL or VK_RCONTROL)
+        {
+            _ctrlHeld = true;
+            return IntPtr.Zero;
+        }
+
         if (kb.vkCode is VK_LMENU or VK_RMENU)
         {
             _altHeld = true;
             _altVkCode = kb.vkCode;
-            _altConsumedCount = 0;
             return IntPtr.Zero;
         }
 
-        if (_altHeld && _keyMap.TryGetValue((kb.vkCode, _shiftHeld), out var cmd))
+        if (_altHeld && _keyMap.TryGetValue((kb.vkCode, _shiftHeld, _ctrlHeld), out var cmd))
         {
-            _altConsumedCount++;
-            keybd_event((byte)_altVkCode, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
             Logger.Info($"Dwalia: Alt+{(char)kb.vkCode} shift={_shiftHeld} → {cmd}");
             PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)cmd, IntPtr.Zero);
+
+            if (kb.vkCode != _repeatVk)
+            {
+                StopRepeat();
+                _repeatVk = kb.vkCode;
+                _repeatCmd = cmd;
+                _repeatFast = false;
+                _repeatTimer = new System.Threading.Timer(_ =>
+                {
+                    if (!_repeatFast)
+                    {
+                        _repeatFast = true;
+                        _repeatTimer?.Change(RepeatRate, RepeatRate);
+                    }
+                    PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)_repeatCmd, IntPtr.Zero);
+                }, null, RepeatDelay, Timeout.Infinite);
+            }
+
             return (IntPtr)1;
         }
 
@@ -289,18 +329,30 @@ public class HotKeyManager : IDisposable
             return IntPtr.Zero;
         }
 
-        if (kb.vkCode is VK_LMENU or VK_RMENU)
+        if (kb.vkCode is VK_LCONTROL or VK_RCONTROL)
         {
-            if (_altConsumedCount > 0)
-            {
-                _altConsumedCount--;
-                return (IntPtr)1;
-            }
-            _altHeld = false;
+            _ctrlHeld = false;
             return IntPtr.Zero;
         }
 
+        if (kb.vkCode is VK_LMENU or VK_RMENU)
+        {
+            _altHeld = false;
+            StopRepeat();
+            return IntPtr.Zero;
+        }
+
+        if (kb.vkCode == _repeatVk)
+            StopRepeat();
+
         return IntPtr.Zero;
+    }
+
+    private void StopRepeat()
+    {
+        _repeatTimer?.Dispose();
+        _repeatTimer = null;
+        _repeatVk = 0;
     }
 
     public void DispatchCommand(DwaliaCommand cmd)
@@ -314,6 +366,7 @@ public class HotKeyManager : IDisposable
         _disposed = true;
 
         ReleaseStuckModifiers();
+        StopRepeat();
 
         if (_hookHandle != IntPtr.Zero)
         {
@@ -325,11 +378,10 @@ public class HotKeyManager : IDisposable
 
     private void ReleaseStuckModifiers()
     {
-        if (_altConsumedCount > 0 || _altHeld)
+        if (_altHeld)
         {
             keybd_event((byte)VK_LMENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
             keybd_event((byte)VK_RMENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-            _altConsumedCount = 0;
             _altHeld = false;
         }
     }
@@ -362,8 +414,8 @@ public enum DwaliaCommand
     WorkspaceNext, WorkspacePrevious,
     MoveToWorkspaceNext, MoveToWorkspacePrevious,
     CycleLayout,
-    IncMaster, DecMaster,
     IncGap, DecGap,
+    ResizeLeft, ResizeDown, ResizeUp, ResizeRight,
     BarNext, BarPrevious,
     ToggleBar,
 }

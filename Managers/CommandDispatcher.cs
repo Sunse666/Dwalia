@@ -45,10 +45,12 @@ public static class CommandDispatcher
             case DwaliaCommand.LaunchTerminal: LaunchTerminal(launchTerminal); break;
             case DwaliaCommand.ReloadConfig: reloadConfig?.Invoke(); break;
             case DwaliaCommand.CycleLayout: lm.CycleLayout(); break;
-            case DwaliaCommand.IncMaster: lm.ResizeMaster(0.05); break;
-            case DwaliaCommand.DecMaster: lm.ResizeMaster(-0.05); break;
             case DwaliaCommand.IncGap: lm.ResizeGap(1); break;
             case DwaliaCommand.DecGap: lm.ResizeGap(-1); break;
+            case DwaliaCommand.ResizeLeft: lm.ResizeLeft(); break;
+            case DwaliaCommand.ResizeDown: lm.ResizeDown(); break;
+            case DwaliaCommand.ResizeUp: lm.ResizeUp(); break;
+            case DwaliaCommand.ResizeRight: lm.ResizeRight(); break;
             case DwaliaCommand.SwapNext:
             case DwaliaCommand.SwapDown: lm.SwapDown(); break;
             case DwaliaCommand.SwapPrevious:

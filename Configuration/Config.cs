@@ -104,8 +104,7 @@ public class LayoutConfig
     [YamlMember(Alias = "enabled_layouts")]
     public List<string> EnabledLayouts { get; set; } = new()
     {
-        "MasterStack", "Monocle", "Grid", "HorizontalStack",
-        "Columns", "VerticalStack", "BSP"
+        "Dynamic"
     };
 
     [YamlMember(Alias = "smart_gaps")]

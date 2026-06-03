@@ -6,7 +6,7 @@ using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Managers;
 
-public enum LayoutType { MasterStack, Monocle, Grid, HorizontalStack, Columns, VerticalStack, BSP }
+public enum LayoutType { MasterStack, Monocle, Grid, HorizontalStack, Columns, VerticalStack, BSP, Dynamic }
 
 public class LayoutManager
 {
@@ -27,12 +27,12 @@ public class LayoutManager
     public event Action<string>? StatusMessage;
     public event Action? RelayoutCompleted;
 
-    private LayoutType _layout = LayoutType.MasterStack;
+    private LayoutType _layout = LayoutType.Dynamic;
     private double _masterFactor = 0.6;
     private int _gap = 4;
     private int _outer = 2;
     private bool _smartGaps;
-    private List<LayoutType> _enabledLayouts = new() { LayoutType.MasterStack, LayoutType.Monocle, LayoutType.Grid, LayoutType.HorizontalStack, LayoutType.Columns, LayoutType.VerticalStack, LayoutType.BSP };
+    private List<LayoutType> _enabledLayouts = new() { LayoutType.Dynamic };
     private List<IntPtr> _bspOrderedHwnds = new();
 
     private bool _isAnimating;
@@ -63,7 +63,11 @@ public class LayoutManager
             _smartGaps = config.Layout.SmartGaps;
         }
 
-        _windowManager.WindowManaged += (_, _) => Relayout();
+        _windowManager.WindowManaged += (_, mw) =>
+        {
+            Relayout(resetFocus: false);
+            _focusManager.SetActiveWindow(mw);
+        };
         _windowManager.WindowUnmanaged += (_, _) => Relayout();
         _workspaceManager.WorkspaceChanged += (_, id) =>
         {
@@ -156,7 +160,7 @@ public class LayoutManager
                 var tiled = windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
 
                 if (tiled.Count > 0)
-                    ArrangeTiledInArea(tiled, area);
+                    ArrangeTiledInArea(tiled, area, activeWsId);
             }
 
             _isAnimating = false;
@@ -186,7 +190,7 @@ public class LayoutManager
             var tiled = windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
 
             if (tiled.Count > 0)
-                ArrangeTiled(tiled);
+                ArrangeTiled(tiled, ws.Id);
 
             _isAnimating = false;
             _layoutJustSwitched = false;
@@ -203,7 +207,7 @@ public class LayoutManager
         _layoutJustSwitched = false;
     }
 
-    private void ArrangeTiledInArea(List<ManagedWindow> windows, System.Windows.Rect area)
+    private void ArrangeTiledInArea(List<ManagedWindow> windows, System.Windows.Rect area, int workspaceId)
     {
         if (!_preserveMaster && _layout == LayoutType.Monocle)
         {
@@ -230,6 +234,7 @@ public class LayoutManager
             case LayoutType.Columns: ArrangeColumns(windows, layoutArea); break;
             case LayoutType.VerticalStack: ArrangeVStack(windows, layoutArea); break;
             case LayoutType.BSP: ArrangeBSP(windows, layoutArea); break;
+            case LayoutType.Dynamic: ArrangeDynamic(windows, layoutArea, workspaceId); break;
             default: ArrangeMasterStack(windows, layoutArea); break;
         }
     }
@@ -386,7 +391,7 @@ public class LayoutManager
     private const int MinWindowWidth = 80;
     private const int MinWindowHeight = 80;
 
-    private void ArrangeTiled(List<ManagedWindow> windows)
+    private void ArrangeTiled(List<ManagedWindow> windows, int workspaceId)
     {
         if (!_preserveMaster)
         {
@@ -413,6 +418,7 @@ public class LayoutManager
             case LayoutType.Columns: ArrangeColumns(windows, area); break;
             case LayoutType.VerticalStack: ArrangeVStack(windows, area); break;
             case LayoutType.BSP: ArrangeBSP(windows, area); break;
+            case LayoutType.Dynamic: ArrangeDynamic(windows, area, workspaceId); break;
             default: ArrangeMasterStack(windows, area); break;
         }
     }
@@ -605,6 +611,261 @@ public class LayoutManager
         }
     }
 
+    private void ArrangeDynamic(List<ManagedWindow> windows, System.Windows.Rect area, int workspaceId)
+    {
+        int n = windows.Count;
+        if (n == 0) return;
+
+        var alive = new HashSet<IntPtr>(windows.Select(w => w.Hwnd));
+        var treeWindows = new HashSet<IntPtr>();
+
+        var root = GetDynamicRoot(workspaceId);
+        if (root != null)
+        {
+            root = PruneDeadLeaves(root, alive);
+            if (root != null)
+                CollectWindows(root, treeWindows);
+        }
+
+        bool needsAdd = false;
+        foreach (var mw in windows)
+        {
+            if (!treeWindows.Contains(mw.Hwnd)) { needsAdd = true; break; }
+        }
+
+        if (!needsAdd && root != null)
+        {
+            LayoutSplitNode(root, area, _gap);
+            return;
+        }
+
+        if (root == null)
+        {
+            var first = _focusManager.ActiveWindow ?? windows[0];
+            root = new SplitNode { Window = first };
+            treeWindows.Add(first.Hwnd);
+        }
+
+        foreach (var mw in windows)
+        {
+            if (treeWindows.Contains(mw.Hwnd)) continue;
+
+            var focused = _focusManager.ActiveWindow;
+            var anchor = (focused != null && treeWindows.Contains(focused.Hwnd))
+                ? focused
+                : windows.FirstOrDefault(w => treeWindows.Contains(w.Hwnd));
+            if (anchor == null)
+            {
+                root = BuildTreeFromWindows(windows, area);
+                break;
+            }
+
+            if (root.Window != null)
+            {
+                bool vert = area.Width > area.Height;
+                root = new SplitNode
+                {
+                    Vertical = vert,
+                    Ratio = 0.5,
+                    First = new SplitNode { Window = anchor },
+                    Second = new SplitNode { Window = mw }
+                };
+                treeWindows.Add(mw.Hwnd);
+                continue;
+            }
+
+            var leaf = FindLeaf(root, anchor.Hwnd);
+            if (leaf == null)
+            {
+                anchor = windows.FirstOrDefault(w =>
+                    treeWindows.Contains(w.Hwnd) && FindLeaf(root, w.Hwnd) != null);
+                if (anchor == null)
+                {
+                    root = BuildTreeFromWindows(windows, area);
+                    break;
+                }
+            }
+
+            var leafArea = ComputeLeafArea(root, area, anchor.Hwnd);
+            bool vertical = leafArea.Width > leafArea.Height;
+
+            var split = new SplitNode
+            {
+                Vertical = vertical,
+                Ratio = 0.5,
+                First = new SplitNode { Window = anchor },
+                Second = new SplitNode { Window = mw }
+            };
+
+            ReplaceLeaf(root, anchor.Hwnd, split);
+            treeWindows.Add(mw.Hwnd);
+        }
+
+        SetDynamicRoot(workspaceId, root);
+        LayoutSplitNode(root, area, _gap);
+    }
+
+    private SplitNode BuildTreeFromWindows(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        if (windows.Count == 0) return new SplitNode();
+        if (windows.Count == 1) return new SplitNode { Window = windows[0] };
+
+        var focused = _focusManager.ActiveWindow;
+        var ordered = focused != null && windows.Contains(focused)
+            ? new List<ManagedWindow> { focused }.Concat(windows.Where(w => w != focused)).ToList()
+            : windows;
+
+        bool vert = area.Width > area.Height;
+        var root = new SplitNode
+        {
+            Vertical = vert,
+            Ratio = 0.5,
+            First = new SplitNode { Window = ordered[0] },
+            Second = new SplitNode { Window = ordered[1] }
+        };
+
+        for (int i = 2; i < ordered.Count; i++)
+        {
+            var prev = ordered[i - 1];
+            var leaf = FindLeaf(root, prev.Hwnd);
+            if (leaf == null) continue;
+
+            var leafArea = ComputeLeafArea(root, area, prev.Hwnd);
+            bool vertical = leafArea.Width > leafArea.Height;
+
+            var split = new SplitNode
+            {
+                Vertical = vertical,
+                Ratio = 0.5,
+                First = new SplitNode { Window = prev },
+                Second = new SplitNode { Window = ordered[i] }
+            };
+            ReplaceLeaf(root, prev.Hwnd, split);
+        }
+
+        return root;
+    }
+
+    private static SplitNode? PruneDeadLeaves(SplitNode node, HashSet<IntPtr> alive)
+    {
+        if (node.Window != null)
+            return alive.Contains(node.Window.Hwnd) ? node : null;
+
+        node.First = node.First != null ? PruneDeadLeaves(node.First, alive) : null;
+        node.Second = node.Second != null ? PruneDeadLeaves(node.Second, alive) : null;
+
+        if (node.First == null && node.Second == null) return null;
+        if (node.First == null) return node.Second;
+        if (node.Second == null) return node.First;
+        return node;
+    }
+
+    private static void CollectWindows(SplitNode node, HashSet<IntPtr> result)
+    {
+        if (node.Window != null) { result.Add(node.Window.Hwnd); return; }
+        if (node.First != null) CollectWindows(node.First, result);
+        if (node.Second != null) CollectWindows(node.Second, result);
+    }
+
+    private static SplitNode? FindLeaf(SplitNode? node, IntPtr hwnd)
+    {
+        if (node == null) return null;
+        if (node.Window != null) return node.Window.Hwnd == hwnd ? node : null;
+        return FindLeaf(node.First, hwnd) ?? FindLeaf(node.Second, hwnd);
+    }
+
+    private System.Windows.Rect ComputeLeafArea(SplitNode root, System.Windows.Rect area, IntPtr hwnd)
+    {
+        return ComputeLeafAreaRec(root, area, hwnd, _gap);
+    }
+
+    private static System.Windows.Rect ComputeLeafAreaRec(SplitNode node, System.Windows.Rect area, IntPtr hwnd, int gap)
+    {
+        if (node.Window != null)
+            return node.Window.Hwnd == hwnd ? area : new System.Windows.Rect();
+
+        var firstArea = new System.Windows.Rect();
+        var secondArea = new System.Windows.Rect();
+
+        if (node.First == null || node.Second == null) return new System.Windows.Rect();
+
+        if (node.Vertical)
+        {
+            double firstW = (area.Width - gap) * node.Ratio;
+            double secondW = area.Width - firstW - gap;
+            firstArea = new System.Windows.Rect(area.X, area.Y, firstW, area.Height);
+            secondArea = new System.Windows.Rect(area.X + firstW + gap, area.Y, secondW, area.Height);
+        }
+        else
+        {
+            double firstH = (area.Height - gap) * node.Ratio;
+            double secondH = area.Height - firstH - gap;
+            firstArea = new System.Windows.Rect(area.X, area.Y, area.Width, firstH);
+            secondArea = new System.Windows.Rect(area.X, area.Y + firstH + gap, area.Width, secondH);
+        }
+
+        var result = ComputeLeafAreaRec(node.First, firstArea, hwnd, gap);
+        if (result.Width > 0) return result;
+        return ComputeLeafAreaRec(node.Second, secondArea, hwnd, gap);
+    }
+
+    private static SplitNode? FindParentSplit(SplitNode? node, IntPtr hwnd)
+    {
+        if (node == null || node.Window != null) return null;
+        if (node.First?.Window?.Hwnd == hwnd) return node;
+        if (node.Second?.Window?.Hwnd == hwnd) return node;
+        return FindParentSplit(node.First, hwnd) ?? FindParentSplit(node.Second, hwnd);
+    }
+
+    private static bool ReplaceLeaf(SplitNode node, IntPtr targetHwnd, SplitNode replacement)
+    {
+        if (node.First != null && node.First.Window?.Hwnd == targetHwnd)
+        {
+            node.First = replacement;
+            return true;
+        }
+        if (node.Second != null && node.Second.Window?.Hwnd == targetHwnd)
+        {
+            node.Second = replacement;
+            return true;
+        }
+        if (node.First != null && ReplaceLeaf(node.First, targetHwnd, replacement))
+            return true;
+        if (node.Second != null && ReplaceLeaf(node.Second, targetHwnd, replacement))
+            return true;
+        return false;
+    }
+
+    private void LayoutSplitNode(SplitNode node, System.Windows.Rect area, int gap)
+    {
+        if (node.Window != null)
+        {
+            Position(node.Window, area);
+            return;
+        }
+
+        if (node.First == null || node.Second == null) return;
+
+        if (node.Vertical)
+        {
+            double firstW = Math.Max(MinWindowWidth, (area.Width - gap) * node.Ratio);
+            double secondW = Math.Max(MinWindowWidth, area.Width - firstW - gap);
+            var firstArea = new System.Windows.Rect(area.X, area.Y, firstW, area.Height);
+            var secondArea = new System.Windows.Rect(area.X + firstW + gap, area.Y, secondW, area.Height);
+            LayoutSplitNode(node.First, firstArea, gap);
+            LayoutSplitNode(node.Second, secondArea, gap);
+        }
+        else
+        {
+            double firstH = Math.Max(MinWindowHeight, (area.Height - gap) * node.Ratio);
+            double secondH = Math.Max(MinWindowHeight, area.Height - firstH - gap);
+            var firstArea = new System.Windows.Rect(area.X, area.Y, area.Width, firstH);
+            var secondArea = new System.Windows.Rect(area.X, area.Y + firstH + gap, area.Width, secondH);
+            LayoutSplitNode(node.First, firstArea, gap);
+            LayoutSplitNode(node.Second, secondArea, gap);
+        }
+    }
+
     private void ArrangeMasterStack(List<ManagedWindow> windows, System.Windows.Rect area)
     {
         int n = windows.Count;
@@ -704,6 +965,8 @@ public class LayoutManager
     {
         _layoutJustSwitched = true;
         var ws = _workspaceManager.GetActiveWorkspace();
+        if (_layout != LayoutType.Dynamic)
+            _dynamicRoots.Remove(ws?.Id ?? _workspaceManager.ActiveWorkspaceId);
         if (ws != null) ws.Layout = _layout;
         Logger.Info($"Layout: {_layout}");
         LayoutChanged?.Invoke(this, _layout);
@@ -789,6 +1052,25 @@ public class LayoutManager
         Relayout();
     }
 
+    private class SplitNode
+    {
+        public ManagedWindow? Window;
+        public SplitNode? First;
+        public SplitNode? Second;
+        public bool Vertical;
+        public double Ratio = 0.5;
+    }
+
+    private readonly Dictionary<int, SplitNode?> _dynamicRoots = new();
+
+    private SplitNode? GetDynamicRoot(int workspaceId) =>
+        _dynamicRoots.TryGetValue(workspaceId, out var r) ? r : null;
+
+    private void SetDynamicRoot(int workspaceId, SplitNode? value)
+    {
+        _dynamicRoots[workspaceId] = value;
+    }
+
     private enum EdgeDir { Left, Right, Top, Bottom, None }
 
     public void ResizeLeft() => DoResize(false, true);
@@ -806,6 +1088,23 @@ public class LayoutManager
 
             var bounds = mw.LayoutBounds;
             if (bounds.Width <= 0 || bounds.Height <= 0) return;
+
+            if (_layout == LayoutType.Dynamic)
+            {
+                var dynRoot = GetDynamicRoot(mw.WorkspaceId);
+                if (dynRoot != null)
+                {
+                    var parent = FindParentSplit(dynRoot, mw.Hwnd);
+                    if (parent != null)
+                    {
+                        double d = decrease ? -0.05 : +0.05;
+                        parent.Ratio = Math.Clamp(parent.Ratio + d, 0.15, 0.85);
+                        StatusMessage?.Invoke($"Split: {parent.Ratio * 100:F0}%");
+                        Relayout(resetFocus: false);
+                        return;
+                    }
+                }
+            }
 
             if (!horizontal)
             {
@@ -1087,6 +1386,9 @@ public class LayoutManager
             case LayoutType.BSP:
                 AddBSPZones(zones, tiled, innerArea, zoneSize);
                 break;
+            case LayoutType.Dynamic:
+                AddDynamicZones(zones, innerArea, zoneSize);
+                break;
         }
 
         ResizeZonesUpdated?.Invoke(zones);
@@ -1175,5 +1477,47 @@ public class LayoutManager
             Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
             Edge = ResizeEdge.Left
         });
+    }
+
+    private void AddDynamicZones(List<ResizeZone> zones, System.Windows.Rect area, int zoneSize)
+    {
+        var ws = _workspaceManager.GetActiveWorkspace();
+        if (ws == null) return;
+        var root = GetDynamicRoot(ws.Id);
+        if (root == null) return;
+        AddDynamicZonesRec(zones, root, area, zoneSize);
+    }
+
+    private void AddDynamicZonesRec(List<ResizeZone> zones, SplitNode node, System.Windows.Rect area, int zoneSize)
+    {
+        if (node.Window != null) return;
+        if (node.First == null || node.Second == null) return;
+
+        if (node.Vertical)
+        {
+            double firstW = Math.Max(MinWindowWidth, (area.Width - _gap) * node.Ratio);
+            double secondW = Math.Max(MinWindowWidth, area.Width - firstW - _gap);
+            double zx = area.X + firstW;
+            zones.Add(new ResizeZone
+            {
+                Bounds = new System.Windows.Rect(zx, area.Y, Math.Max(zoneSize, _gap), area.Height),
+                Edge = ResizeEdge.Left
+            });
+            AddDynamicZonesRec(zones, node.First, new System.Windows.Rect(area.X, area.Y, firstW, area.Height), zoneSize);
+            AddDynamicZonesRec(zones, node.Second, new System.Windows.Rect(area.X + firstW + _gap, area.Y, secondW, area.Height), zoneSize);
+        }
+        else
+        {
+            double firstH = Math.Max(MinWindowHeight, (area.Height - _gap) * node.Ratio);
+            double secondH = Math.Max(MinWindowHeight, area.Height - firstH - _gap);
+            double zy = area.Y + firstH;
+            zones.Add(new ResizeZone
+            {
+                Bounds = new System.Windows.Rect(area.X, zy, area.Width, Math.Max(zoneSize, _gap)),
+                Edge = ResizeEdge.Top
+            });
+            AddDynamicZonesRec(zones, node.First, new System.Windows.Rect(area.X, area.Y, area.Width, firstH), zoneSize);
+            AddDynamicZonesRec(zones, node.Second, new System.Windows.Rect(area.X, area.Y + firstH + _gap, area.Width, secondH), zoneSize);
+        }
     }
 }

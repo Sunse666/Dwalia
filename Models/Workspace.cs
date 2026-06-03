@@ -7,7 +7,7 @@ public class Workspace
     public int Id { get; init; }
     public string Name { get; set; }
     public List<ManagedWindow> Windows { get; } = new();
-    public LayoutType Layout { get; set; } = LayoutType.MasterStack;
+    public LayoutType Layout { get; set; } = LayoutType.Dynamic;
 
     public Workspace(int id, string name)
     {

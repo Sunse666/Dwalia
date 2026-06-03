@@ -949,6 +949,8 @@ public class LayoutManager
         mw.LayoutBounds = r;
         if (_isAnimating)
             _pendingPositions.Add((mw, r));
+        else if (_disableAnimation)
+            DirectPosition(mw, r);
         else
             InstantPosition(mw, r);
     }
@@ -1052,7 +1054,34 @@ public class LayoutManager
     {
         _masterFactor = Math.Clamp(value, 0.3, 0.8);
         if (save) SaveLayoutConfig();
-        Relayout();
+        if (_disableAnimation)
+            DirectMasterFactorLayout();
+        else
+            Relayout();
+    }
+
+    private void DirectMasterFactorLayout()
+    {
+        var ws = _workspaceManager.GetActiveWorkspace();
+        if (ws == null) return;
+        var tiled = ws.Windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
+        if (tiled.Count == 0) return;
+
+        int eo = (_smartGaps && tiled.Count <= 1) ? 0 : _outer;
+        var area = new System.Windows.Rect(
+            Area.X + eo, Area.Y + eo,
+            Math.Max(MinWindowWidth, Area.Width - eo * 2),
+            Math.Max(MinWindowHeight, Area.Height - eo * 2));
+
+        switch (_layout)
+        {
+            case LayoutType.MasterStack: ArrangeMasterStack(tiled, area); break;
+            case LayoutType.Columns: ArrangeColumns(tiled, area); break;
+            case LayoutType.VerticalStack: ArrangeVStack(tiled, area); break;
+            default: return;
+        }
+
+        UpdateResizeZones();
     }
 
     public void ResizeGap(int delta)
@@ -1142,7 +1171,8 @@ public class LayoutManager
                         double d = decrease ? -0.05 : +0.05;
                         parent.Ratio = Math.Clamp(parent.Ratio + d, 0.15, 0.85);
                         StatusMessage?.Invoke($"Split: {parent.Ratio * 100:F0}%");
-                        Relayout(resetFocus: false);
+                        LayoutSplitNodeDirect(root, GetLayoutArea(), _gap);
+                        UpdateResizeZones();
                         return;
                     }
                 }
@@ -1152,13 +1182,23 @@ public class LayoutManager
             _masterFactor = Math.Clamp(_masterFactor + delta, 0.2, 0.85);
             StatusMessage?.Invoke($"Master: {_masterFactor * 100:F0}%");
             SaveLayoutConfig();
-            Relayout(resetFocus: false);
+            DirectMasterFactorLayout();
         }
         finally
         {
             _disableAnimation = false;
             _preserveMaster = false;
         }
+    }
+
+    private System.Windows.Rect GetLayoutArea()
+    {
+        var ws = _workspaceManager.GetActiveWorkspace();
+        int eo = (_smartGaps && ws != null && ws.Windows.Count <= 1) ? 0 : _outer;
+        return new System.Windows.Rect(
+            Area.X + eo, Area.Y + eo,
+            Math.Max(MinWindowWidth, Area.Width - eo * 2),
+            Math.Max(MinWindowHeight, Area.Height - eo * 2));
     }
 
     public void SaveLayoutConfig()

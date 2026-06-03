@@ -257,7 +257,7 @@ public class LayoutManager
         if (_disableAnimation)
         {
             foreach (var (mw, target) in _pendingPositions)
-                InstantPosition(mw, target);
+                DirectPosition(mw, target);
             NotifyLayoutComplete();
             return;
         }
@@ -1123,13 +1123,11 @@ public class LayoutManager
             return;
 
         _preserveMaster = true;
+        _disableAnimation = true;
         try
         {
             var mw = _focusManager.ActiveWindow;
             if (mw == null || mw.State != WindowLayoutState.Tiled) return;
-
-            var bounds = mw.LayoutBounds;
-            if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
             if (_layout == LayoutType.Dynamic || _layout == LayoutType.BSP)
             {
@@ -1158,6 +1156,7 @@ public class LayoutManager
         }
         finally
         {
+            _disableAnimation = false;
             _preserveMaster = false;
         }
     }

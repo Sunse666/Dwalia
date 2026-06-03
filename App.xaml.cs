@@ -127,6 +127,8 @@ public partial class App : Application
 
         _mainWindow.Show();
 
+        Views.MainWindow.WarmupInfoBar();
+
         _mouseResizeManager.Initialize(_mainWindow.GetHwnd());
 
         _configManager.ApplyRules(_config, _windowManager, _workspaceManager);

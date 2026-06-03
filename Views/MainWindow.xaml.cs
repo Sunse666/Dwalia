@@ -539,6 +539,22 @@ public partial class MainWindow : Window
         }
     }
 
+    public static void WarmupInfoBar()
+    {
+        Task.Run(() =>
+        {
+            try
+            {
+                using var cpu = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                using var mem = new PerformanceCounter("Memory", "% Committed Bytes In Use");
+                cpu.NextValue();
+                mem.NextValue();
+                Logger.Info("InfoBar performance counters warmed up");
+            }
+            catch (Exception ex) { Logger.Warn($"InfoBar warmup failed: {ex.Message}"); }
+        });
+    }
+
     private double GetCpuUsage()
     {
         _cpuCounter ??= new PerformanceCounter("Processor", "% Processor Time", "_Total");

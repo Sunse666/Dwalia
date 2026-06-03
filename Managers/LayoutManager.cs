@@ -383,8 +383,8 @@ public class LayoutManager
         RelayoutCompleted?.Invoke();
     }
 
-    private const int MinWindowWidth = 200;
-    private const int MinWindowHeight = 150;
+    private const int MinWindowWidth = 80;
+    private const int MinWindowHeight = 80;
 
     private void ArrangeTiled(List<ManagedWindow> windows)
     {

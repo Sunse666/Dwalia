@@ -79,9 +79,13 @@ public class WindowManager
         if (IsWindow(hwnd))
         {
             ShowWindow(hwnd, SW_SHOW);
+            if (mw.OriginalWindowInfo.OriginalStyle != 0)
+                SetWindowLongPtr(hwnd, GWL_STYLE, mw.OriginalWindowInfo.OriginalStyle);
+            if (mw.OriginalWindowInfo.OriginalExStyle != 0)
+                SetWindowLongPtr(hwnd, GWL_EXSTYLE, mw.OriginalWindowInfo.OriginalExStyle);
             var r = mw.OriginalWindowInfo.OriginalRect;
             SetWindowPos(hwnd, IntPtr.Zero, r.Left, r.Top, r.Width, r.Height,
-                SWP_NOZORDER | (mw.OriginalWindowInfo.WasVisible ? SWP_SHOWWINDOW : 0U));
+                SWP_NOZORDER | SWP_FRAMECHANGED | (mw.OriginalWindowInfo.WasVisible ? SWP_SHOWWINDOW : 0U));
         }
 
         _managedWindows.Remove(hwnd);

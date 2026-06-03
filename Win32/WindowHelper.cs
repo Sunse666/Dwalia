@@ -12,10 +12,6 @@ internal static class WindowHelper
     public static WindowInfo SnapshotWindowState(IntPtr hwnd)
     {
         var rect = GetWindowRectSafe(hwnd);
-        int dwmResult = DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, out NativeMethods.RECT frameRect, System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.RECT>());
-        if (dwmResult == 0)
-            rect = frameRect;
-
         return new WindowInfo
         {
             OriginalStyle = GetWindowLongPtr(hwnd, GWL_STYLE),

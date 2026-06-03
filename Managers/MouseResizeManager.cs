@@ -40,6 +40,7 @@ public class MouseResizeManager : IDisposable
     public event Action? ResizeEnded;
     public Func<int, double>? GetSplitRatio;
     public event Action<int, double>? SplitFactorChanged;
+    public Func<(double Width, double Height)>? GetAreaSize;
     public Func<int, int, IntPtr>? FindWindowAtPoint;
     public Action<IntPtr>? FocusWindowAtPoint;
     private IntPtr _lastFocusedHwnd;
@@ -114,11 +115,14 @@ public class MouseResizeManager : IDisposable
             var deltaX = ms.ptX - _dragStartX;
             var deltaY = ms.ptY - _dragStartY;
 
+            var area = GetAreaSize?.Invoke() ?? (1920.0, 1080.0);
+            double areaSize = _dragEdge is ResizeEdge.Left or ResizeEdge.Right ? area.Width : area.Height;
+
             double delta;
             if (_dragEdge is ResizeEdge.Left or ResizeEdge.Right)
-                delta = (double)deltaX / 800.0;
+                delta = (double)deltaX / areaSize;
             else
-                delta = (double)deltaY / 600.0;
+                delta = (double)deltaY / areaSize;
 
             double newFactor = Math.Clamp(_dragStartMasterFactor + delta, 0.15, 0.85);
 
@@ -179,7 +183,7 @@ public class MouseResizeManager : IDisposable
                         ? GetSplitRatio(zone.SplitId)
                         : (GetCurrentMasterFactor?.Invoke() ?? 0.6);
                     _dragEdge = zone.Edge;
-                    return (IntPtr)1;
+                    return IntPtr.Zero;
                 }
             }
         }

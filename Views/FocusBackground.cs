@@ -94,6 +94,8 @@ public class FocusBackground : IDisposable
         window.SourceInitialized += (_, _) =>
         {
             bg.Hwnd = new WindowInteropHelper(window).Handle;
+            var exStyle = GetWindowLongPtr(bg.Hwnd, GWL_EXSTYLE);
+            SetWindowLongPtr(bg.Hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
             SetWindowPos(bg.Hwnd, new IntPtr(1), bg.X, bg.Y, bg.W, bg.H, SWP_NOACTIVATE);
             ApplyColor(bg);
             bg.Pending = false;

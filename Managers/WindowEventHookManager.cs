@@ -56,7 +56,7 @@ public class WindowEventHookManager
         if (_mainWindowHwnd != IntPtr.Zero && hwnd != _mainWindowHwnd)
         {
             SetWindowPos(_mainWindowHwnd, new IntPtr(1), 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }
     }
 

@@ -84,6 +84,12 @@ public partial class App : Application
         ServiceLocator.Register(_mouseResizeManager);
         _mouseResizeManager.GetCurrentMasterFactor = () => _layoutManager?.CurrentMasterFactor ?? 0.6;
         _mouseResizeManager.GetSplitRatio = (splitId) => _layoutManager?.GetSplitRatio(splitId) ?? 0.5;
+        _mouseResizeManager.GetAreaSize = () =>
+        {
+            if (_layoutManager == null) return (1920.0, 1080.0);
+            var a = _layoutManager.Area;
+            return (a.Width, a.Height);
+        };
 
         var scratchpadManager = new ScratchpadManager();
         ServiceLocator.Register(scratchpadManager);
@@ -110,7 +116,7 @@ public partial class App : Application
             {
                 _layoutManager.SetAnimationEnabled(true);
                 _layoutManager.SaveLayoutConfig();
-                _layoutManager.Relayout(resetFocus: false);
+                _layoutManager.SyncAfterResize();
             });
 
         if (_config.Theme.FocusFollowsMouse)
@@ -217,6 +223,7 @@ public partial class App : Application
         _hotKeyManager?.Dispose();
         _mouseResizeManager?.Dispose();
         timeEndPeriod(1);
+        DwmFlush();
         base.OnExit(e);
         Logger.Info("Dwalia exited");
     }

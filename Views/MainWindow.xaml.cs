@@ -83,7 +83,7 @@ public partial class MainWindow : Window
         }
 
         SetWindowPos(_hwnd, new IntPtr(1), 0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
         if (ServiceLocator.TryResolve<WindowEventHookManager>(out var ehm))
             ehm.SetMainWindowHwnd(_hwnd);
@@ -137,7 +137,6 @@ public partial class MainWindow : Window
             lmg.RelayoutCompleted += RefreshAllBackgroundPositions;
             lmg.LayoutTargetsComputed += () =>
             {
-                RefreshAllBackgroundPositions();
                 lmg.StartWindowAnimation();
             };
         }
@@ -223,9 +222,11 @@ public partial class MainWindow : Window
         _cpuCounter?.Dispose();
         _memCounter?.Dispose();
         _colorFilter?.Dispose();
+        DwmFlush();
         _windowEventHookManager.Stop();
         _windowManager.RestoreAllWindows();
         _focusBackground?.Dispose();
+        DwmFlush();
     }
 
     private void UpdateTaskBar()

@@ -34,6 +34,7 @@ public class LayoutManager
     private const int AnimDuration = 150;
     private bool _disableAnimation;
     private bool _preserveMaster;
+    private ManagedWindow? _currentMaster;
 
     public event Action<List<ResizeZone>>? ResizeZonesUpdated;
     public event Action? LayoutTargetsComputed;
@@ -410,11 +411,12 @@ public class LayoutManager
 
         ManagedWindow masterV;
         if (_preserveMaster)
-            masterV = windows[0];
+            masterV = _currentMaster ?? windows[0];
         else
         {
             var active = _focusManager.ActiveWindow;
             masterV = (active != null && windows.Contains(active)) ? active : windows[0];
+            _currentMaster = masterV;
         }
         var stack = windows.Where(w => w != masterV).ToList();
 
@@ -494,11 +496,12 @@ public class LayoutManager
 
         ManagedWindow master;
         if (_preserveMaster)
-            master = windows[0];
+            master = _currentMaster ?? windows[0];
         else
         {
             var active = _focusManager.ActiveWindow;
             master = (active != null && windows.Contains(active)) ? active : windows[0];
+            _currentMaster = master;
         }
         var stack = windows.Where(w => w != master).ToList();
 

@@ -133,7 +133,7 @@ public class MouseResizeManager : IDisposable
                     && ms.ptY >= zone.Bounds.Y && ms.ptY <= zone.Bounds.Y + zone.Bounds.Height)
                 {
                     SetCursor(zone.Edge is ResizeEdge.Left or ResizeEdge.Right ? CursorWE : CursorNS);
-                    return (IntPtr)1;
+                    return IntPtr.Zero;
                 }
             }
         }

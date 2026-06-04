@@ -364,8 +364,10 @@ public class WidgetManager
 
     private void UpdateMedia(WidgetEntry we)
     {
-        UpdateWinRtMedia();
-        if (string.IsNullOrEmpty(_cachedMedia)) return;
+        if (string.IsNullOrEmpty(_cachedMedia))
+            PollWinRtMedia(); // force immediate poll if no data
+        else
+            UpdateWinRtMedia();
         if (we.Text != null) we.Text.Text = _cachedMedia;
     }
 
@@ -774,46 +776,35 @@ public class WidgetManager
 
     private void InitMediaMonitor()
     {
-        Task.Run(async () =>
-        {
-            try
-            {
-                var manager = await Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-                manager.SessionsChanged += (_, _) => { };
-                if (manager.GetCurrentSession() != null)
-                    PollWinRtMedia();
-            }
-            catch { }
-        });
+        // First poll immediately (blocking but fast when no media)
+        PollWinRtMedia();
     }
 
-    private void PollWinRtMedia()
+    private async void PollWinRtMedia()
     {
-        Task.Run(() =>
+        try
         {
-            try
+            var manager = await Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+            var session = manager.GetCurrentSession();
+            if (session == null) { _cachedMedia = ""; return; }
+            var pb = session.GetPlaybackInfo();
+            _mediaPaused = pb.PlaybackStatus != Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+            var info = await session.TryGetMediaPropertiesAsync();
+            if (info != null)
             {
-                var manager = Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager
-                    .RequestAsync().GetAwaiter().GetResult();
-                var session = manager.GetCurrentSession();
-                if (session == null) { _cachedMedia = ""; return; }
-                var pb = session.GetPlaybackInfo();
-                _mediaPaused = pb.PlaybackStatus != Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-                var info = session.TryGetMediaPropertiesAsync().GetAwaiter().GetResult();
-                if (info != null)
-                {
-                    var title = info.Title ?? "";
-                    var artist = info.Artist ?? "";
-                    _cachedMedia = string.IsNullOrEmpty(artist) ? title : $"{artist} - {title}";
-                }
+                var title = info.Title ?? "";
+                var artist = info.Artist ?? "";
+                _cachedMedia = string.IsNullOrEmpty(artist) ? title : $"{artist} - {title}";
             }
-            catch { _cachedMedia = ""; }
-        });
+        }
+        catch { _cachedMedia = ""; }
     }
 
+    private int _mediaPollTick;
     private void UpdateWinRtMedia()
     {
-        if (DateTime.Now.Second % 3 == 0)
+        _mediaPollTick++;
+        if (_mediaPollTick % 2 == 0)
             PollWinRtMedia();
     }
 

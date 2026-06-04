@@ -26,7 +26,6 @@ public partial class App : Application
     private ConfigManager? _configManager;
     private ConfigRoot? _config;
     private MainWindow? _mainWindow;
-    private System.Windows.Forms.NotifyIcon? _trayIcon;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -184,10 +183,10 @@ public partial class App : Application
                     }
                 }
 
-                var mw = _windowManager.TryManageWindow(hwnd);
+                var mw = _windowManager!.TryManageWindow(hwnd);
                 if (mw != null)
                 {
-                    _configManager.ApplyRulesToWindow(_config, _workspaceManager, mw);
+                    _configManager!.ApplyRulesToWindow(_config!, _workspaceManager!, mw);
                     _mainWindow.RefreshBackgrounds();
                 }
             });
@@ -198,60 +197,6 @@ public partial class App : Application
         };
 
         _mainWindow.Show();
-
-        try
-        {
-            _trayIcon = new System.Windows.Forms.NotifyIcon
-            {
-                Icon = System.Drawing.Icon.ExtractAssociatedIcon(
-                    System.Reflection.Assembly.GetExecutingAssembly().Location),
-                Text = "Dwalia Window Manager",
-                Visible = true
-            };
-
-            var trayMenu = new System.Windows.Forms.ContextMenuStrip();
-            var showHideItem = new System.Windows.Forms.ToolStripMenuItem("Show/Hide Dwalia");
-            showHideItem.Click += (_, _) =>
-            {
-                _mainWindow?.Dispatcher.Invoke(() =>
-                {
-                    if (_mainWindow.Visibility == Visibility.Visible)
-                    {
-                        _mainWindow.Hide();
-                        if (_trayIcon != null) _trayIcon.Text = "Dwalia Window Manager (Hidden)";
-                    }
-                    else
-                    {
-                        _mainWindow.Show();
-                        _mainWindow.WindowState = WindowState.Normal;
-                        if (_trayIcon != null) _trayIcon.Text = "Dwalia Window Manager";
-                    }
-                });
-            };
-            trayMenu.Items.Add(showHideItem);
-
-            var quitItem = new System.Windows.Forms.ToolStripMenuItem("Quit");
-            quitItem.Click += (_, _) =>
-            {
-                if (_trayIcon != null) _trayIcon.Visible = false;
-                _mainWindow?.Dispatcher.Invoke(() => Shutdown());
-            };
-            trayMenu.Items.Add(quitItem);
-
-            _trayIcon.ContextMenuStrip = trayMenu;
-            _trayIcon.DoubleClick += (_, _) =>
-            {
-                _mainWindow?.Dispatcher.Invoke(() =>
-                {
-                    _mainWindow.Show();
-                    _mainWindow.WindowState = WindowState.Normal;
-                });
-            };
-        }
-        catch (Exception ex)
-        {
-            Logger.Warn($"Failed to create tray icon: {ex.Message}");
-        }
 
         Views.MainWindow.WarmupInfoBar();
 
@@ -332,12 +277,6 @@ public partial class App : Application
         try { _windowManager?.RestoreAllWindows(); } catch { }
         _hotKeyManager?.Dispose();
         _mouseResizeManager?.Dispose();
-        if (_trayIcon != null)
-        {
-            _trayIcon.Visible = false;
-            _trayIcon.Dispose();
-            _trayIcon = null;
-        }
         timeEndPeriod(1);
         DwmFlush();
         base.OnExit(e);

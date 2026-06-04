@@ -100,6 +100,8 @@ internal static class NativeConstants
     public const uint WM_LBUTTONUP = 0x0202;
     public const uint WM_RBUTTONDOWN = 0x0204;
     public const uint WM_RBUTTONUP = 0x0205;
+    public const uint WM_LBUTTONDBLCLK = 0x0203;
+    public const uint WM_CONTEXTMENU = 0x007B;
 
     public const uint LLKHF_ALTDOWN = 0x20;
 
@@ -116,6 +118,14 @@ internal static class NativeConstants
     public const uint DWMWA_BORDER_COLOR = 34;
     public const int DWM_ACTIVE_BORDER = unchecked((int)0xFF7AA2F7);
     public const int DWM_INACTIVE_BORDER = unchecked((int)0xFF1A1B26);
+
+    public const uint NIM_ADD = 0x00000000;
+    public const uint NIM_MODIFY = 0x00000001;
+    public const uint NIM_DELETE = 0x00000002;
+    public const uint NIF_MESSAGE = 0x00000001;
+    public const uint NIF_ICON = 0x00000002;
+    public const uint NIF_TIP = 0x00000004;
+    public const int WM_TRAYICON = 0x8001;
 
     public static int ParseDwmColor(string hex)
     {

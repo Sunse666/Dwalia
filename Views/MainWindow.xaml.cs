@@ -36,6 +36,8 @@ public partial class MainWindow : Window
     private Color _foregroundColor;
     private Color _mutedColor;
     private readonly List<System.Windows.Controls.Border> _monitorBars = new();
+    private NOTIFYICONDATA _trayData;
+    private bool _trayCreated;
 
     public IntPtr GetHwnd() => _hwnd;
 
@@ -84,6 +86,8 @@ public partial class MainWindow : Window
 
         SetWindowPos(_hwnd, new IntPtr(1), 0, 0, 0, 0,
             SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+        CreateTrayIcon();
 
         if (ServiceLocator.TryResolve<WindowEventHookManager>(out var ehm))
             ehm.SetMainWindowHwnd(_hwnd);
@@ -195,6 +199,25 @@ public partial class MainWindow : Window
             }
             return IntPtr.Zero;
         }
+        if (msg == WM_TRAYICON)
+        {
+            var mouseMsg = lParam.ToInt32();
+            if (mouseMsg == WM_RBUTTONUP || mouseMsg == WM_CONTEXTMENU)
+            {
+                ShowTrayContextMenu();
+                handled = true;
+            }
+            else if (mouseMsg == WM_LBUTTONDBLCLK)
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    Show();
+                    WindowState = WindowState.Normal;
+                });
+                handled = true;
+            }
+            return IntPtr.Zero;
+        }
         if (msg == WM_DISPLAYCHANGE)
         {
             Logger.Info("Display change detected, re-enumerating monitors");
@@ -243,7 +266,74 @@ public partial class MainWindow : Window
         _windowEventHookManager.Stop();
         _windowManager.RestoreAllWindows();
         _focusBackground?.Dispose();
+        RemoveTrayIcon();
         DwmFlush();
+    }
+
+    private void CreateTrayIcon()
+    {
+        try
+        {
+            var iconHandle = System.Drawing.Icon.ExtractAssociatedIcon(
+                System.Reflection.Assembly.GetExecutingAssembly().Location)?.Handle
+                ?? System.Drawing.SystemIcons.Application.Handle;
+
+            _trayData = new NOTIFYICONDATA
+            {
+                cbSize = Marshal.SizeOf<NOTIFYICONDATA>(),
+                hWnd = _hwnd,
+                uID = 1,
+                uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE,
+                uCallbackMessage = WM_TRAYICON,
+                hIcon = iconHandle,
+                szTip = "Dwalia Window Manager"
+            };
+
+            Shell_NotifyIcon(NIM_ADD, ref _trayData);
+            _trayCreated = true;
+            Logger.Info("System tray icon created");
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"Failed to create tray icon: {ex.Message}");
+        }
+    }
+
+    private void ShowTrayContextMenu()
+    {
+        var menu = new ContextMenu
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xcc, 0xcc, 0xcc)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44))
+        };
+
+        if (Visibility == Visibility.Visible)
+        {
+            var hideItem = new MenuItem { Header = "Hide Dwalia" };
+            hideItem.Click += (_, _) => Hide();
+            menu.Items.Add(hideItem);
+        }
+        else
+        {
+            var showItem = new MenuItem { Header = "Show Dwalia" };
+            showItem.Click += (_, _) => { Show(); WindowState = WindowState.Normal; };
+            menu.Items.Add(showItem);
+        }
+
+        var quitItem = new MenuItem { Header = "Quit" };
+        quitItem.Click += (_, _) => Application.Current.Shutdown();
+        menu.Items.Add(quitItem);
+
+        menu.IsOpen = true;
+    }
+
+    private void RemoveTrayIcon()
+    {
+        if (!_trayCreated) return;
+        Shell_NotifyIcon(NIM_DELETE, ref _trayData);
+        _trayCreated = false;
+        Logger.Info("System tray icon removed");
     }
 
     private void UpdateTaskBar()

@@ -873,13 +873,6 @@ public partial class MainWindow : Window
         }
 
 
-        if (ServiceLocator.TryResolve<WidgetManager>(out var wm))
-        {
-            TaskBar.Child = wm.BuildBarContent("Docker");
-            InfoBar.Child = wm.BuildBarContent("Basic");
-            LauncherBar.Child = wm.BuildBarContent("Advanced");
-        }
-
         UpdateTaskBar();
         UpdateWorkspacePills();
 

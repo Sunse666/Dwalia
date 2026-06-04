@@ -29,6 +29,7 @@ public class WidgetManager
     private readonly Dictionary<string, PerformanceCounter> _perfCounters = new();
     private string _cachedMedia = "";
     private bool _mediaPaused;
+    private bool _mediaInit;
     private long _lastNetSample;
     private float _lastNetDown;
     private float _lastNetUp;
@@ -64,10 +65,9 @@ public class WidgetManager
             }
         }
 
-        InitPerformanceCounters();
-        InitMediaMonitor();
+        Task.Run(() => { InitPerformanceCounters(); });
 
-        _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _updateTimer.Tick += (_, _) => UpdateAll();
         _updateTimer.Start();
         WidgetsChanged?.Invoke();
@@ -251,6 +251,11 @@ public class WidgetManager
 
     public void UpdateAll()
     {
+        if (!_mediaInit)
+        {
+            _mediaInit = true;
+            InitMediaMonitor();
+        }
         foreach (var list in _widgetsByBar.Values)
             foreach (var we in list)
                 UpdateWidget(we);
@@ -726,25 +731,41 @@ public class WidgetManager
                 _netDownCounter = new PerformanceCounter("Network Interface", "Bytes Received/sec", iface);
                 _netUpCounter = new PerformanceCounter("Network Interface", "Bytes Sent/sec", iface);
             }
-
-            try
-            {
-                var gpuCat = new PerformanceCounterCategory("GPU Engine");
-                var gpuInst = gpuCat.GetInstanceNames().FirstOrDefault(i => i.Contains("engtype_3D"));
-                if (!string.IsNullOrEmpty(gpuInst))
-                    _gpuCounter = new PerformanceCounter("GPU Engine", "Utilization Percentage", gpuInst);
-            }
-            catch { }
-
-            var diskCat = new PerformanceCounterCategory("PhysicalDisk");
-            var diskInst = diskCat.GetInstanceNames().FirstOrDefault(i => i == "_Total");
-            if (!string.IsNullOrEmpty(diskInst))
-            {
-                _diskReadCounter = new PerformanceCounter("PhysicalDisk", "Disk Read Bytes/sec", diskInst);
-                _diskWriteCounter = new PerformanceCounter("PhysicalDisk", "Disk Write Bytes/sec", diskInst);
-            }
         }
         catch { }
+
+        var widgetTypes = _widgetsByBar.Values.SelectMany(v => v).Select(w => w.Config.Type).ToHashSet();
+        if (widgetTypes.Contains("gpu"))
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    var gpuCat = new PerformanceCounterCategory("GPU Engine");
+                    var gpuInst = gpuCat.GetInstanceNames().FirstOrDefault(i => i.Contains("engtype_3D"));
+                    if (!string.IsNullOrEmpty(gpuInst))
+                        _gpuCounter = new PerformanceCounter("GPU Engine", "Utilization Percentage", gpuInst);
+                }
+                catch { }
+            });
+        }
+        if (widgetTypes.Contains("disk"))
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    var diskCat = new PerformanceCounterCategory("PhysicalDisk");
+                    var diskInst = diskCat.GetInstanceNames().FirstOrDefault(i => i == "_Total");
+                    if (!string.IsNullOrEmpty(diskInst))
+                    {
+                        _diskReadCounter = new PerformanceCounter("PhysicalDisk", "Disk Read Bytes/sec", diskInst);
+                        _diskWriteCounter = new PerformanceCounter("PhysicalDisk", "Disk Write Bytes/sec", diskInst);
+                    }
+                }
+                catch { }
+            });
+        }
     }
 
     private void InitMediaMonitor()

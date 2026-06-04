@@ -210,7 +210,10 @@ public partial class App : Application
         _mainWindow.Show();
 
         if (ServiceLocator.TryResolve<WidgetManager>(out var wm))
+        {
             wm.Initialize();
+            _mainWindow?.Dispatcher.Invoke(() => _mainWindow.SetupWidgetBars());
+        }
 
         if (_config.General.StartupWorkspace > 0
             && _config.General.StartupWorkspace < _workspaceManager.Workspaces.Count)
@@ -220,7 +223,7 @@ public partial class App : Application
 
         Views.MainWindow.WarmupInfoBar();
 
-        _mouseResizeManager.Initialize(_mainWindow.GetHwnd());
+        _mouseResizeManager.Initialize(_mainWindow!.GetHwnd());
 
         _configManager.ApplyRules(_config, _windowManager, _workspaceManager);
 

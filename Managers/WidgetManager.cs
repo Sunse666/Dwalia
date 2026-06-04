@@ -54,7 +54,7 @@ public class WidgetManager
         foreach (var w in cfg.Widgets.Where(w => w.Enabled))
         {
             var pages = w.BarPage == "All"
-                ? new[] { "Docker", "Info", "Launcher" }
+                ? new[] { "Docker", "Basic", "Advanced" }
                 : new[] { w.BarPage };
             foreach (var page in pages)
             {
@@ -102,14 +102,12 @@ public class WidgetManager
 
         foreach (var we in ordered)
         {
-            var pill = BuildPill(we);
-            we.Pill = pill;
-            we.Pill.Tag = we;
+            we.Pill = BuildPill(we);
             switch (we.Config.Align)
             {
-                case "left": left.Children.Add(pill); break;
-                case "center": center.Children.Add(pill); break;
-                default: right.Children.Add(pill); break;
+                case "left": left.Children.Add(we.Pill); break;
+                case "center": center.Children.Add(we.Pill); break;
+                default: right.Children.Add(we.Pill); break;
             }
         }
         return grid;
@@ -211,7 +209,17 @@ public class WidgetManager
                 break;
         }
 
-        ApplyWidgetColor(we);
+        if (string.IsNullOrEmpty(c.TextColor))
+        {
+            var lightFg = new SolidColorBrush(Colors.White);
+            if (we.Panel != null) we.Panel.Children.OfType<TextBlock>().ToList().ForEach(t => t.Foreground = lightFg);
+            if (we.Text != null) we.Text.Foreground = lightFg;
+            if (we.SecondaryText != null) we.SecondaryText.Foreground = lightFg;
+        }
+        else
+        {
+            ApplyWidgetColor(we);
+        }
         return pill;
     }
 
@@ -234,7 +242,7 @@ public class WidgetManager
         return Color.FromArgb(0x44, 0xff, 0xff, 0xff);
     }
 
-    private static Color? ParseColor(string hex)
+    private static Color? ParseColor(string? hex)
     {
         if (string.IsNullOrEmpty(hex)) return null;
         try { return (Color)ColorConverter.ConvertFromString(hex); }

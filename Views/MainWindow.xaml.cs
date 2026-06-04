@@ -17,7 +17,7 @@ using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Views;
 
-public enum BarMode { Docker, Info, Launcher }
+public enum BarMode { Docker, Basic, Advanced }
 
 public partial class MainWindow : Window
 {
@@ -26,8 +26,6 @@ public partial class MainWindow : Window
     private IntPtr _hwnd;
     private HwndSource? _hwndSource;
     private DispatcherTimer? _statusTimer;
-    private DispatcherTimer? _infoTimer;
-    private DispatcherTimer? _marqueeTimer;
     private FocusBackground? _focusBackground;
     private ColorFilterOverlay? _colorFilter;
     private DispatcherTimer? _focusBgTimer;
@@ -383,8 +381,6 @@ public partial class MainWindow : Window
     {
         Logger.Info("Shutting down — restoring all windows...");
         _focusBgTimer?.Stop();
-        _infoTimer?.Stop();
-        _marqueeTimer?.Stop();
         _cpuCounter?.Dispose();
         _memCounter?.Dispose();
         _netDownCounter?.Dispose();
@@ -822,9 +818,21 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
     }
 
+    public void SetupWidgetBars()
+    {
+        if (ServiceLocator.TryResolve<WidgetManager>(out var wm))
+        {
+            TaskBar.Child = wm.BuildBarContent("Docker");
+            InfoBar.Child = wm.BuildBarContent("Basic");
+            LauncherBar.Child = wm.BuildBarContent("Advanced");
+        }
+        UpdateTaskBar();
+        UpdateWorkspacePills();
+    }
+
     public void CycleBarMode(int direction)
     {
-        var modes = new[] { BarMode.Docker, BarMode.Info, BarMode.Launcher };
+        var modes = new[] { BarMode.Docker, BarMode.Basic, BarMode.Advanced };
         var idx = Array.IndexOf(modes, _barMode);
         var next = modes[(idx + direction + modes.Length) % modes.Length];
         ShowBarMode(next);
@@ -840,8 +848,6 @@ public partial class MainWindow : Window
             TaskBar.Visibility = Visibility.Collapsed;
             InfoBar.Visibility = Visibility.Collapsed;
             LauncherBar.Visibility = Visibility.Collapsed;
-            _infoTimer?.Stop();
-            _marqueeTimer?.Stop();
         }
         else
         {
@@ -857,50 +863,25 @@ public partial class MainWindow : Window
         var duration = TimeSpan.FromMilliseconds(150);
 
         TaskBar.Visibility = mode == BarMode.Docker ? Visibility.Visible : Visibility.Collapsed;
-        InfoBar.Visibility = mode == BarMode.Info ? Visibility.Visible : Visibility.Collapsed;
-        LauncherBar.Visibility = mode == BarMode.Launcher ? Visibility.Visible : Visibility.Collapsed;
+        InfoBar.Visibility = mode == BarMode.Basic ? Visibility.Visible : Visibility.Collapsed;
+        LauncherBar.Visibility = mode == BarMode.Advanced ? Visibility.Visible : Visibility.Collapsed;
 
         if (prevMode != mode)
         {
-            var nextBar = mode switch { BarMode.Info => InfoBar, BarMode.Launcher => LauncherBar, _ => TaskBar };
+            var nextBar = mode switch { BarMode.Basic => InfoBar, BarMode.Advanced => LauncherBar, _ => TaskBar };
             FadeInBar(nextBar, duration);
         }
 
-        _infoTimer?.Stop();
-        if (mode == BarMode.Info)
+
+        if (ServiceLocator.TryResolve<WidgetManager>(out var wm))
         {
-            if (ServiceLocator.TryResolve<ConfigRoot>(out var icfg))
-            {
-                ClockText.Visibility = icfg.Theme.StatusShowClock ? Visibility.Visible : Visibility.Collapsed;
-                CpuPill.Visibility = icfg.Theme.StatusShowCpu ? Visibility.Visible : Visibility.Collapsed;
-                MemPill.Visibility = icfg.Theme.StatusShowMem ? Visibility.Visible : Visibility.Collapsed;
-                BatteryPill.Visibility = icfg.Theme.StatusShowBattery ? Visibility.Visible : Visibility.Collapsed;
-                NetworkPill.Visibility = icfg.Theme.StatusShowNetwork ? Visibility.Visible : Visibility.Collapsed;
-                MediaPill.Visibility = icfg.Theme.StatusShowMedia ? Visibility.Visible : Visibility.Collapsed;
-                _mediaScript = icfg.Theme.MediaScript ?? "";
-                _mediaScriptInterval = Math.Max(1, icfg.Theme.MediaScriptInterval);
-
-                var wbg = new SolidColorBrush(_widgetPillBg);
-                CpuPill.Background = wbg;
-                MemPill.Background = wbg;
-                BatteryPill.Background = wbg;
-                NetworkPill.Background = wbg;
-                MediaPill.Background = wbg;
-            }
-            InitNetworkCounters();
-            InitMediaMonitor();
-            UpdateInfoBar();
-            _infoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _infoTimer.Tick += (_, _) => UpdateInfoBar();
-            _infoTimer.Start();
-
-            _marqueeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-            _marqueeTimer.Tick += (_, _) => TickMarquee();
-            _marqueeTimer.Start();
+            TaskBar.Child = wm.BuildBarContent("Docker");
+            InfoBar.Child = wm.BuildBarContent("Basic");
+            LauncherBar.Child = wm.BuildBarContent("Advanced");
         }
 
-        if (mode == BarMode.Launcher)
-            BuildLauncherButtons();
+        UpdateTaskBar();
+        UpdateWorkspacePills();
 
         UpdateBarArea();
     }
@@ -1396,8 +1377,6 @@ public partial class MainWindow : Window
         UpdateTaskBar();
         UpdateWorkspacePills();
         LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
-        if (_barMode == BarMode.Launcher)
-            BuildLauncherButtons();
     }
 
     private void UpdateWorkspacePills()

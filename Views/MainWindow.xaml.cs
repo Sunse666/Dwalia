@@ -185,6 +185,13 @@ public partial class MainWindow : Window
             LauncherBar.SetValue(TextElement.FontSizeProperty, (double)fontSize);
             LauncherBar.SetValue(TextElement.FontFamilyProperty, fontFamily);
             LayoutLabel.FontSize = fontSize;
+            LayoutLabel.FontWeight = FontWeights.SemiBold;
+
+            TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
+            TextOptions.SetTextRenderingMode(this, TextRenderingMode.ClearType);
+
+            ClockText.FontWeight = FontWeights.SemiBold;
+            InfoWinTitle.FontWeight = FontWeights.Medium;
             LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
             LayoutLabel.Cursor = System.Windows.Input.Cursors.Hand;
             LayoutLabel.MouseLeftButtonDown += (_, _) =>
@@ -733,8 +740,11 @@ public partial class MainWindow : Window
             catch { }
         }
 
+        LayoutLabel.FontWeight = FontWeights.SemiBold;
         LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
+        InfoWinTitle.FontWeight = FontWeights.Medium;
         InfoWinTitle.Foreground = new SolidColorBrush(_foregroundColor);
+        ClockText.FontWeight = FontWeights.SemiBold;
         ClockText.Foreground = new SolidColorBrush(_foregroundColor);
         var accentBrush = new SolidColorBrush(_focusBgColor);
         CpuText.Foreground = accentBrush;
@@ -916,10 +926,10 @@ public partial class MainWindow : Window
     }
 
     private static string CpuBar(int pct) =>
-        $"{pct,3}% {ProgressBar(pct)}";
+        $"◈ {pct,3}%{ProgressBar(pct)}";
 
     private static string MemBar(int pct) =>
-        $"{pct,3}% {ProgressBar(pct)}";
+        $"◉ {pct,3}%{ProgressBar(pct)}";
 
     private static string ProgressBar(int pct)
     {

@@ -122,6 +122,15 @@ theme:
   status_show_battery: true       # show battery in info bar
   drag_source_color: ""           # drag source highlight (empty = use accent)
   drag_target_color: ""           # drag target highlight (empty = white)
+  context_menu_background: "#2d2d2d"
+  context_menu_foreground: "#cccccc"
+  context_menu_border: "#444444"
+  task_button_background: "#24283e"
+  task_button_hover_background: ""
+  monitor_bar_background: "#5516161e"
+  monitor_bar_border: ""          # empty = use muted color
+  workspace_pill_inactive_color: ""  # empty = use muted color
+  workspace_pill_empty_color: ""     # empty = half-muted
 
 layout:
   inner_gap: 4

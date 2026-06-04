@@ -122,6 +122,15 @@ theme:
   status_show_battery: true        # 信息栏显示电池
   drag_source_color: ""            # 拖拽源高亮色（空=使用 accent 色）
   drag_target_color: ""            # 拖拽目标高亮色（空=白色）
+  context_menu_background: "#2d2d2d"  # 右键菜单背景
+  context_menu_foreground: "#cccccc"  # 右键菜单文字
+  context_menu_border: "#444444"      # 右键菜单边框
+  task_button_background: "#24283e"   # 任务栏按钮背景
+  task_button_hover_background: ""    # 任务栏按钮悬停背景（空=使用背景色）
+  monitor_bar_background: "#5516161e" # 多显示器工具栏背景
+  monitor_bar_border: ""              # 多显示器工具栏边框（空=使用 muted 色）
+  workspace_pill_inactive_color: ""   # 非活动工作区指示器
+  workspace_pill_empty_color: ""      # 空工作区指示器
 
 layout:
   inner_gap: 4                     # 窗口内边距

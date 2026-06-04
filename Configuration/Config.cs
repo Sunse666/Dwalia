@@ -145,6 +145,33 @@ public class ThemeConfig
 
     [YamlMember(Alias = "drag_target_color")]
     public string DragTargetColor { get; set; } = "";
+
+    [YamlMember(Alias = "context_menu_background")]
+    public string ContextMenuBackground { get; set; } = "#2d2d2d";
+
+    [YamlMember(Alias = "context_menu_foreground")]
+    public string ContextMenuForeground { get; set; } = "#cccccc";
+
+    [YamlMember(Alias = "context_menu_border")]
+    public string ContextMenuBorder { get; set; } = "#444444";
+
+    [YamlMember(Alias = "task_button_background")]
+    public string TaskButtonBackground { get; set; } = "#24283e";
+
+    [YamlMember(Alias = "task_button_hover_background")]
+    public string TaskButtonHoverBackground { get; set; } = "";
+
+    [YamlMember(Alias = "monitor_bar_background")]
+    public string MonitorBarBackground { get; set; } = "#5516161e";
+
+    [YamlMember(Alias = "monitor_bar_border")]
+    public string MonitorBarBorder { get; set; } = "";
+
+    [YamlMember(Alias = "workspace_pill_inactive_color")]
+    public string WorkspacePillInactive { get; set; } = "";
+
+    [YamlMember(Alias = "workspace_pill_empty_color")]
+    public string WorkspacePillEmpty { get; set; } = "";
 }
 
 public class LayoutConfig

@@ -36,6 +36,14 @@ public partial class MainWindow : Window
     private Color _focusBgColor;
     private Color _foregroundColor;
     private Color _mutedColor;
+    private Color _ctxMenuBg = Color.FromRgb(0x2d, 0x2d, 0x2d);
+    private Color _ctxMenuFg = Color.FromRgb(0xcc, 0xcc, 0xcc);
+    private Color _ctxMenuBorder = Color.FromRgb(0x44, 0x44, 0x44);
+    private Color _taskBtnBg = Color.FromRgb(0x24, 0x28, 0x3e);
+    private Color _monitorBarBg = Color.FromArgb(0x55, 0x16, 0x16, 0x1e);
+    private Color _monitorBarBorder = Color.FromRgb(0x3b, 0x42, 0x61);
+    private Color _pillInactive = Color.FromRgb(0x56, 0x5f, 0x89);
+    private Color _pillEmpty = Color.FromRgb(0x2b, 0x2f, 0x44);
     private readonly List<System.Windows.Controls.Border> _monitorBars = new();
     private NOTIFYICONDATA _trayData;
     private bool _trayCreated;
@@ -129,6 +137,24 @@ public partial class MainWindow : Window
             try { _mutedColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Muted ?? "#565f89"); }
             catch { _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89); }
 
+            ParseColor(cfg.Theme.ContextMenuBackground, ref _ctxMenuBg, 0x2d, 0x2d, 0x2d);
+            ParseColor(cfg.Theme.ContextMenuForeground, ref _ctxMenuFg, 0xcc, 0xcc, 0xcc);
+            ParseColor(cfg.Theme.ContextMenuBorder, ref _ctxMenuBorder, 0x44, 0x44, 0x44);
+            ParseColor(cfg.Theme.TaskButtonBackground, ref _taskBtnBg, 0x24, 0x28, 0x3e);
+            ParseColor(cfg.Theme.MonitorBarBackground, ref _monitorBarBg, null, null, null);
+            if (!string.IsNullOrEmpty(cfg.Theme.MonitorBarBorder))
+                ParseColor(cfg.Theme.MonitorBarBorder, ref _monitorBarBorder, null, null, null);
+            else
+                _monitorBarBorder = _mutedColor;
+            if (!string.IsNullOrEmpty(cfg.Theme.WorkspacePillInactive))
+                ParseColor(cfg.Theme.WorkspacePillInactive, ref _pillInactive, null, null, null);
+            else
+                _pillInactive = _mutedColor;
+            if (!string.IsNullOrEmpty(cfg.Theme.WorkspacePillEmpty))
+                ParseColor(cfg.Theme.WorkspacePillEmpty, ref _pillEmpty, null, null, null);
+            else
+                _pillEmpty = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
+
             var barH = Math.Clamp(cfg.General.BarHeight, 16, 80);
             TaskBar.Height = barH;
             InfoBar.Height = barH;
@@ -158,6 +184,9 @@ public partial class MainWindow : Window
             _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7);
             _foregroundColor = Color.FromRgb(0xc0, 0xca, 0xf5);
             _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89);
+            _monitorBarBorder = _mutedColor;
+            _pillInactive = _mutedColor;
+            _pillEmpty = Color.FromRgb(0x2b, 0x2f, 0x44);
         }
 
         var focusRadius = cfg?.Theme.FocusRadius ?? 8;
@@ -343,9 +372,9 @@ public partial class MainWindow : Window
     {
         var menu = new ContextMenu
         {
-            Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d)),
-            Foreground = new SolidColorBrush(Color.FromRgb(0xcc, 0xcc, 0xcc)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44))
+            Background = new SolidColorBrush(_ctxMenuBg),
+            Foreground = new SolidColorBrush(_ctxMenuFg),
+            BorderBrush = new SolidColorBrush(_ctxMenuBorder)
         };
 
         if (Visibility == Visibility.Visible)
@@ -437,7 +466,7 @@ public partial class MainWindow : Window
                 Foreground = mw.IsActive
                     ? new SolidColorBrush(_focusBgColor)
                     : new SolidColorBrush(_foregroundColor),
-                Background = new SolidColorBrush(Color.FromRgb(0x24, 0x28, 0x3e)),
+                Background = new SolidColorBrush(_taskBtnBg),
                 BorderThickness = new Thickness(0)
             };
 
@@ -461,9 +490,9 @@ public partial class MainWindow : Window
     {
         var menu = new ContextMenu
         {
-            Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x2d, 0x2d)),
-            Foreground = new SolidColorBrush(Color.FromRgb(0xcc, 0xcc, 0xcc)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44))
+            Background = new SolidColorBrush(_ctxMenuBg),
+            Foreground = new SolidColorBrush(_ctxMenuFg),
+            BorderBrush = new SolidColorBrush(_ctxMenuBorder)
         };
 
         var closeItem = new MenuItem { Header = "Close Window" };
@@ -558,6 +587,24 @@ public partial class MainWindow : Window
         catch { }
         try { _mutedColor = (Color)ColorConverter.ConvertFromString(c.Theme.Muted ?? "#565f89"); }
         catch { }
+
+        ParseColor(c.Theme.ContextMenuBackground, ref _ctxMenuBg, 0x2d, 0x2d, 0x2d);
+        ParseColor(c.Theme.ContextMenuForeground, ref _ctxMenuFg, 0xcc, 0xcc, 0xcc);
+        ParseColor(c.Theme.ContextMenuBorder, ref _ctxMenuBorder, 0x44, 0x44, 0x44);
+        ParseColor(c.Theme.TaskButtonBackground, ref _taskBtnBg, 0x24, 0x28, 0x3e);
+        ParseColor(c.Theme.MonitorBarBackground, ref _monitorBarBg, null, null, null);
+        if (!string.IsNullOrEmpty(c.Theme.MonitorBarBorder))
+            ParseColor(c.Theme.MonitorBarBorder, ref _monitorBarBorder, null, null, null);
+        else
+            _monitorBarBorder = _mutedColor;
+        if (!string.IsNullOrEmpty(c.Theme.WorkspacePillInactive))
+            ParseColor(c.Theme.WorkspacePillInactive, ref _pillInactive, null, null, null);
+        else
+            _pillInactive = _mutedColor;
+        if (!string.IsNullOrEmpty(c.Theme.WorkspacePillEmpty))
+            ParseColor(c.Theme.WorkspacePillEmpty, ref _pillEmpty, null, null, null);
+        else
+            _pillEmpty = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
 
         if (c.Theme.EnableAcrylic)
         {
@@ -732,7 +779,7 @@ public partial class MainWindow : Window
                 Padding = new Thickness(10, 0, 10, 0),
                 FontSize = 11,
                 Foreground = new SolidColorBrush(_foregroundColor),
-                Background = new SolidColorBrush(Color.FromRgb(0x24, 0x28, 0x3e)),
+                Background = new SolidColorBrush(_taskBtnBg),
                 BorderThickness = new Thickness(0),
             };
             var cmd = entry.Path;
@@ -783,6 +830,17 @@ public partial class MainWindow : Window
         return pct <= 100 ? $"BAT {pct}%" : "BAT --%";
     }
 
+    private static void ParseColor(string hex, ref Color target, byte? rr, byte? gg, byte? bb)
+    {
+        if (!string.IsNullOrEmpty(hex))
+        {
+            try { target = (Color)ColorConverter.ConvertFromString(hex); return; }
+            catch { }
+        }
+        if (rr.HasValue)
+            target = Color.FromRgb(rr.Value, gg!.Value, bb!.Value);
+    }
+
     [DllImport("kernel32.dll")]
     private static extern bool GetSystemPowerStatus(out SystemPowerStatus sps);
 
@@ -819,12 +877,9 @@ public partial class MainWindow : Window
             if (isActive)
                 pillColor = _focusBgColor;
             else if (hasWindows)
-                pillColor = _mutedColor;
+                pillColor = _pillInactive;
             else
-                pillColor = Color.FromRgb(
-                    (byte)(_mutedColor.R / 2),
-                    (byte)(_mutedColor.G / 2),
-                    (byte)(_mutedColor.B / 2));
+                pillColor = _pillEmpty;
             var pill = new Border
             {
                 Width = isActive ? 24 : 8,
@@ -1013,8 +1068,8 @@ public partial class MainWindow : Window
             var bar = new System.Windows.Controls.Border
             {
                 Height = 28,
-                Background = new SolidColorBrush(Color.FromArgb(0x55, 0x16, 0x16, 0x1e)),
-                BorderBrush = _mutedColor is Color c ? new SolidColorBrush(c) : new SolidColorBrush(Color.FromRgb(0x3b, 0x42, 0x61)),
+                Background = new SolidColorBrush(_monitorBarBg),
+                BorderBrush = new SolidColorBrush(_monitorBarBorder),
                 BorderThickness = new Thickness(0, 0, 0, 1),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
                 VerticalAlignment = System.Windows.VerticalAlignment.Top,
@@ -1036,8 +1091,8 @@ public partial class MainWindow : Window
                     var hasWindows = ws.Windows.Count > 0;
                     Color pillColor;
                     if (isActive) pillColor = _focusBgColor;
-                    else if (hasWindows) pillColor = _mutedColor;
-                    else pillColor = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
+                    else if (hasWindows) pillColor = _pillInactive;
+                    else pillColor = _pillEmpty;
                     var pill = new System.Windows.Controls.Border
                     {
                         Width = isActive ? 16 : 6, Height = 6,

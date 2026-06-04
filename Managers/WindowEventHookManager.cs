@@ -71,7 +71,6 @@ public class WindowEventHookManager
             {
                 case EVENT_OBJECT_CREATE:
                 case EVENT_OBJECT_SHOW:
-                    FlashWindow(hwnd, false);
                     TryManage(hwnd);
                     break;
                 case EVENT_OBJECT_DESTROY:

@@ -58,21 +58,33 @@
                 Height="40"
                 Visibility="Collapsed">
             <Grid Margin="12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="InfoWinTitle"
+                           Grid.Column="0"
+                           Foreground="#c0caf5" FontSize="12"
+                           VerticalAlignment="Center"
+                           MaxWidth="400"
+                           TextTrimming="CharacterEllipsis"/>
                 <TextBlock x:Name="ClockText"
+                           Grid.Column="1"
                            Foreground="#c0caf5" FontSize="13"
                            VerticalAlignment="Center"
-                           HorizontalAlignment="Left"/>
-                <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Center"
+                           HorizontalAlignment="Center"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal"
                             VerticalAlignment="Center">
                     <TextBlock x:Name="CpuText"
-                               Foreground="#7aa2f7" FontSize="12"
-                               Margin="0,0,16,0"/>
+                               Foreground="#7aa2f7" FontSize="11"
+                               Margin="0,0,10,0" FontFamily="Consolas"/>
                     <TextBlock x:Name="MemText"
-                               Foreground="#7aa2f7" FontSize="12"
-                               Margin="0,0,16,0"/>
+                               Foreground="#7aa2f7" FontSize="11"
+                               Margin="0,0,10,0" FontFamily="Consolas"/>
                     <TextBlock x:Name="BatteryText"
-                               Foreground="#7aa2f7" FontSize="12"/>
+                               Foreground="#7aa2f7" FontSize="11"
+                               Margin="0,0,8,0" FontFamily="Consolas"/>
                 </StackPanel>
             </Grid>
         </Border>

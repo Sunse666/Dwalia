@@ -679,6 +679,7 @@ public partial class MainWindow : Window
         }
 
         LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
+        InfoWinTitle.Foreground = new SolidColorBrush(_foregroundColor);
         ClockText.Foreground = new SolidColorBrush(_foregroundColor);
         var accentBrush = new SolidColorBrush(_focusBgColor);
         CpuText.Foreground = accentBrush;
@@ -787,11 +788,65 @@ public partial class MainWindow : Window
 
     private void UpdateInfoBar()
     {
-        ClockText.Text = DateTime.Now.ToString("HH:mm:ss  yyyy-MM-dd");
-        try { CpuText.Text = $"CPU {(int)GetCpuUsage():D2}%"; } catch { CpuText.Text = "CPU --%"; }
-        try { MemText.Text = $"MEM {(int)GetMemUsage():D2}%"; } catch { MemText.Text = "MEM --%"; }
-        try { BatteryText.Text = GetBatteryText(); } catch { BatteryText.Text = "BAT --%"; }
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var icfg))
+        {
+            try { ClockText.Text = DateTime.Now.ToString(icfg.Theme.DateFormat); }
+            catch { ClockText.Text = DateTime.Now.ToString("HH:mm:ss  yyyy-MM-dd"); }
+        }
+
+        if (ServiceLocator.TryResolve<FocusMgr>(out var fm) && fm.ActiveWindow != null)
+            InfoWinTitle.Text = fm.ActiveWindow.Title;
+        else
+            InfoWinTitle.Text = "";
+
+        try
+        {
+            var cpu = (int)GetCpuUsage();
+            CpuText.Text = CpuBar(cpu);
+        }
+        catch { CpuText.Text = "CPU ▱▱▱▱▱▱▱▱ --%"; }
+
+        try
+        {
+            var mem = (int)GetMemUsage();
+            MemText.Text = MemBar(mem);
+        }
+        catch { MemText.Text = "MEM ▱▱▱▱▱▱▱▱ --%"; }
+
+        try { BatteryText.Text = GetBatteryIcon(); }
+        catch { BatteryText.Text = "🔋 --%"; }
     }
+
+    private static string CpuBar(int pct) =>
+        $"CPU {ProgressBar(pct)} {pct,3}%";
+
+    private static string MemBar(int pct) =>
+        $"MEM {ProgressBar(pct)} {pct,3}%";
+
+    private static string ProgressBar(int pct)
+    {
+        int filled = Math.Clamp(pct * 8 / 100, 0, 8);
+        return new string('▰', filled) + new string('▱', 8 - filled);
+    }
+
+    private static string GetBatteryIcon()
+    {
+        if (!GetSystemPowerStatus(out var ps)) return "🔋 --%";
+        if (ps.BatteryFlag == 128) return "⚡ AC";
+        var pct = ps.BatteryLifePercent;
+        if (pct > 100) return "🔋 --%";
+        string icon = pct switch
+        {
+            >= 90 => "🔋",
+            >= 60 => "🔋",
+            >= 30 => "🔋",
+            >= 10 => "🪫",
+            _ => "🪫"
+        };
+        return $"{icon} {pct,3}%";
+    }
+
+    private static string GetBatteryText() => GetBatteryIcon();
 
     private void BuildLauncherButtons()
     {
@@ -813,9 +868,40 @@ public partial class MainWindow : Window
         {
             var name = string.IsNullOrEmpty(entry.Name) ? entry.Path : entry.Name;
 
+            var content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            try
+            {
+                var icon = System.Drawing.Icon.ExtractAssociatedIcon(entry.Path);
+                if (icon != null)
+                {
+                    var img = new System.Windows.Controls.Image
+                    {
+                        Source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                            icon.Handle, Int32Rect.Empty,
+                            System.Windows.Media.Imaging.BitmapSizeOptions.FromWidthAndHeight(16, 16)),
+                        Width = 16, Height = 16,
+                        Margin = new Thickness(0, 0, 6, 0),
+                    };
+                    content.Children.Add(img);
+                    icon.Dispose();
+                }
+            }
+            catch { }
+
+            content.Children.Add(new TextBlock
+            {
+                Text = name,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
             var btn = new Button
             {
-                Content = name,
+                Content = content,
                 Height = 28,
                 Margin = new Thickness(3, 0, 3, 0),
                 Padding = new Thickness(10, 0, 10, 0),
@@ -862,14 +948,6 @@ public partial class MainWindow : Window
         _memCounter ??= new PerformanceCounter("Memory", "% Committed Bytes In Use");
         try { return _memCounter.NextValue(); }
         catch { return 0; }
-    }
-
-    private static string GetBatteryText()
-    {
-        if (!GetSystemPowerStatus(out var ps)) return "BAT --%";
-        if (ps.BatteryFlag == 128) return "BAT AC";
-        var pct = ps.BatteryLifePercent;
-        return pct <= 100 ? $"BAT {pct}%" : "BAT --%";
     }
 
     private static void ParseColor(string hex, ref Color target, byte? rr, byte? gg, byte? bb)

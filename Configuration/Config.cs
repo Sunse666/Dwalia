@@ -175,6 +175,9 @@ public class ThemeConfig
 
     [YamlMember(Alias = "workspace_pill_show_count")]
     public bool WorkspacePillShowCount { get; set; } = false;
+
+    [YamlMember(Alias = "date_format")]
+    public string DateFormat { get; set; } = "HH:mm:ss  yyyy-MM-dd";
 }
 
 public class LayoutConfig

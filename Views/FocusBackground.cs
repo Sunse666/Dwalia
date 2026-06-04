@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using Dwalia.Infrastructure;
 using static Dwalia.Win32.NativeMethods;
 using static Dwalia.Win32.NativeConstants;
 using static Dwalia.Win32.WindowStyles;
@@ -21,6 +22,8 @@ public class FocusBackground : IDisposable
     private bool _disposed;
     private bool _dragMode;
 
+    private Color _dragSourceColor;
+    private Color _dragTargetColor;
     private BgWindow? _dragSource;
     private BgWindow? _dragTarget;
     private int _dragStartX;
@@ -46,6 +49,32 @@ public class FocusBackground : IDisposable
         _activeAlpha = OpacityToAlpha(activeOpacity);
         _inactiveAlpha = OpacityToAlpha(inactiveOpacity);
         _fill = fill;
+
+        if (ServiceLocator.TryResolve<Configuration.ConfigRoot>(out var cfg))
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(cfg.Theme.DragSourceColor))
+                    _dragSourceColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.DragSourceColor);
+                else
+                    _dragSourceColor = color;
+            }
+            catch { _dragSourceColor = color; }
+
+            try
+            {
+                if (!string.IsNullOrEmpty(cfg.Theme.DragTargetColor))
+                    _dragTargetColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.DragTargetColor);
+                else
+                    _dragTargetColor = Color.FromRgb(0xFF, 0xFF, 0xFF);
+            }
+            catch { _dragTargetColor = Color.FromRgb(0xFF, 0xFF, 0xFF); }
+        }
+        else
+        {
+            _dragSourceColor = color;
+            _dragTargetColor = Color.FromRgb(0xFF, 0xFF, 0xFF);
+        }
     }
 
     public void UpdateStyle(Color color, int radius, double activeOpacity, double inactiveOpacity, bool fill)
@@ -238,18 +267,18 @@ public class FocusBackground : IDisposable
     private void ApplySourceHighlight(BgWindow bg)
     {
         bg.Border.Background = new SolidColorBrush(
-            Color.FromArgb(120, _accentColor.R, _accentColor.G, _accentColor.B));
+            Color.FromArgb(120, _dragSourceColor.R, _dragSourceColor.G, _dragSourceColor.B));
         bg.Border.BorderBrush = new SolidColorBrush(
-            Color.FromArgb(255, _accentColor.R, _accentColor.G, _accentColor.B));
+            Color.FromArgb(255, _dragSourceColor.R, _dragSourceColor.G, _dragSourceColor.B));
         bg.Border.BorderThickness = new Thickness(4);
     }
 
     private void ApplyTargetHighlight(BgWindow bg)
     {
         bg.Border.Background = new SolidColorBrush(
-            Color.FromArgb(80, 0xFF, 0xFF, 0xFF));
+            Color.FromArgb(80, _dragTargetColor.R, _dragTargetColor.G, _dragTargetColor.B));
         bg.Border.BorderBrush = new SolidColorBrush(
-            Color.FromArgb(255, 0xFF, 0xFF, 0xFF));
+            Color.FromArgb(255, _dragTargetColor.R, _dragTargetColor.G, _dragTargetColor.B));
         bg.Border.BorderThickness = new Thickness(4);
     }
 

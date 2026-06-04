@@ -82,6 +82,12 @@ public partial class App : Application
 
         _layoutManager = new LayoutManager(_windowManager, _workspaceManager, _focusManager);
         _layoutManager.SetEnabledLayouts(_config.Layout.EnabledLayouts);
+        if (_config.General.DefaultLayout is { Length: > 0 } defLayout
+            && Enum.TryParse<Managers.LayoutType>(defLayout, true, out var lt))
+        {
+            foreach (var ws in _workspaceManager.Workspaces)
+                ws.Layout = lt;
+        }
         ServiceLocator.Register(_layoutManager);
 
         _mouseResizeManager = new MouseResizeManager();
@@ -199,6 +205,12 @@ public partial class App : Application
         };
 
         _mainWindow.Show();
+
+        if (_config.General.StartupWorkspace > 0
+            && _config.General.StartupWorkspace < _workspaceManager.Workspaces.Count)
+        {
+            _workspaceManager.SwitchToWorkspace(_config.General.StartupWorkspace);
+        }
 
         Views.MainWindow.WarmupInfoBar();
 

@@ -39,7 +39,7 @@ public class LayoutManager
     private readonly List<(ManagedWindow Window, System.Windows.Rect Target)> _pendingPositions = new();
     private List<(ManagedWindow Window, System.Windows.Rect From, System.Windows.Rect To)> _animFrames = new();
     private int _animVersion;
-    private const int AnimDuration = 150;
+    private int _animDuration;
     private bool _disableAnimation;
     private bool _preserveMaster;
     private bool _layoutJustSwitched;
@@ -61,6 +61,8 @@ public class LayoutManager
             _gap = config.Layout.InnerGap;
             _outer = config.Layout.OuterGap;
             _smartGaps = config.Layout.SmartGaps;
+            _animDuration = config.General.AnimationDuration;
+            _disableAnimation = !config.General.AnimationEnabled;
         }
 
         _windowManager.WindowManaged += (_, mw) =>
@@ -82,7 +84,7 @@ public class LayoutManager
         _workspaceManager.StickyChanged += (_, _) => Relayout();
     }
 
-    public void SetArea(IntPtr mainHwnd, double taskbarHeight)
+    public void SetArea(IntPtr mainHwnd, double topOffset, double totalBarHeight)
     {
         _monitorAreas.Clear();
 
@@ -92,9 +94,9 @@ public class LayoutManager
             {
                 var area = new System.Windows.Rect(
                     m.WorkArea.Left,
-                    m.WorkArea.Top + taskbarHeight,
+                    m.WorkArea.Top + topOffset,
                     m.WorkArea.Width,
-                    Math.Max(200, m.WorkArea.Height - taskbarHeight));
+                    Math.Max(200, m.WorkArea.Height - totalBarHeight));
                 _monitorAreas[m.Id] = area;
                 Logger.Info($"Monitor {m.Id} work area: {area.Width:F0}x{area.Height:F0} @ ({area.X:F0},{area.Y:F0})");
             }
@@ -109,9 +111,9 @@ public class LayoutManager
             {
                 _area = new System.Windows.Rect(
                     mi.rcWork.Left,
-                    mi.rcWork.Top + taskbarHeight,
+                    mi.rcWork.Top + topOffset,
                     mi.rcWork.Width,
-                    Math.Max(200, mi.rcWork.Height - taskbarHeight));
+                    Math.Max(200, mi.rcWork.Height - totalBarHeight));
             }
             _monitorAreas[0] = _area;
             Logger.Info($"Work area: {_area.Width:F0}x{_area.Height:F0} @ ({_area.X:F0},{_area.Y:F0})");
@@ -350,7 +352,7 @@ public class LayoutManager
         while (version == _animVersion)
         {
             long elapsedMs = sw.ElapsedMilliseconds;
-            double rawT = Math.Min(1.0, (double)elapsedMs / AnimDuration);
+            double rawT = Math.Min(1.0, (double)elapsedMs / _animDuration);
 
             if (elapsedMs >= nextFrameAt || rawT >= 1.0)
             {

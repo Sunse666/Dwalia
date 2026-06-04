@@ -237,8 +237,17 @@ public class ConfigManager
             }
             if (rule.Floating)
                 mw.State = Models.WindowLayoutState.Floating;
+            if (rule.Fullscreen)
+                mw.State = Models.WindowLayoutState.Fullscreen;
             if (rule.Sticky)
                 mw.IsSticky = true;
+            if (rule.Layout is { Length: > 0 } layoutName
+                && Enum.TryParse<Managers.LayoutType>(layoutName, true, out var ltype)
+                && ServiceLocator.TryResolve<Managers.LayoutManager>(out var lm))
+            {
+                var mwWs = workspaceManager.Workspaces.FirstOrDefault(w => w.Id == mw.WorkspaceId);
+                if (mwWs != null) mwWs.Layout = ltype;
+            }
             break;
         }
     }

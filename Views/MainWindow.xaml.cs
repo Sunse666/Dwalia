@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
@@ -127,6 +128,30 @@ public partial class MainWindow : Window
             catch { _foregroundColor = Color.FromRgb(0xc0, 0xca, 0xf5); }
             try { _mutedColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Muted ?? "#565f89"); }
             catch { _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89); }
+
+            var barH = Math.Clamp(cfg.General.BarHeight, 16, 80);
+            TaskBar.Height = barH;
+            InfoBar.Height = barH;
+            LauncherBar.Height = barH;
+
+            var fontSize = Math.Clamp(cfg.Theme.FontSize, 8, 24);
+            var fontFamily = new FontFamily(cfg.Theme.BarFont);
+            TaskBar.SetValue(TextElement.FontSizeProperty, (double)fontSize);
+            TaskBar.SetValue(TextElement.FontFamilyProperty, fontFamily);
+            InfoBar.SetValue(TextElement.FontSizeProperty, (double)fontSize);
+            InfoBar.SetValue(TextElement.FontFamilyProperty, fontFamily);
+            LauncherBar.SetValue(TextElement.FontSizeProperty, (double)fontSize);
+            LauncherBar.SetValue(TextElement.FontFamilyProperty, fontFamily);
+            LayoutLabel.FontSize = fontSize;
+
+            var barPos = cfg.General.BarPosition?.ToLowerInvariant() ?? "top";
+            if (barPos == "bottom")
+            {
+                System.Windows.Controls.Grid.SetRow(TaskBar, 1);
+                System.Windows.Controls.Grid.SetRow(InfoBar, 1);
+                System.Windows.Controls.Grid.SetRow(LauncherBar, 1);
+                System.Windows.Controls.Grid.SetRow(OverlayGrid, 0);
+            }
         }
         else
         {
@@ -248,7 +273,11 @@ public partial class MainWindow : Window
 
         if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
         {
-            lm.SetArea(_hwnd, TaskBar.Height);
+            var barH = TaskBar.Height;
+            var barTop = true;
+            if (ServiceLocator.TryResolve<ConfigRoot>(out var acfg))
+                barTop = (acfg.General.BarPosition?.ToLowerInvariant() ?? "top") != "bottom";
+            lm.SetArea(_hwnd, barTop ? barH : 0, barH);
             lm.LayoutChanged += (_, layout) => { _layoutLabelText = layout.ToString(); LayoutLabel.Text = _layoutLabelText; };
             lm.StatusMessage += msg =>
             {
@@ -633,6 +662,13 @@ public partial class MainWindow : Window
         _infoTimer?.Stop();
         if (mode == BarMode.Info)
         {
+            if (ServiceLocator.TryResolve<ConfigRoot>(out var icfg))
+            {
+                ClockText.Visibility = icfg.Theme.StatusShowClock ? Visibility.Visible : Visibility.Collapsed;
+                CpuText.Visibility = icfg.Theme.StatusShowCpu ? Visibility.Visible : Visibility.Collapsed;
+                MemText.Visibility = icfg.Theme.StatusShowMem ? Visibility.Visible : Visibility.Collapsed;
+                BatteryText.Visibility = icfg.Theme.StatusShowBattery ? Visibility.Visible : Visibility.Collapsed;
+            }
             UpdateInfoBar();
             _infoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _infoTimer.Tick += (_, _) => UpdateInfoBar();
@@ -651,7 +687,13 @@ public partial class MainWindow : Window
                     || InfoBar.Visibility == Visibility.Visible
                     || LauncherBar.Visibility == Visibility.Visible;
         if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
-            lm.SetArea(_hwnd, visible ? TaskBar.Height : 0);
+        {
+            var barH = visible ? TaskBar.Height : 0;
+            var barTop = true;
+            if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
+                barTop = (cfg.General.BarPosition?.ToLowerInvariant() ?? "top") != "bottom";
+            lm.SetArea(_hwnd, barTop ? barH : 0, barH);
+        }
     }
 
     private void UpdateInfoBar()
@@ -962,6 +1004,7 @@ public partial class MainWindow : Window
 
         if (!ServiceLocator.TryResolve<MonitorManager>(out var mm)) return;
         if (mm.MonitorCount <= 1) return;
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var mcfg) && !mcfg.Monitor.MonitorBarEnabled) return;
 
         foreach (var monitor in mm.Monitors)
         {

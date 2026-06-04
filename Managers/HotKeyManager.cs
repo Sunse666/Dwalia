@@ -111,6 +111,11 @@ public class HotKeyManager : IDisposable
     private bool _isResizeMode;
     public bool IsResizeMode => _isResizeMode;
 
+    private uint _resizeLeftVk = VK_H;
+    private uint _resizeDownVk = VK_J;
+    private uint _resizeUpVk = VK_K;
+    private uint _resizeRightVk = VK_L;
+
     public static (uint vkCode, bool shift, bool ctrl) ParseBinding(string binding)
     {
         if (string.IsNullOrWhiteSpace(binding))
@@ -228,6 +233,11 @@ public class HotKeyManager : IDisposable
 
         if (ServiceLocator.TryResolve<ConfigRoot>(out var config))
         {
+            _resizeLeftVk = ResolveKeyName(config.ResizeMode.ResizeLeft);
+            _resizeDownVk = ResolveKeyName(config.ResizeMode.ResizeDown);
+            _resizeUpVk = ResolveKeyName(config.ResizeMode.ResizeUp);
+            _resizeRightVk = ResolveKeyName(config.ResizeMode.ResizeRight);
+
             foreach (var entry in config.Keybindings)
             {
                 if (string.IsNullOrWhiteSpace(entry.Binding)) continue;
@@ -448,14 +458,11 @@ public class HotKeyManager : IDisposable
             return (IntPtr)1;
         }
 
-        var cmd = kb.vkCode switch
-        {
-            VK_H or VK_LEFT => DwaliaCommand.ResizeLeft,
-            VK_J or VK_DOWN => DwaliaCommand.ResizeDown,
-            VK_K or VK_UP => DwaliaCommand.ResizeUp,
-            VK_L or VK_RIGHT => DwaliaCommand.ResizeRight,
-            _ => (DwaliaCommand?)null
-        };
+        DwaliaCommand? cmd = null;
+        if (kb.vkCode == _resizeLeftVk  || kb.vkCode == VK_LEFT)  cmd = DwaliaCommand.ResizeLeft;
+        else if (kb.vkCode == _resizeDownVk  || kb.vkCode == VK_DOWN)  cmd = DwaliaCommand.ResizeDown;
+        else if (kb.vkCode == _resizeUpVk    || kb.vkCode == VK_UP)    cmd = DwaliaCommand.ResizeUp;
+        else if (kb.vkCode == _resizeRightVk || kb.vkCode == VK_RIGHT) cmd = DwaliaCommand.ResizeRight;
 
         if (cmd.HasValue)
         {
@@ -464,6 +471,20 @@ public class HotKeyManager : IDisposable
         }
 
         return (IntPtr)1;
+    }
+
+    private static uint ResolveKeyName(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return 0;
+        if (KeyNameToVk.TryGetValue(name, out var vk)) return vk;
+        if (name.Length == 1)
+        {
+            char c = name[0];
+            if (c is >= 'A' and <= 'Z') return c;
+            if (c is >= 'a' and <= 'z') return (uint)char.ToUpper(c);
+            if (c is >= '0' and <= '9') return c;
+        }
+        return 0;
     }
 
     private void InstallMouseHook()

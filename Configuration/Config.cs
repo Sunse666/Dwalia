@@ -27,6 +27,12 @@ public class ConfigRoot
 
     [YamlMember(Alias = "autostart")]
     public List<AutostartEntry> Autostart { get; set; } = new();
+
+    [YamlMember(Alias = "monitor")]
+    public MonitorConfig Monitor { get; set; } = new();
+
+    [YamlMember(Alias = "resize_mode")]
+    public ResizeConfig ResizeMode { get; set; } = new();
 }
 
 public class GeneralConfig
@@ -46,6 +52,24 @@ public class GeneralConfig
 
     [YamlMember(Alias = "enable_swallowing")]
     public bool EnableSwallowing { get; set; } = true;
+
+    [YamlMember(Alias = "animation_enabled")]
+    public bool AnimationEnabled { get; set; } = true;
+
+    [YamlMember(Alias = "animation_duration")]
+    public int AnimationDuration { get; set; } = 150;
+
+    [YamlMember(Alias = "bar_height")]
+    public int BarHeight { get; set; } = 40;
+
+    [YamlMember(Alias = "bar_position")]
+    public string BarPosition { get; set; } = "top";
+
+    [YamlMember(Alias = "default_layout")]
+    public string DefaultLayout { get; set; } = "Dynamic";
+
+    [YamlMember(Alias = "startup_workspace")]
+    public int StartupWorkspace { get; set; } = 0;
 }
 
 public class ThemeConfig
@@ -97,6 +121,30 @@ public class ThemeConfig
 
     [YamlMember(Alias = "color_filter_opacity")]
     public double ColorFilterOpacity { get; set; } = 0.0;
+
+    [YamlMember(Alias = "font_size")]
+    public int FontSize { get; set; } = 11;
+
+    [YamlMember(Alias = "bar_font")]
+    public string BarFont { get; set; } = "Segoe UI";
+
+    [YamlMember(Alias = "status_show_clock")]
+    public bool StatusShowClock { get; set; } = true;
+
+    [YamlMember(Alias = "status_show_cpu")]
+    public bool StatusShowCpu { get; set; } = true;
+
+    [YamlMember(Alias = "status_show_mem")]
+    public bool StatusShowMem { get; set; } = true;
+
+    [YamlMember(Alias = "status_show_battery")]
+    public bool StatusShowBattery { get; set; } = true;
+
+    [YamlMember(Alias = "drag_source_color")]
+    public string DragSourceColor { get; set; } = "";
+
+    [YamlMember(Alias = "drag_target_color")]
+    public string DragTargetColor { get; set; } = "";
 }
 
 public class LayoutConfig
@@ -120,6 +168,30 @@ public class LayoutConfig
     public bool SmartGaps { get; set; } = false;
 }
 
+public class MonitorConfig
+{
+    [YamlMember(Alias = "monitor_mode")]
+    public string MonitorMode { get; set; } = "independent";
+
+    [YamlMember(Alias = "monitor_bar_enabled")]
+    public bool MonitorBarEnabled { get; set; } = true;
+}
+
+public class ResizeConfig
+{
+    [YamlMember(Alias = "resize_left")]
+    public string ResizeLeft { get; set; } = "H";
+
+    [YamlMember(Alias = "resize_down")]
+    public string ResizeDown { get; set; } = "J";
+
+    [YamlMember(Alias = "resize_up")]
+    public string ResizeUp { get; set; } = "K";
+
+    [YamlMember(Alias = "resize_right")]
+    public string ResizeRight { get; set; } = "L";
+}
+
 public class WorkspaceEntry
 {
     [YamlMember(Alias = "name")]
@@ -140,11 +212,20 @@ public class WindowRuleConfig
     [YamlMember(Alias = "workspace")]
     public string? Workspace { get; set; }
 
+    [YamlMember(Alias = "monitor")]
+    public int? Monitor { get; set; }
+
     [YamlMember(Alias = "floating")]
     public bool Floating { get; set; }
 
+    [YamlMember(Alias = "fullscreen")]
+    public bool Fullscreen { get; set; }
+
     [YamlMember(Alias = "sticky")]
     public bool Sticky { get; set; }
+
+    [YamlMember(Alias = "layout")]
+    public string? Layout { get; set; }
 }
 
 public class KeybindingEntry

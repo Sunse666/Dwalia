@@ -10,6 +10,8 @@ using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Win32;
 using static Dwalia.Win32.NativeMethods;
+using static Dwalia.Win32.NativeConstants;
+using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Managers;
 
@@ -172,6 +174,18 @@ public class WidgetManager
                 pill.Child = sp;
                 if (c.Width <= 0) pill.Width = 200;
                 break;
+            case "window_tabs":
+                we.Panel = new StackPanel { Orientation = Orientation.Horizontal };
+                pill.Child = we.Panel;
+                pill.Padding = new Thickness(0);
+                pill.Background = Brushes.Transparent;
+                break;
+            case "launcher":
+                we.Panel = new StackPanel { Orientation = Orientation.Horizontal };
+                pill.Child = we.Panel;
+                pill.Padding = new Thickness(0);
+                pill.Background = Brushes.Transparent;
+                break;
             case "volume":
             case "gpu":
             case "disk":
@@ -265,6 +279,8 @@ public class WidgetManager
             case "bluetooth":    UpdateBluetooth(we); break;
             case "microphone":   UpdateMicrophone(we); break;
             case "camera":       UpdateCamera(we); break;
+            case "window_tabs":  UpdateWindowTabs(we); break;
+            case "launcher":     UpdateLauncher(we); break;
             case "script":       UpdateScript(we); break;
             case "label":        UpdateLabel(we); break;
             case "button":       UpdateButton(we); break;
@@ -590,6 +606,86 @@ public class WidgetManager
             if (we.Text != null) we.Text.Text = title.Length > 40 ? title[..40] : title;
         }
         else { if (we.Text != null) we.Text.Text = ""; }
+    }
+
+    private void UpdateWindowTabs(WidgetEntry we)
+    {
+        if (we.Panel == null) return;
+        if (!ServiceLocator.TryResolve<WindowManager>(out var wm)) return;
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
+        ServiceLocator.TryResolve<FocusManager>(out var fm);
+        ServiceLocator.TryResolve<ConfigRoot>(out var cfg);
+
+        var activeWs = wsm.GetActiveWorkspace();
+        if (activeWs == null) return;
+        var windows = activeWs.Windows.ToList();
+        foreach (var ow in wsm.Workspaces.Where(w => w.Id != activeWs.Id))
+            windows.AddRange(ow.Windows.Where(w => w.IsSticky).Except(windows));
+
+        var existing = we.Panel.Children.OfType<Border>().ToDictionary(b => b.Tag as IntPtr? ?? 0, b => b);
+        foreach (var mw in windows)
+        {
+            if (!IsWindow(mw.Hwnd)) continue;
+            if (existing.TryGetValue(mw.Hwnd, out var oldPill)) { existing.Remove(mw.Hwnd); continue; }
+
+            var h = we.Config.Height > 0 ? we.Config.Height : 28;
+            var hwnd = mw.Hwnd; var captured = mw;
+            var title = captured.Title.Length > 25 ? captured.Title[..25] : captured.Title;
+            var stack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var btn = new Button { Content = title, Height = h, FontSize = 10,
+                Padding = new Thickness(10, 0, 2, 0), Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0), ToolTip = captured.Title,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Foreground = new SolidColorBrush(fm?.ActiveWindow == mw
+                    ? ParseColor(cfg?.Theme.Accent) ?? Colors.Cyan
+                    : ParseColor(cfg?.Theme.Foreground) ?? Colors.White) };
+            btn.Click += (_, _) => { ShowWindow(hwnd, SW_RESTORE); SetForegroundWindow(hwnd); fm?.SetActiveWindow(captured); };
+            btn.MouseDown += (_, e) => { if (e.MiddleButton == System.Windows.Input.MouseButtonState.Pressed) PostMessage(hwnd, WM_CLOSE, 0, 0); };
+            stack.Children.Add(btn);
+
+            var cb = new Button { Content = "✕", Width = 20, Height = h, FontSize = 8,
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Foreground = new SolidColorBrush(ParseColor(cfg?.Theme.Muted) ?? Colors.Gray) };
+            cb.Click += (_, _) => PostMessage(hwnd, WM_CLOSE, 0, 0);
+            stack.Children.Add(cb);
+
+            var pill = new Border { CornerRadius = new CornerRadius(h / 2), Height = h,
+                Background = new SolidColorBrush(ParseColor(cfg?.Theme.TaskButtonBackground) ?? Color.FromRgb(0x24, 0x28, 0x3e)),
+                Child = stack, Tag = mw.Hwnd, Margin = new Thickness(2, 0, 2, 0) };
+            we.Panel.Children.Add(pill);
+        }
+        foreach (var kv in existing) we.Panel.Children.Remove(kv.Value);
+    }
+
+    private void UpdateLauncher(WidgetEntry we)
+    {
+        if (we.Panel == null || we.Panel.Children.Count > 0) return;
+        if (!ServiceLocator.TryResolve<ConfigRoot>(out var cfg)) return;
+        foreach (var entry in cfg.Launcher)
+        {
+            var name = string.IsNullOrEmpty(entry.Name) ? entry.Path : entry.Name;
+            var h = we.Config.Height > 0 ? we.Config.Height : 28;
+            var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            try
+            {
+                var icon = System.Drawing.Icon.ExtractAssociatedIcon(entry.Path);
+                if (icon != null)
+                {
+                    var img = new System.Windows.Controls.Image { Source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle, System.Windows.Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromWidthAndHeight(16, 16)), Width = 16, Height = 16, Margin = new Thickness(0, 0, 6, 0) };
+                    content.Children.Add(img);
+                }
+            }
+            catch { }
+            content.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center });
+            var btn = new Button { Content = content, Height = h, FontSize = 10, Padding = new Thickness(12, 0, 12, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand, Foreground = new SolidColorBrush(ParseColor(cfg.Theme.Foreground) ?? Colors.White) };
+            var cmd = entry.Path;
+            btn.Click += (_, _) => { try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); } catch { } };
+            var pill = new Border { CornerRadius = new CornerRadius(h / 2), Height = h, Background = new SolidColorBrush(ParseColor(cfg.Theme.TaskButtonBackground) ?? Color.FromRgb(0x24, 0x28, 0x3e)), Child = btn, Margin = new Thickness(2, 0, 2, 0) };
+            we.Panel.Children.Add(pill);
+        }
     }
 
     private static string ProgressBar(int pct)

@@ -170,9 +170,19 @@ public class WidgetManager
                 pill.Child = we.Panel;
                 break;
             case "media":
-                we.Dot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 5, 0) };
-                we.Canvas = new Canvas { ClipToBounds = true, Width = c.Width > 0 ? c.Width - 30 : 170 };
-                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 15, FontFamily = new FontFamily("Consolas") };
+                var dotSize = Math.Max(6, (h - 6) / 3);
+                we.Dot = new Border
+                {
+                    Width = dotSize, Height = dotSize,
+                    CornerRadius = new CornerRadius(dotSize / 2),
+                    Margin = new Thickness(0, 0, 5, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                var canvasH = h - 4;
+                var fontSize = c.FontSize > 0 ? (double)c.FontSize : 15;
+                we.Canvas = new Canvas { Width = c.Width > 0 ? c.Width - dotSize - 20 : 170, Height = canvasH };
+                we.Text = new TextBlock { FontSize = fontSize, FontFamily = new FontFamily("Consolas") };
+                Canvas.SetTop(we.Text, (canvasH - fontSize) / 2);
                 we.Canvas.Children.Add(we.Text);
                 we.Text.RenderTransform = new TranslateTransform();
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };

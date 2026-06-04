@@ -45,6 +45,7 @@ public class WidgetManager
         public Border? Dot;
         public Canvas? Canvas;
         public TextBlock? SecondaryText;
+        public string CachedText = "";
     }
 
     public void Initialize()
@@ -138,17 +139,17 @@ public class WidgetManager
                 pill.Child = new StackPanel { Orientation = Orientation.Horizontal };
                 break;
             case "layout":
-                we.Text = new TextBlock { FontSize = 11, FontWeight = FontWeights.SemiBold };
+                we.Text = new TextBlock { FontSize = 11, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "active_window":
-                we.Text = new TextBlock { FontSize = 11 };
+                we.Text = new TextBlock { FontSize = 11, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "clock":
             case "time_only":
             case "date_only":
-                we.Text = new TextBlock { FontSize = 12, FontWeight = FontWeights.SemiBold };
+                we.Text = new TextBlock { FontSize = 12, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "network":
@@ -204,7 +205,7 @@ public class WidgetManager
             case "label":
             case "button":
             default:
-                we.Text = new TextBlock { FontSize = 10 };
+                we.Text = new TextBlock { FontSize = 10, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
         }
@@ -258,7 +259,10 @@ public class WidgetManager
         }
         foreach (var list in _widgetsByBar.Values)
             foreach (var we in list)
+            {
                 UpdateWidget(we);
+                if (we.Text != null) we.CachedText = we.Text.Text;
+            }
     }
 
     private void UpdateWidget(WidgetEntry we)

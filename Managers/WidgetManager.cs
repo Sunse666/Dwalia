@@ -19,6 +19,7 @@ public class WidgetManager
 {
     private readonly Dictionary<string, List<WidgetEntry>> _widgetsByBar = new();
     private DispatcherTimer? _updateTimer;
+    private DispatcherTimer? _marqueeTimer;
     private PerformanceCounter? _cpuCounter;
     private PerformanceCounter? _memCounter;
     private PerformanceCounter? _netDownCounter;
@@ -30,6 +31,7 @@ public class WidgetManager
     private string _cachedMedia = "";
     private bool _mediaPaused;
     private bool _mediaInit;
+    private double _marqueeSpeed = 25;
     private long _lastNetSample;
     private float _lastNetDown;
     private float _lastNetUp;
@@ -51,6 +53,7 @@ public class WidgetManager
     public void Initialize()
     {
         if (!ServiceLocator.TryResolve<ConfigRoot>(out var cfg)) return;
+        _marqueeSpeed = Math.Max(5, cfg.Theme.MarqueeSpeed);
         _widgetsByBar.Clear();
 
         foreach (var w in cfg.Widgets.Where(w => w.Enabled))
@@ -71,6 +74,11 @@ public class WidgetManager
         _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _updateTimer.Tick += (_, _) => UpdateAll();
         _updateTimer.Start();
+
+        _marqueeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _marqueeTimer.Tick += (_, _) => StepMarqueeAll();
+        _marqueeTimer.Start();
+
         WidgetsChanged?.Invoke();
     }
 
@@ -362,13 +370,60 @@ public class WidgetManager
         if (we.SecondaryText != null) we.SecondaryText.Text = $"▲ {FormatSpeed(_lastNetUp)}";
     }
 
+    private double _mediaScrollX;
+    private double _mediaHalfWidth;
+    private string _mediaLastText = "";
+
     private void UpdateMedia(WidgetEntry we)
     {
         if (string.IsNullOrEmpty(_cachedMedia))
-            PollWinRtMedia(); // force immediate poll if no data
+            PollWinRtMedia();
         else
             UpdateWinRtMedia();
-        if (we.Text != null) we.Text.Text = _cachedMedia;
+
+        if (we.Dot != null)
+            we.Dot.Background = new SolidColorBrush(
+                string.IsNullOrEmpty(_cachedMedia) || _mediaPaused
+                    ? Color.FromRgb(0x56, 0x5f, 0x89)
+                    : Color.FromRgb(0x4f, 0xbf, 0x6f));
+
+        if (_cachedMedia != _mediaLastText)
+        {
+            _mediaLastText = _cachedMedia;
+            _mediaScrollX = 0;
+            if (!string.IsNullOrEmpty(_cachedMedia))
+            {
+                var display = $"  {_cachedMedia}     {_cachedMedia}  ";
+                if (we.Text != null) we.Text.Text = display;
+                we.Text?.Measure(new System.Windows.Size(double.PositiveInfinity, 16));
+                _mediaHalfWidth = (we.Text?.DesiredSize.Width ?? 0) / 2;
+            }
+        }
+
+        if (string.IsNullOrEmpty(_cachedMedia))
+        {
+            if (we.Text != null) we.Text.Text = "";
+            we.CachedText = "";
+        }
+        else if (_mediaPaused || _mediaHalfWidth <= 170)
+        {
+            if (we.Text != null) we.Text.Text = _cachedMedia;
+            if (we.Text?.RenderTransform is TranslateTransform tt) tt.X = 0;
+        }
+
+        we.CachedText = _cachedMedia;
+    }
+
+    private void StepMarqueeAll()
+    {
+        if (string.IsNullOrEmpty(_cachedMedia) || _mediaPaused || _mediaHalfWidth <= 170) return;
+        _mediaScrollX -= _marqueeSpeed / 6.67;
+        if (_mediaScrollX <= -_mediaHalfWidth) _mediaScrollX = 0;
+
+        foreach (var list in _widgetsByBar.Values)
+            foreach (var we in list)
+                if (we.Config.Type == "media" && we.Text?.RenderTransform is TranslateTransform tt)
+                    tt.X = _mediaScrollX;
     }
 
     private void UpdateGpu(WidgetEntry we)
@@ -776,7 +831,6 @@ public class WidgetManager
 
     private void InitMediaMonitor()
     {
-        // First poll immediately (blocking but fast when no media)
         PollWinRtMedia();
     }
 

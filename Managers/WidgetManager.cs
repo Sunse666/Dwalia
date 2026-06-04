@@ -163,7 +163,7 @@ public class WidgetManager
                 break;
             case "media":
                 we.Dot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 5, 0) };
-                we.Canvas = new Canvas { ClipToBounds = true };
+                we.Canvas = new Canvas { ClipToBounds = true, Width = c.Width > 0 ? c.Width - 30 : 170 };
                 we.Text = new TextBlock { FontSize = 10, FontFamily = new FontFamily("Consolas") };
                 we.Canvas.Children.Add(we.Text);
                 we.Text.RenderTransform = new TranslateTransform();
@@ -171,7 +171,7 @@ public class WidgetManager
                 sp.Children.Add(we.Dot);
                 sp.Children.Add(we.Canvas);
                 pill.Child = sp;
-                if (c.Width <= 0) pill.Width = 200;
+                if (c.Width <= 0) pill.Width = c.Width > 0 ? c.Width : 200;
                 break;
             case "window_tabs":
                 we.Panel = new StackPanel { Orientation = Orientation.Horizontal };

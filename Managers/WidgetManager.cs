@@ -68,7 +68,7 @@ public class WidgetManager
 
         Task.Run(() => { InitPerformanceCounters(); });
 
-        _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _updateTimer.Tick += (_, _) => UpdateAll();
         _updateTimer.Start();
         WidgetsChanged?.Invoke();

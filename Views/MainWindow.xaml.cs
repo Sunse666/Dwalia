@@ -45,6 +45,18 @@ public partial class MainWindow : Window
     private Color _pillInactive = Color.FromRgb(0x56, 0x5f, 0x89);
     private Color _pillEmpty = Color.FromRgb(0x2b, 0x2f, 0x44);
     private bool _showPillCount;
+    private Color _widgetPillBg = Color.FromArgb(0xFF, 0x1a, 0x1a, 0x2e);
+    private PerformanceCounter? _netDownCounter;
+    private PerformanceCounter? _netUpCounter;
+    private string _netDownText = "";
+    private string _netUpText = "";
+    private string _cachedMediaText = "";
+    private string _mediaScript = "";
+    private int _mediaScriptInterval = 3;
+    private int _mediaTick;
+    private int _mediaScrollPos;
+    private int _mediaScrollDir = 1;
+    private bool _mediaPaused;
     private readonly List<System.Windows.Controls.Border> _monitorBars = new();
     private NOTIFYICONDATA _trayData;
     private bool _trayCreated;
@@ -157,6 +169,7 @@ public partial class MainWindow : Window
                 _pillEmpty = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
 
             _showPillCount = cfg.Theme.WorkspacePillShowCount;
+            ParseColor(cfg.Theme.WidgetPillBackground, ref _widgetPillBg, 0x1a, 0x1a, 0x2e);
 
             var barH = Math.Clamp(cfg.General.BarHeight, 16, 80);
             TaskBar.Height = barH;
@@ -172,12 +185,17 @@ public partial class MainWindow : Window
             LauncherBar.SetValue(TextElement.FontSizeProperty, (double)fontSize);
             LauncherBar.SetValue(TextElement.FontFamilyProperty, fontFamily);
             LayoutLabel.FontSize = fontSize;
+            LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
             LayoutLabel.Cursor = System.Windows.Input.Cursors.Hand;
             LayoutLabel.MouseLeftButtonDown += (_, _) =>
             {
                 if (ServiceLocator.TryResolve<LayoutManager>(out var llm))
                     llm.CycleLayout();
             };
+            LayoutLabel.MouseEnter += (_, _) =>
+                LayoutLabel.Foreground = new SolidColorBrush(_foregroundColor);
+            LayoutLabel.MouseLeave += (_, _) =>
+                LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
 
             var barPos = cfg.General.BarPosition?.ToLowerInvariant() ?? "top";
             if (barPos == "bottom")
@@ -339,6 +357,8 @@ public partial class MainWindow : Window
         _infoTimer?.Stop();
         _cpuCounter?.Dispose();
         _memCounter?.Dispose();
+        _netDownCounter?.Dispose();
+        _netUpCounter?.Dispose();
         _colorFilter?.Dispose();
         DwmFlush();
         _windowEventHookManager.Stop();
@@ -476,19 +496,37 @@ public partial class MainWindow : Window
                 Margin = new Thickness(2, 0, 2, 0),
             };
 
+            var pillBorder = new Border
+            {
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush(_taskBtnBg),
+                Padding = new Thickness(0),
+                Height = 28,
+            };
+            var pillStack = new StackPanel { Orientation = Orientation.Horizontal };
+
             var btn = new Button
             {
                 Content = shortTitle,
                 Height = 28,
-                Padding = new Thickness(8, 0, 4, 0),
+                Padding = new Thickness(12, 0, 2, 0),
                 FontSize = 11,
                 Foreground = mw.IsActive
                     ? new SolidColorBrush(_focusBgColor)
                     : new SolidColorBrush(_foregroundColor),
-                Background = new SolidColorBrush(_taskBtnBg),
+                Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                ToolTip = mw.Title
+                ToolTip = mw.Title,
+                Cursor = System.Windows.Input.Cursors.Hand,
             };
+
+            var btnBg = new SolidColorBrush(_taskBtnBg);
+            var btnHoverBg = new SolidColorBrush(Color.FromArgb(
+                (byte)(_taskBtnBg.A), (byte)Math.Min(_taskBtnBg.R + 20, 255),
+                (byte)Math.Min(_taskBtnBg.G + 20, 255), (byte)Math.Min(_taskBtnBg.B + 20, 255)));
+
+            btn.MouseEnter += (_, _) => pillBorder.Background = btnHoverBg;
+            btn.MouseLeave += (_, _) => pillBorder.Background = btnBg;
 
             btn.Click += (_, _) =>
             {
@@ -504,22 +542,32 @@ public partial class MainWindow : Window
             };
 
             btn.ContextMenu = BuildWindowContextMenu(captured);
-            container.Children.Add(btn);
+            pillStack.Children.Add(btn);
 
             var closeBtn = new Button
             {
                 Content = "✕",
-                Width = 20, Height = 28,
+                Width = 22, Height = 22,
                 Padding = new Thickness(0),
                 FontSize = 9,
                 Foreground = new SolidColorBrush(_mutedColor),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                ToolTip = "Close"
+                ToolTip = "Close (middle-click)",
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
             };
+            closeBtn.MouseEnter += (_, _) =>
+                closeBtn.Foreground = new SolidColorBrush(Colors.IndianRed);
+            closeBtn.MouseLeave += (_, _) =>
+                closeBtn.Foreground = new SolidColorBrush(_mutedColor);
             closeBtn.Click += (_, _) =>
                 PostMessage(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-            container.Children.Add(closeBtn);
+            pillStack.Children.Add(closeBtn);
+
+            pillBorder.Child = pillStack;
+            container.Children.Add(pillBorder);
 
             TaskBarItems.Items.Add(container);
         }
@@ -647,6 +695,13 @@ public partial class MainWindow : Window
             _pillEmpty = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
 
         _showPillCount = c.Theme.WorkspacePillShowCount;
+        ParseColor(c.Theme.WidgetPillBackground, ref _widgetPillBg, 0x1a, 0x1a, 0x2e);
+        var wbg = new SolidColorBrush(_widgetPillBg);
+        CpuPill.Background = wbg;
+        MemPill.Background = wbg;
+        BatteryPill.Background = wbg;
+        NetworkPill.Background = wbg;
+        MediaPill.Background = wbg;
 
         if (c.Theme.EnableAcrylic)
         {
@@ -722,13 +777,16 @@ public partial class MainWindow : Window
     {
         var modes = new[] { BarMode.Docker, BarMode.Info, BarMode.Launcher };
         var idx = Array.IndexOf(modes, _barMode);
-        _barMode = modes[(idx + direction + modes.Length) % modes.Length];
-        ShowBarMode(_barMode);
+        var next = modes[(idx + direction + modes.Length) % modes.Length];
+        ShowBarMode(next);
     }
 
     public void ToggleBar()
     {
-        if (TaskBar.Visibility == Visibility.Visible)
+        var anyVisible = TaskBar.Visibility == Visibility.Visible
+                      || InfoBar.Visibility == Visibility.Visible
+                      || LauncherBar.Visibility == Visibility.Visible;
+        if (anyVisible)
         {
             TaskBar.Visibility = Visibility.Collapsed;
             InfoBar.Visibility = Visibility.Collapsed;
@@ -744,10 +802,19 @@ public partial class MainWindow : Window
 
     private void ShowBarMode(BarMode mode)
     {
+        var prevMode = _barMode;
         _barMode = mode;
+        var duration = TimeSpan.FromMilliseconds(150);
+
         TaskBar.Visibility = mode == BarMode.Docker ? Visibility.Visible : Visibility.Collapsed;
         InfoBar.Visibility = mode == BarMode.Info ? Visibility.Visible : Visibility.Collapsed;
         LauncherBar.Visibility = mode == BarMode.Launcher ? Visibility.Visible : Visibility.Collapsed;
+
+        if (prevMode != mode)
+        {
+            var nextBar = mode switch { BarMode.Info => InfoBar, BarMode.Launcher => LauncherBar, _ => TaskBar };
+            FadeInBar(nextBar, duration);
+        }
 
         _infoTimer?.Stop();
         if (mode == BarMode.Info)
@@ -755,10 +822,23 @@ public partial class MainWindow : Window
             if (ServiceLocator.TryResolve<ConfigRoot>(out var icfg))
             {
                 ClockText.Visibility = icfg.Theme.StatusShowClock ? Visibility.Visible : Visibility.Collapsed;
-                CpuText.Visibility = icfg.Theme.StatusShowCpu ? Visibility.Visible : Visibility.Collapsed;
-                MemText.Visibility = icfg.Theme.StatusShowMem ? Visibility.Visible : Visibility.Collapsed;
-                BatteryText.Visibility = icfg.Theme.StatusShowBattery ? Visibility.Visible : Visibility.Collapsed;
+                CpuPill.Visibility = icfg.Theme.StatusShowCpu ? Visibility.Visible : Visibility.Collapsed;
+                MemPill.Visibility = icfg.Theme.StatusShowMem ? Visibility.Visible : Visibility.Collapsed;
+                BatteryPill.Visibility = icfg.Theme.StatusShowBattery ? Visibility.Visible : Visibility.Collapsed;
+                NetworkPill.Visibility = icfg.Theme.StatusShowNetwork ? Visibility.Visible : Visibility.Collapsed;
+                MediaPill.Visibility = icfg.Theme.StatusShowMedia ? Visibility.Visible : Visibility.Collapsed;
+                _mediaScript = icfg.Theme.MediaScript ?? "";
+                _mediaScriptInterval = Math.Max(1, icfg.Theme.MediaScriptInterval);
+
+                var wbg = new SolidColorBrush(_widgetPillBg);
+                CpuPill.Background = wbg;
+                MemPill.Background = wbg;
+                BatteryPill.Background = wbg;
+                NetworkPill.Background = wbg;
+                MediaPill.Background = wbg;
             }
+            InitNetworkCounters();
+            InitMediaMonitor();
             UpdateInfoBar();
             _infoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _infoTimer.Tick += (_, _) => UpdateInfoBar();
@@ -769,6 +849,19 @@ public partial class MainWindow : Window
             BuildLauncherButtons();
 
         UpdateBarArea();
+    }
+
+    private static void FadeInBar(UIElement el, TimeSpan duration)
+    {
+        el.Opacity = 0;
+        var anim = new System.Windows.Media.Animation.DoubleAnimation(1.0, duration)
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+            }
+        };
+        el.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     private void UpdateBarArea()
@@ -799,29 +892,34 @@ public partial class MainWindow : Window
         else
             InfoWinTitle.Text = "";
 
-        try
-        {
-            var cpu = (int)GetCpuUsage();
-            CpuText.Text = CpuBar(cpu);
-        }
-        catch { CpuText.Text = "CPU ▱▱▱▱▱▱▱▱ --%"; }
+        try { CpuText.Text = CpuBar((int)GetCpuUsage()); }
+        catch { CpuText.Text = " --%"; }
 
-        try
-        {
-            var mem = (int)GetMemUsage();
-            MemText.Text = MemBar(mem);
-        }
-        catch { MemText.Text = "MEM ▱▱▱▱▱▱▱▱ --%"; }
+        try { MemText.Text = MemBar((int)GetMemUsage()); }
+        catch { MemText.Text = " --%"; }
 
         try { BatteryText.Text = GetBatteryIcon(); }
         catch { BatteryText.Text = "🔋 --%"; }
+
+        try
+        {
+            UpdateNetworkSpeeds();
+            NetDownText.Text = _netDownText;
+            NetUpText.Text = _netUpText;
+        }
+        catch { }
+
+        _mediaTick++;
+        if (_mediaTick % _mediaScriptInterval == 0)
+            UpdateMediaInfo();
+        MarqueeMedia();
     }
 
     private static string CpuBar(int pct) =>
-        $"CPU {ProgressBar(pct)} {pct,3}%";
+        $"{pct,3}% {ProgressBar(pct)}";
 
     private static string MemBar(int pct) =>
-        $"MEM {ProgressBar(pct)} {pct,3}%";
+        $"{pct,3}% {ProgressBar(pct)}";
 
     private static string ProgressBar(int pct)
     {
@@ -847,6 +945,173 @@ public partial class MainWindow : Window
     }
 
     private static string GetBatteryText() => GetBatteryIcon();
+
+    private void InitNetworkCounters()
+    {
+        try
+        {
+            var cat = new PerformanceCounterCategory("Network Interface");
+            var instances = cat.GetInstanceNames();
+            var iface = instances.FirstOrDefault(i =>
+                i.StartsWith("Ethernet") || i.StartsWith("Wi-Fi") || i.StartsWith("WLAN"))
+                ?? instances.FirstOrDefault()
+                ?? "";
+            if (!string.IsNullOrEmpty(iface))
+            {
+                _netDownCounter = new PerformanceCounter("Network Interface", "Bytes Received/sec", iface);
+                _netUpCounter = new PerformanceCounter("Network Interface", "Bytes Sent/sec", iface);
+                _netDownCounter.NextValue();
+                _netUpCounter.NextValue();
+            }
+        }
+        catch { }
+    }
+
+    private void UpdateNetworkSpeeds()
+    {
+        try
+        {
+            if (_netDownCounter == null || _netUpCounter == null) return;
+            float down = _netDownCounter.NextValue();
+            float up = _netUpCounter.NextValue();
+            _netDownText = FormatSpeed(down);
+            _netUpText = FormatSpeed(up);
+        }
+        catch { }
+    }
+
+    private static string FormatSpeed(float bps)
+    {
+        if (bps < 1024) return $"{bps,4:F0} B";
+        if (bps < 1024 * 1024) return $"{bps / 1024,4:F1}K";
+        return $"{bps / (1024 * 1024),4:F1}M";
+    }
+
+    private void InitMediaMonitor()
+    {
+        if (!string.IsNullOrEmpty(_mediaScript)) { PollMediaScript(); return; }
+        Task.Run(async () =>
+        {
+            try
+            {
+                var manager = await Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+                void OnSessionChanged(Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager _, object _a)
+                    => Dispatcher.Invoke(() => { UpdateMediaInfo(); AttachSessionEvents(manager.GetCurrentSession()); });
+                manager.SessionsChanged += OnSessionChanged;
+                AttachSessionEvents(manager.GetCurrentSession());
+                Dispatcher.Invoke(() => UpdateMediaInfo());
+            }
+            catch { }
+        });
+    }
+
+    private void AttachSessionEvents(Windows.Media.Control.GlobalSystemMediaTransportControlsSession? session)
+    {
+        if (session == null) return;
+        session.MediaPropertiesChanged += (_, _) => Dispatcher.Invoke(() => UpdateMediaInfo());
+        session.PlaybackInfoChanged += (_, _) => Dispatcher.Invoke(() =>
+        {
+            var info = session.GetPlaybackInfo();
+            _mediaPaused = info.PlaybackStatus != Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+            UpdateMediaInfo();
+        });
+    }
+
+    private void PollMediaScript()
+    {
+        Task.Run(() =>
+        {
+            try
+            {
+                using var proc = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c {_mediaScript}",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true,
+                    }
+                };
+                proc.Start();
+                var output = proc.StandardOutput.ReadToEnd().Trim();
+                proc.WaitForExit(3000);
+                if (!proc.HasExited) { proc.Kill(); return; }
+                Dispatcher.Invoke(() =>
+                {
+                    var oldText = _cachedMediaText;
+                    _cachedMediaText = output;
+                    _mediaPaused = string.IsNullOrEmpty(output);
+                    if (_cachedMediaText != oldText) _mediaScrollPos = 0;
+                });
+            }
+            catch { }
+        });
+    }
+
+    private void UpdateMediaInfo()
+    {
+        if (!string.IsNullOrEmpty(_mediaScript)) { PollMediaScript(); return; }
+        try
+        {
+            var manager = Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager
+                .RequestAsync().GetAwaiter().GetResult();
+            var session = manager.GetCurrentSession();
+            if (session == null) { _cachedMediaText = ""; _mediaPaused = true; return; }
+            var pb = session.GetPlaybackInfo();
+            _mediaPaused = pb.PlaybackStatus != Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+            var info = session.TryGetMediaPropertiesAsync().GetAwaiter().GetResult();
+            if (info != null)
+            {
+                var title = info.Title ?? "";
+                var artist = info.Artist ?? "";
+                var old = _cachedMediaText;
+                _cachedMediaText = string.IsNullOrEmpty(artist) ? title : $"♫ {artist} - {title}";
+                if (_cachedMediaText != old) _mediaScrollPos = 0;
+            }
+        }
+        catch { _cachedMediaText = ""; _mediaPaused = true; }
+    }
+
+    private void MarqueeMedia()
+    {
+        if (string.IsNullOrEmpty(_cachedMediaText))
+        {
+            MediaText.Text = "";
+            return;
+        }
+
+        const int maxDisplay = 28;
+        var text = _cachedMediaText;
+
+        if (text.Length <= maxDisplay)
+        {
+            MediaText.Text = text;
+            return;
+        }
+
+        if (_mediaPaused)
+        {
+            MediaText.Text = text.Length > maxDisplay ? text[..maxDisplay] : text;
+            return;
+        }
+
+        _mediaScrollPos += _mediaScrollDir;
+        if (_mediaScrollPos < 0)
+        {
+            _mediaScrollPos = 0;
+            _mediaScrollDir = 1;
+        }
+        else if (_mediaScrollPos > text.Length - maxDisplay)
+        {
+            _mediaScrollPos = text.Length - maxDisplay;
+            _mediaScrollDir = -1;
+        }
+
+        var display = text.Substring(_mediaScrollPos, Math.Min(maxDisplay, text.Length - _mediaScrollPos));
+        MediaText.Text = display.PadRight(maxDisplay);
+    }
 
     private void BuildLauncherButtons()
     {
@@ -899,24 +1164,38 @@ public partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Center,
             });
 
-            var btn = new Button
+            var pillBorder = new Border
             {
-                Content = content,
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush(_taskBtnBg),
                 Height = 28,
                 Margin = new Thickness(3, 0, 3, 0),
-                Padding = new Thickness(10, 0, 10, 0),
-                FontSize = 11,
-                Foreground = new SolidColorBrush(_foregroundColor),
-                Background = new SolidColorBrush(_taskBtnBg),
-                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Child = new Button
+                {
+                    Content = content,
+                    Height = 28,
+                    Padding = new Thickness(12, 0, 12, 0),
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(_foregroundColor),
+                    Background = Brushes.Transparent,
+                    BorderThickness = new Thickness(0),
+                }
             };
+            var btn = (Button)pillBorder.Child;
             var cmd = entry.Path;
+            var normalBg = new SolidColorBrush(_taskBtnBg);
+            var hoverBg = new SolidColorBrush(Color.FromArgb(
+                (byte)_taskBtnBg.A, (byte)Math.Min(_taskBtnBg.R + 25, 255),
+                (byte)Math.Min(_taskBtnBg.G + 25, 255), (byte)Math.Min(_taskBtnBg.B + 25, 255)));
+            pillBorder.MouseEnter += (_, _) => pillBorder.Background = hoverBg;
+            pillBorder.MouseLeave += (_, _) => pillBorder.Background = normalBg;
             btn.Click += (_, _) =>
             {
                 try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); }
                 catch (Exception ex) { Logger.Warn($"Launch failed: {cmd}: {ex.Message}"); }
             };
-            LauncherButtons.Children.Add(btn);
+            LauncherButtons.Children.Add(pillBorder);
         }
     }
 
@@ -986,66 +1265,73 @@ public partial class MainWindow : Window
 
     private void UpdateWorkspacePills()
     {
-        WorkspacePills.Children.Clear();
+        PopulatePills(WorkspacePills);
+        PopulatePills(InfoWorkspacePills);
+        PopulatePills(LauncherWorkspacePills);
+    }
+
+    private void PopulatePills(Panel panel)
+    {
+        panel.Children.Clear();
         if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
 
         foreach (var ws in wsm.Workspaces)
         {
             var isActive = ws.Id == wsm.ActiveWorkspaceId;
             var hasWindows = ws.Windows.Count > 0;
-            Color pillColor;
+            Color pillBg;
             if (isActive)
-                pillColor = _focusBgColor;
+                pillBg = _focusBgColor;
             else if (hasWindows)
-                pillColor = _pillInactive;
+                pillBg = _pillInactive;
             else
-                pillColor = _pillEmpty;
-
-            var container = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(2, 0, 4, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
+                pillBg = _pillEmpty;
 
             var wsId = ws.Id;
-            container.MouseLeftButtonDown += (_, _) =>
+            var pill = new Border
+            {
+                Width = isActive ? 28 : 10,
+                Height = 10,
+                CornerRadius = new CornerRadius(5),
+                Margin = new Thickness(3, 0, 3, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(pillBg),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = $"{wsId + 1}: {ws.Name}  ({ws.Windows.Count} windows)"
+            };
+
+            pill.MouseLeftButtonDown += (_, _) =>
             {
                 if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm2))
                     wsm2.SwitchToWorkspace(wsId);
             };
 
-            var pill = new Border
+            if (isActive)
             {
-                Width = isActive ? 20 : 8,
-                Height = 8,
-                CornerRadius = new CornerRadius(4),
-                Margin = new Thickness(0, 0, 4, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                Background = new SolidColorBrush(pillColor)
-            };
-            container.Children.Add(pill);
+                pill.MouseEnter += (_, _) =>
+                    pill.Background = new SolidColorBrush(Color.FromArgb(
+                        255, (byte)Math.Min(_focusBgColor.R + 30, 255),
+                        (byte)Math.Min(_focusBgColor.G + 30, 255),
+                        (byte)Math.Min(_focusBgColor.B + 30, 255)));
+                pill.MouseLeave += (_, _) =>
+                    pill.Background = new SolidColorBrush(_focusBgColor);
+            }
+
+            panel.Children.Add(pill);
 
             if (_showPillCount)
             {
-                var countText = new TextBlock
+                panel.Children.Add(new TextBlock
                 {
                     Text = ws.Windows.Count.ToString(),
                     FontSize = 10,
                     Foreground = isActive
                         ? new SolidColorBrush(_focusBgColor)
-                        : (hasWindows
-                            ? new SolidColorBrush(_foregroundColor)
-                            : new SolidColorBrush(_mutedColor)),
+                        : new SolidColorBrush(_mutedColor),
                     VerticalAlignment = VerticalAlignment.Center,
-                };
-                container.Children.Add(countText);
+                    Margin = new Thickness(0, 0, 4, 0),
+                });
             }
-
-            container.ToolTip = $"{ws.Id + 1}: {ws.Name}  ({ws.Windows.Count} windows)";
-
-            WorkspacePills.Children.Add(container);
         }
     }
 

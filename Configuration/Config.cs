@@ -178,6 +178,21 @@ public class ThemeConfig
 
     [YamlMember(Alias = "date_format")]
     public string DateFormat { get; set; } = "HH:mm:ss  yyyy-MM-dd";
+
+    [YamlMember(Alias = "status_show_network")]
+    public bool StatusShowNetwork { get; set; } = true;
+
+    [YamlMember(Alias = "status_show_media")]
+    public bool StatusShowMedia { get; set; } = true;
+
+    [YamlMember(Alias = "media_script")]
+    public string MediaScript { get; set; } = "";
+
+    [YamlMember(Alias = "media_script_interval")]
+    public int MediaScriptInterval { get; set; } = 3;
+
+    [YamlMember(Alias = "widget_pill_background")]
+    public string WidgetPillBackground { get; set; } = "#1a1a2e";
 }
 
 public class LayoutConfig

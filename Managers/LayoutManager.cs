@@ -39,7 +39,7 @@ public class LayoutManager
     private readonly List<(ManagedWindow Window, System.Windows.Rect Target)> _pendingPositions = new();
     private List<(ManagedWindow Window, System.Windows.Rect From, System.Windows.Rect To)> _animFrames = new();
     private int _animVersion;
-    private int _animDuration;
+    private int _animDuration = 150;
     private bool _disableAnimation;
     private bool _preserveMaster;
     private bool _layoutJustSwitched;

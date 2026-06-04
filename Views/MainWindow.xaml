@@ -60,31 +60,75 @@
             <Grid Margin="12,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+                <StackPanel x:Name="InfoWorkspacePills" Grid.Column="0"
+                            Orientation="Horizontal" VerticalAlignment="Center"
+                            Margin="0,0,8,0"/>
                 <TextBlock x:Name="InfoWinTitle"
-                           Grid.Column="0"
+                           Grid.Column="1"
                            Foreground="#c0caf5" FontSize="12"
                            VerticalAlignment="Center"
-                           MaxWidth="400"
+                           MaxWidth="350"
                            TextTrimming="CharacterEllipsis"/>
                 <TextBlock x:Name="ClockText"
-                           Grid.Column="1"
+                           Grid.Column="2"
                            Foreground="#c0caf5" FontSize="13"
                            VerticalAlignment="Center"
                            HorizontalAlignment="Center"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                <StackPanel Grid.Column="3" Orientation="Horizontal"
                             VerticalAlignment="Center">
-                    <TextBlock x:Name="CpuText"
-                               Foreground="#7aa2f7" FontSize="11"
-                               Margin="0,0,10,0" FontFamily="Consolas"/>
-                    <TextBlock x:Name="MemText"
-                               Foreground="#7aa2f7" FontSize="11"
-                               Margin="0,0,10,0" FontFamily="Consolas"/>
-                    <TextBlock x:Name="BatteryText"
-                               Foreground="#7aa2f7" FontSize="11"
-                               Margin="0,0,8,0" FontFamily="Consolas"/>
+                    <Border x:Name="NetworkPill" CornerRadius="9"
+                            Background="#1a1a2e" Padding="8,2,8,2"
+                            Margin="0,0,6,0" Height="22">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="NetDownIcon" Text="▼" FontSize="9"
+                                       Foreground="#4fbf6f" VerticalAlignment="Center"
+                                       Margin="0,0,3,0"/>
+                            <TextBlock x:Name="NetDownText" Text="0 KB/s"
+                                       Foreground="#4fbf6f" FontSize="10"
+                                       VerticalAlignment="Center" FontFamily="Consolas"/>
+                            <TextBlock Text=" · " Foreground="#3b4261" FontSize="10"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NetUpIcon" Text="▲" FontSize="9"
+                                       Foreground="#e06c75" VerticalAlignment="Center"
+                                       Margin="0,0,3,0"/>
+                            <TextBlock x:Name="NetUpText" Text="0 KB/s"
+                                       Foreground="#e06c75" FontSize="10"
+                                       VerticalAlignment="Center" FontFamily="Consolas"/>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="CpuPill" CornerRadius="9"
+                            Background="#1a1a2e" Padding="8,2,8,2"
+                            Margin="0,0,4,0" Height="22">
+                        <TextBlock x:Name="CpuText"
+                                   Foreground="#e5c07b" FontSize="10"
+                                   VerticalAlignment="Center" FontFamily="Consolas"/>
+                    </Border>
+                    <Border x:Name="MemPill" CornerRadius="9"
+                            Background="#1a1a2e" Padding="8,2,8,2"
+                            Margin="0,0,4,0" Height="22">
+                        <TextBlock x:Name="MemText"
+                                   Foreground="#61afef" FontSize="10"
+                                   VerticalAlignment="Center" FontFamily="Consolas"/>
+                    </Border>
+                    <Border x:Name="BatteryPill" CornerRadius="9"
+                            Background="#1a1a2e" Padding="8,2,8,2"
+                            Margin="0,0,4,0" Height="22">
+                        <TextBlock x:Name="BatteryText"
+                                   Foreground="#98c379" FontSize="10"
+                                   VerticalAlignment="Center" FontFamily="Consolas"/>
+                    </Border>
+                    <Border x:Name="MediaPill" CornerRadius="9"
+                            Background="#1a1a2e" Padding="8,2,8,2"
+                            Margin="0,0,4,0" Height="22">
+                        <TextBlock x:Name="MediaText"
+                                   Foreground="#c678dd" FontSize="10"
+                                   VerticalAlignment="Center" FontFamily="Consolas"
+                                   MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+                    </Border>
                 </StackPanel>
             </Grid>
         </Border>
@@ -96,10 +140,14 @@
                 BorderThickness="0,0,0,1"
                 Height="40"
                 Visibility="Collapsed">
-            <StackPanel x:Name="LauncherButtons"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center"
-                        Margin="8,0"/>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                        Margin="8,0">
+                <StackPanel x:Name="LauncherWorkspacePills" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <StackPanel x:Name="LauncherButtons"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"/>
+            </StackPanel>
         </Border>
 
         <Grid x:Name="OverlayGrid" Grid.Row="1"

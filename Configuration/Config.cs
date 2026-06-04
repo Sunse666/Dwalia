@@ -87,7 +87,7 @@ public class ThemeConfig
     public string Muted { get; set; } = "#565f89";
 
     [YamlMember(Alias = "taskbar_background")]
-    public string TaskbarBackground { get; set; } = "#5516161e";
+    public string TaskbarBackground { get; set; } = "#00ffffff";
 
     [YamlMember(Alias = "inactive_border")]
     public string InactiveBorder { get; set; } = "#3b4261";
@@ -162,7 +162,7 @@ public class ThemeConfig
     public string TaskButtonHoverBackground { get; set; } = "";
 
     [YamlMember(Alias = "monitor_bar_background")]
-    public string MonitorBarBackground { get; set; } = "#5516161e";
+    public string MonitorBarBackground { get; set; } = "#00ffffff";
 
     [YamlMember(Alias = "monitor_bar_border")]
     public string MonitorBarBorder { get; set; } = "";
@@ -192,7 +192,7 @@ public class ThemeConfig
     public int MediaScriptInterval { get; set; } = 3;
 
     [YamlMember(Alias = "widget_pill_background")]
-    public string WidgetPillBackground { get; set; } = "#1a1a2e";
+    public string WidgetPillBackground { get; set; } = "#44ffffff";
 }
 
 public class LayoutConfig

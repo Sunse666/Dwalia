@@ -174,7 +174,6 @@ public class HotKeyManager : IDisposable
         ("Alt+T", "cycle_layout"),
         ("Alt+Y", "cycle_layout_previous"),
         ("Alt+Shift+Space", "toggle_float"),
-        ("Alt+Space", "activate_window"),
         ("Alt+Shift+S", "toggle_scratchpad"),
         ("Alt+Q", "close_window"),
         ("Alt+Shift+Q", "quit"),

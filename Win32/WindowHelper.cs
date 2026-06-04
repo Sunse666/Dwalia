@@ -117,4 +117,31 @@ internal static class WindowHelper
         }
         return 0;
     }
+
+    [ComImport, Guid("AA509086-5CA9-4C25-8F95-589D3C07B48A")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IVirtualDesktopManager
+    {
+        [PreserveSig] int IsWindowOnCurrentVirtualDesktop(IntPtr topLevelWindow);
+        [PreserveSig] int GetWindowDesktopId(IntPtr topLevelWindow, out Guid desktopId);
+        [PreserveSig] int MoveWindowToDesktop(IntPtr topLevelWindow, ref Guid desktopId);
+    }
+
+    private static readonly Lazy<IVirtualDesktopManager?> _vdm = new(() =>
+    {
+        try
+        {
+            var t = Type.GetTypeFromCLSID(Guid.Parse("AA509086-5CA9-4C25-8F95-589D3C07B48A"));
+            if (t == null) return null;
+            return (IVirtualDesktopManager)Activator.CreateInstance(t)!;
+        }
+        catch { return null; }
+    });
+
+    public static bool IsWindowOnCurrentDesktop(IntPtr hwnd)
+    {
+        if (_vdm.Value == null) return true;
+        try { return _vdm.Value.IsWindowOnCurrentVirtualDesktop(hwnd) != 0; }
+        catch { return true; }
+    }
 }

@@ -142,6 +142,7 @@ public class LayoutManager
         foreach (var mw in _windowManager.ManagedWindows.Values)
         {
             if (!IsWindow(mw.Hwnd)) continue;
+            if (!Win32.WindowHelper.IsWindowOnCurrentDesktop(mw.Hwnd)) continue;
             if (mw.IsScratchpad) continue;
             if (mw.SwallowedByHwnd != IntPtr.Zero) continue;
             if (mw.State == WindowLayoutState.Floating) continue;

@@ -20,7 +20,7 @@
 
         <Border x:Name="TaskBar"
                 Grid.Row="0"
-                Background="#5516161e"
+                Background="Transparent"
                 BorderBrush="#3b4261"
                 BorderThickness="0,0,0,1"
                 Height="40">
@@ -42,17 +42,20 @@
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
-                <TextBlock x:Name="LayoutLabel" Grid.Column="2" Text="MasterStack"
-                           Foreground="#565f89" FontSize="11"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Right"
-                           Margin="0,0,10,0"/>
+                <Border x:Name="LayoutPill" Grid.Column="2" CornerRadius="9"
+                        Padding="8,2,8,2" Height="22" VerticalAlignment="Center"
+                        HorizontalAlignment="Right" Margin="0,0,10,0"
+                        Background="#44ffffff">
+                    <TextBlock x:Name="LayoutLabel" Text="MasterStack"
+                               Foreground="#565f89" FontSize="11"
+                               VerticalAlignment="Center"/>
+                </Border>
             </Grid>
         </Border>
 
         <Border x:Name="InfoBar"
                 Grid.Row="0"
-                Background="#5516161e"
+                Background="Transparent"
                 BorderBrush="#3b4261"
                 BorderThickness="0,0,0,1"
                 Height="40"
@@ -67,17 +70,22 @@
                 <StackPanel x:Name="InfoWorkspacePills" Grid.Column="0"
                             Orientation="Horizontal" VerticalAlignment="Center"
                             Margin="0,0,8,0"/>
-                <TextBlock x:Name="InfoWinTitle"
-                           Grid.Column="1"
-                           Foreground="#c0caf5" FontSize="12"
-                           VerticalAlignment="Center"
-                           MaxWidth="350"
-                           TextTrimming="CharacterEllipsis"/>
-                <TextBlock x:Name="ClockText"
-                           Grid.Column="2"
-                           Foreground="#c0caf5" FontSize="13"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Center"/>
+                <Border x:Name="InfoWinPill" Grid.Column="1" CornerRadius="9"
+                        Padding="8,2,8,2" Height="22" VerticalAlignment="Center"
+                        Background="#44ffffff" Margin="0,0,8,0" MaxWidth="360">
+                    <TextBlock x:Name="InfoWinTitle"
+                               Foreground="#c0caf5" FontSize="12"
+                               VerticalAlignment="Center"
+                               MaxWidth="340"
+                               TextTrimming="CharacterEllipsis"/>
+                </Border>
+                <Border x:Name="ClockPill" Grid.Column="2" CornerRadius="9"
+                        Padding="10,2,10,2" Height="22" VerticalAlignment="Center"
+                        Background="#44ffffff">
+                    <TextBlock x:Name="ClockText"
+                               Foreground="#c0caf5" FontSize="13"
+                               VerticalAlignment="Center"/>
+                </Border>
                 <StackPanel Grid.Column="3" Orientation="Horizontal"
                             VerticalAlignment="Center">
                     <Border x:Name="NetworkPill" CornerRadius="9"
@@ -122,12 +130,22 @@
                                    VerticalAlignment="Center" FontFamily="Consolas"/>
                     </Border>
                     <Border x:Name="MediaPill" CornerRadius="9"
-                            Background="#1a1a2e" Padding="8,2,8,2"
-                            Margin="0,0,4,0" Height="22">
-                        <TextBlock x:Name="MediaText"
-                                   Foreground="#c678dd" FontSize="10"
-                                   VerticalAlignment="Center" FontFamily="Consolas"
-                                   MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+                            Background="#1a1a2e" Padding="6,2,8,2"
+                            Margin="0,0,4,0" Height="22" MinWidth="190">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border x:Name="MediaDot" Width="8" Height="8"
+                                    CornerRadius="4" Margin="0,0,5,0"
+                                    Background="#4fbf6f"/>
+                            <Canvas Width="210" Height="16" ClipToBounds="True">
+                                <TextBlock x:Name="MediaText"
+                                           Foreground="#c678dd" FontSize="10"
+                                           VerticalAlignment="Center" FontFamily="Consolas">
+                                    <TextBlock.RenderTransform>
+                                        <TranslateTransform x:Name="MediaTransform"/>
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Canvas>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -135,7 +153,7 @@
 
         <Border x:Name="LauncherBar"
                 Grid.Row="0"
-                Background="#5516161e"
+                Background="Transparent"
                 BorderBrush="#3b4261"
                 BorderThickness="0,0,0,1"
                 Height="40"

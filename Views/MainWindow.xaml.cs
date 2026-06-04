@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private HwndSource? _hwndSource;
     private DispatcherTimer? _statusTimer;
     private DispatcherTimer? _infoTimer;
+    private DispatcherTimer? _marqueeTimer;
     private FocusBackground? _focusBackground;
     private ColorFilterOverlay? _colorFilter;
     private DispatcherTimer? _focusBgTimer;
@@ -52,11 +53,10 @@ public partial class MainWindow : Window
     private string _netUpText = "";
     private string _cachedMediaText = "";
     private string _mediaScript = "";
-    private int _mediaScriptInterval = 3;
+    private int _mediaScriptInterval = 2;
     private int _mediaTick;
-    private int _mediaScrollPos;
-    private int _mediaScrollDir = 1;
     private bool _mediaPaused;
+    private string _lastMarqueeText = "";
     private readonly List<System.Windows.Controls.Border> _monitorBars = new();
     private NOTIFYICONDATA _trayData;
     private bool _trayCreated;
@@ -170,6 +170,10 @@ public partial class MainWindow : Window
 
             _showPillCount = cfg.Theme.WorkspacePillShowCount;
             ParseColor(cfg.Theme.WidgetPillBackground, ref _widgetPillBg, 0x1a, 0x1a, 0x2e);
+            var pillBrush = new SolidColorBrush(_widgetPillBg);
+            LayoutPill.Background = pillBrush;
+            InfoWinPill.Background = pillBrush;
+            ClockPill.Background = pillBrush;
 
             var barH = Math.Clamp(cfg.General.BarHeight, 16, 80);
             TaskBar.Height = barH;
@@ -362,6 +366,7 @@ public partial class MainWindow : Window
         Logger.Info("Shutting down — restoring all windows...");
         _focusBgTimer?.Stop();
         _infoTimer?.Stop();
+        _marqueeTimer?.Stop();
         _cpuCounter?.Dispose();
         _memCounter?.Dispose();
         _netDownCounter?.Dispose();
@@ -704,6 +709,9 @@ public partial class MainWindow : Window
         _showPillCount = c.Theme.WorkspacePillShowCount;
         ParseColor(c.Theme.WidgetPillBackground, ref _widgetPillBg, 0x1a, 0x1a, 0x2e);
         var wbg = new SolidColorBrush(_widgetPillBg);
+        LayoutPill.Background = wbg;
+        InfoWinPill.Background = wbg;
+        ClockPill.Background = wbg;
         CpuPill.Background = wbg;
         MemPill.Background = wbg;
         BatteryPill.Background = wbg;
@@ -802,6 +810,7 @@ public partial class MainWindow : Window
             InfoBar.Visibility = Visibility.Collapsed;
             LauncherBar.Visibility = Visibility.Collapsed;
             _infoTimer?.Stop();
+            _marqueeTimer?.Stop();
         }
         else
         {
@@ -853,6 +862,10 @@ public partial class MainWindow : Window
             _infoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _infoTimer.Tick += (_, _) => UpdateInfoBar();
             _infoTimer.Start();
+
+            _marqueeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            _marqueeTimer.Tick += (_, _) => TickMarquee();
+            _marqueeTimer.Start();
         }
 
         if (mode == BarMode.Launcher)
@@ -918,11 +931,6 @@ public partial class MainWindow : Window
             NetUpText.Text = _netUpText;
         }
         catch { }
-
-        _mediaTick++;
-        if (_mediaTick % _mediaScriptInterval == 0)
-            UpdateMediaInfo();
-        MarqueeMedia();
     }
 
     private static string CpuBar(int pct) =>
@@ -1000,31 +1008,7 @@ public partial class MainWindow : Window
     private void InitMediaMonitor()
     {
         if (!string.IsNullOrEmpty(_mediaScript)) { PollMediaScript(); return; }
-        Task.Run(async () =>
-        {
-            try
-            {
-                var manager = await Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-                void OnSessionChanged(Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager _, object _a)
-                    => Dispatcher.Invoke(() => { UpdateMediaInfo(); AttachSessionEvents(manager.GetCurrentSession()); });
-                manager.SessionsChanged += OnSessionChanged;
-                AttachSessionEvents(manager.GetCurrentSession());
-                Dispatcher.Invoke(() => UpdateMediaInfo());
-            }
-            catch { }
-        });
-    }
-
-    private void AttachSessionEvents(Windows.Media.Control.GlobalSystemMediaTransportControlsSession? session)
-    {
-        if (session == null) return;
-        session.MediaPropertiesChanged += (_, _) => Dispatcher.Invoke(() => UpdateMediaInfo());
-        session.PlaybackInfoChanged += (_, _) => Dispatcher.Invoke(() =>
-        {
-            var info = session.GetPlaybackInfo();
-            _mediaPaused = info.PlaybackStatus != Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-            UpdateMediaInfo();
-        });
+        UpdateMediaInfo();
     }
 
     private void PollMediaScript()
@@ -1053,7 +1037,7 @@ public partial class MainWindow : Window
                     var oldText = _cachedMediaText;
                     _cachedMediaText = output;
                     _mediaPaused = string.IsNullOrEmpty(output);
-                    if (_cachedMediaText != oldText) _mediaScrollPos = 0;
+                    if (_cachedMediaText != oldText) _lastMarqueeText = "";
                 });
             }
             catch { }
@@ -1063,25 +1047,113 @@ public partial class MainWindow : Window
     private void UpdateMediaInfo()
     {
         if (!string.IsNullOrEmpty(_mediaScript)) { PollMediaScript(); return; }
-        try
+        Task.Run(() =>
         {
-            var manager = Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager
-                .RequestAsync().GetAwaiter().GetResult();
-            var session = manager.GetCurrentSession();
-            if (session == null) { _cachedMediaText = ""; _mediaPaused = true; return; }
-            var pb = session.GetPlaybackInfo();
-            _mediaPaused = pb.PlaybackStatus != Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-            var info = session.TryGetMediaPropertiesAsync().GetAwaiter().GetResult();
-            if (info != null)
+            try
             {
-                var title = info.Title ?? "";
-                var artist = info.Artist ?? "";
-                var old = _cachedMediaText;
-                _cachedMediaText = string.IsNullOrEmpty(artist) ? title : $"♫ {artist} - {title}";
-                if (_cachedMediaText != old) _mediaScrollPos = 0;
+                var manager = Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager
+                    .RequestAsync().GetAwaiter().GetResult();
+                var session = manager.GetCurrentSession();
+                string text;
+                bool paused;
+                if (session == null)
+                {
+                    text = "";
+                    paused = true;
+                }
+                else
+                {
+                    var pb = session.GetPlaybackInfo();
+                    paused = pb.PlaybackStatus != Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+                    var info = session.TryGetMediaPropertiesAsync().GetAwaiter().GetResult();
+                    if (info != null)
+                    {
+                        var title = info.Title ?? "";
+                        var artist = info.Artist ?? "";
+                        text = string.IsNullOrEmpty(artist) ? title : $"♫ {artist} - {title}";
+                    }
+                    else { text = ""; paused = true; }
+                }
+                Dispatcher.Invoke(() =>
+                {
+                    var old = _cachedMediaText;
+                    _cachedMediaText = text;
+                    _mediaPaused = paused;
+                    if (_cachedMediaText != old) _lastMarqueeText = "";
+                });
             }
+            catch
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    _cachedMediaText = "";
+                    _mediaPaused = true;
+                });
+            }
+        });
+    }
+
+    private void TickMarquee()
+    {
+        _mediaTick++;
+        if (_mediaTick % (_mediaScriptInterval * 5) == 0)
+            UpdateMediaInfo();
+        MarqueeMedia();
+        if (!_mediaPaused && !string.IsNullOrEmpty(_cachedMediaText))
+            StepMarquee();
+    }
+
+    private void ApplyMediaState(bool playing)
+    {
+        MediaDot.Background = new SolidColorBrush(
+            playing ? Color.FromRgb(0x4f, 0xbf, 0x6f) : Color.FromRgb(0x56, 0x5f, 0x89));
+
+        if (playing)
+        {
+            var anim = new System.Windows.Media.Animation.DoubleAnimation(0.3, 1.0,
+                TimeSpan.FromMilliseconds(800))
+            {
+                AutoReverse = true,
+                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+            };
+            MediaDot.BeginAnimation(UIElement.OpacityProperty, anim);
         }
-        catch { _cachedMediaText = ""; _mediaPaused = true; }
+        else
+        {
+            MediaDot.BeginAnimation(UIElement.OpacityProperty, null);
+            MediaDot.Opacity = 0.5;
+        }
+    }
+
+    private double _marqueeHalfWidth;
+    private double _marqueeScrollX;
+
+    private void StartMarqueeScroll(string text)
+    {
+        MediaTransform.BeginAnimation(TranslateTransform.XProperty, null);
+
+        var display = $"  {text}     {text}  ";
+        MediaText.Text = display;
+        MediaText.Measure(new System.Windows.Size(double.PositiveInfinity, 16));
+        _marqueeHalfWidth = MediaText.DesiredSize.Width / 2;
+        _marqueeScrollX = 0;
+        MediaTransform.X = 0;
+
+        if (_marqueeHalfWidth <= 210)
+        {
+            MediaText.Text = text;
+        }
+    }
+
+    private void StepMarquee()
+    {
+        if (_marqueeHalfWidth <= 210) return;
+
+        // Move 5px per step (at 5 steps/sec = 25px/sec)
+        _marqueeScrollX -= 5;
+        if (_marqueeScrollX <= -_marqueeHalfWidth)
+            _marqueeScrollX += _marqueeHalfWidth;
+        MediaTransform.X = _marqueeScrollX;
     }
 
     private void MarqueeMedia()
@@ -1089,38 +1161,28 @@ public partial class MainWindow : Window
         if (string.IsNullOrEmpty(_cachedMediaText))
         {
             MediaText.Text = "";
-            return;
-        }
-
-        const int maxDisplay = 28;
-        var text = _cachedMediaText;
-
-        if (text.Length <= maxDisplay)
-        {
-            MediaText.Text = text;
+            MediaTransform.BeginAnimation(TranslateTransform.XProperty, null);
+            MediaTransform.X = 0;
+            ApplyMediaState(false);
             return;
         }
 
         if (_mediaPaused)
         {
-            MediaText.Text = text.Length > maxDisplay ? text[..maxDisplay] : text;
+            MediaTransform.BeginAnimation(TranslateTransform.XProperty, null);
+            MediaTransform.X = 0;
+            MediaText.Text = _cachedMediaText;
+            ApplyMediaState(false);
             return;
         }
 
-        _mediaScrollPos += _mediaScrollDir;
-        if (_mediaScrollPos < 0)
-        {
-            _mediaScrollPos = 0;
-            _mediaScrollDir = 1;
-        }
-        else if (_mediaScrollPos > text.Length - maxDisplay)
-        {
-            _mediaScrollPos = text.Length - maxDisplay;
-            _mediaScrollDir = -1;
-        }
+        ApplyMediaState(true);
 
-        var display = text.Substring(_mediaScrollPos, Math.Min(maxDisplay, text.Length - _mediaScrollPos));
-        MediaText.Text = display.PadRight(maxDisplay);
+        if (_cachedMediaText != _lastMarqueeText)
+        {
+            _lastMarqueeText = _cachedMediaText;
+            StartMarqueeScroll(_cachedMediaText);
+        }
     }
 
     private void BuildLauncherButtons()
@@ -1415,8 +1477,9 @@ public partial class MainWindow : Window
         {
             bool onActiveWs = activeWorkspaceIds.Contains(mw.WorkspaceId);
             bool isFullscreen = mw.State == Dwalia.Models.WindowLayoutState.Fullscreen;
+            bool onOtherDesktop = !Win32.WindowHelper.IsWindowOnCurrentDesktop(mw.Hwnd);
 
-            if (!onActiveWs || isFullscreen)
+            if (!onActiveWs || isFullscreen || onOtherDesktop)
             {
                 _focusBackground.SetVisible(mw.Hwnd, false);
                 continue;
@@ -1460,6 +1523,7 @@ public partial class MainWindow : Window
         foreach (var mw in activeWs.Windows)
         {
             if (mw.State != Dwalia.Models.WindowLayoutState.Floating) continue;
+            if (!Win32.WindowHelper.IsWindowOnCurrentDesktop(mw.Hwnd)) continue;
             try
             {
                 var wr = Dwalia.Win32.WindowHelper.GetWindowRectSafe(mw.Hwnd);

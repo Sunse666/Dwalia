@@ -147,32 +147,32 @@ public class WidgetManager
                 pill.Child = new StackPanel { Orientation = Orientation.Horizontal };
                 break;
             case "layout":
-                we.Text = new TextBlock { FontSize = 16, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 16, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "active_window":
-                we.Text = new TextBlock { FontSize = 16, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 16, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "clock":
             case "time_only":
             case "date_only":
-                we.Text = new TextBlock { FontSize = 18, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 18, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "network":
                 we.Panel = new StackPanel { Orientation = Orientation.Horizontal };
-                we.Text = new TextBlock { FontSize = 15, FontFamily = new FontFamily("Consolas") };
-                we.SecondaryText = new TextBlock { FontSize = 15, FontFamily = new FontFamily("Consolas") };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 15, FontFamily = new FontFamily("Consolas") };
+                we.SecondaryText = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 15, FontFamily = new FontFamily("Consolas") };
                 we.Panel.Children.Add(we.Text);
-                we.Panel.Children.Add(new TextBlock { Text = " · ", FontSize = 15 });
+                we.Panel.Children.Add(new TextBlock { Text = " · ", FontSize = c.FontSize > 0 ? (double)c.FontSize : 15 });
                 we.Panel.Children.Add(we.SecondaryText);
                 pill.Child = we.Panel;
                 break;
             case "media":
                 we.Dot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 5, 0) };
                 we.Canvas = new Canvas { ClipToBounds = true, Width = c.Width > 0 ? c.Width - 30 : 170 };
-                we.Text = new TextBlock { FontSize = 15, FontFamily = new FontFamily("Consolas") };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 15, FontFamily = new FontFamily("Consolas") };
                 we.Canvas.Children.Add(we.Text);
                 we.Text.RenderTransform = new TranslateTransform();
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -213,7 +213,7 @@ public class WidgetManager
             case "label":
             case "button":
             default:
-                we.Text = new TextBlock { FontSize = 15, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 15, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
         }

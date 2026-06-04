@@ -36,4 +36,7 @@ public class WidgetConfig
 
     [YamlMember(Alias = "args")]
     public string Args { get; set; } = "";
+
+    [YamlMember(Alias = "font_size")]
+    public int FontSize { get; set; } = 0;
 }

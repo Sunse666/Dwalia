@@ -79,6 +79,7 @@ public class LayoutManager
             }
             Relayout();
         };
+        _workspaceManager.StickyChanged += (_, _) => Relayout();
     }
 
     public void SetArea(IntPtr mainHwnd, double taskbarHeight)
@@ -140,7 +141,13 @@ public class LayoutManager
         {
             if (!IsWindow(mw.Hwnd)) continue;
             if (mw.IsScratchpad) continue;
+            if (mw.SwallowedByHwnd != IntPtr.Zero) continue;
             if (mw.State == WindowLayoutState.Floating) continue;
+            if (mw.IsSticky)
+            {
+                ShowWindow(mw.Hwnd, SW_SHOWNOACTIVATE);
+                continue;
+            }
             var onActive = activeWorkspaceIds.Contains(mw.WorkspaceId);
             var sw = onActive ? SW_SHOWNOACTIVATE : SW_HIDE;
             ShowWindow(mw.Hwnd, sw);
@@ -157,6 +164,15 @@ public class LayoutManager
 
                 var area = GetAreaForMonitor(monitor.Id);
                 var windows = ws.Windows.ToList();
+                foreach (var otherWs in _workspaceManager.Workspaces)
+                {
+                    if (otherWs.Id == ws.Id) continue;
+                    foreach (var w in otherWs.Windows.Where(w => w.IsSticky && w.MonitorId == monitor.Id))
+                    {
+                        if (!windows.Contains(w))
+                            windows.Add(w);
+                    }
+                }
                 var tiled = windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
 
                 if (tiled.Count > 0)
@@ -187,6 +203,15 @@ public class LayoutManager
             _layout = ws.Layout;
 
             var windows = ws.Windows.ToList();
+            foreach (var otherWs in _workspaceManager.Workspaces)
+            {
+                if (otherWs.Id == ws.Id) continue;
+                foreach (var w in otherWs.Windows.Where(w => w.IsSticky))
+                {
+                    if (!windows.Contains(w))
+                        windows.Add(w);
+                }
+            }
             var tiled = windows.Where(w => w.State == WindowLayoutState.Tiled).ToList();
 
             if (tiled.Count > 0)

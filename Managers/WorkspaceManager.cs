@@ -22,6 +22,7 @@ public class WorkspaceManager
         _monitorActiveWs.GetValueOrDefault(monitorId, 0);
 
     public event EventHandler<int>? WorkspaceChanged;
+    public event EventHandler<ManagedWindow>? StickyChanged;
 
     public WorkspaceManager()
     {
@@ -102,6 +103,13 @@ public class WorkspaceManager
         var ws = _workspaces[workspaceId];
         ws.Windows.Add(mw);
         mw.WorkspaceId = workspaceId;
+    }
+
+    public void ToggleSticky(ManagedWindow mw)
+    {
+        mw.IsSticky = !mw.IsSticky;
+        Logger.Info($"Sticky toggled for '{mw.Title}': {mw.IsSticky}");
+        StickyChanged?.Invoke(this, mw);
     }
 
     public void RemoveWindow(ManagedWindow mw)

@@ -28,10 +28,14 @@ public class ManagedWindow
 
     public bool IsScratchpad { get; set; }
 
+    public bool IsSticky { get; set; }
+
     public System.Windows.Rect LayoutBounds { get; set; }
 
     public double StackRatio { get; set; } = 1.0;
 
+    public IntPtr SwallowedByHwnd { get; set; }
+    public IntPtr SwallowingHwnd { get; set; }
     public NativeMethods.RECT? PreFullscreenRect { get; set; }
     public WindowLayoutState? PreFullscreenState { get; set; }
 

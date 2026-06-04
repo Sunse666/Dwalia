@@ -72,6 +72,21 @@ public static class CommandDispatcher
             case DwaliaCommand.ActivateWindow:
                 fm.ActivateActiveWindow();
                 break;
+            case DwaliaCommand.ToggleSticky:
+                if (fm.ActiveWindow != null)
+                {
+                    ws.ToggleSticky(fm.ActiveWindow);
+                    lm.Relayout();
+                }
+                break;
+            case DwaliaCommand.EnterResizeMode:
+                if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm))
+                    hkm.EnterResizeMode();
+                break;
+            case DwaliaCommand.ExitResizeMode:
+                if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm2))
+                    hkm2.ExitResizeMode();
+                break;
         }
     }
 

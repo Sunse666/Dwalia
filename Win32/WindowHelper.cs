@@ -92,4 +92,29 @@ internal static class WindowHelper
         int result = DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, out int cloaked, sizeof(int));
         return result == 0 && cloaked != 0;
     }
+
+    public static uint GetParentProcessId(uint processId)
+    {
+        var snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snapshot == IntPtr.Zero) return 0;
+
+        try
+        {
+            var entry = new PROCESSENTRY32 { dwSize = Marshal.SizeOf<PROCESSENTRY32>() };
+            if (Process32First(snapshot, ref entry))
+            {
+                do
+                {
+                    if (entry.th32ProcessID == processId)
+                        return (uint)entry.th32ParentProcessID;
+                }
+                while (Process32Next(snapshot, ref entry));
+            }
+        }
+        finally
+        {
+            CloseHandle(snapshot);
+        }
+        return 0;
+    }
 }

@@ -220,6 +220,17 @@ public static partial class NativeMethods
     [DllImport(Kernel32)]
     public static extern uint GetCurrentThreadId();
 
+    [DllImport(Kernel32, SetLastError = true)]
+    public static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+    [DllImport(Kernel32, SetLastError = true)]
+    public static extern bool Process32First(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+    [DllImport(Kernel32, SetLastError = true)]
+    public static extern bool Process32Next(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+    public const uint TH32CS_SNAPPROCESS = 0x00000002;
+
     #endregion
 
     #region DWM
@@ -314,4 +325,20 @@ public static partial class NativeMethods
 
     [DllImport(User32)]
     internal static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct PROCESSENTRY32
+    {
+        public int dwSize;
+        public int cntUsage;
+        public int th32ProcessID;
+        public IntPtr th32DefaultHeapID;
+        public int th32ModuleID;
+        public int cntThreads;
+        public int th32ParentProcessID;
+        public int pcPriClassBase;
+        public int dwFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string szExeFile;
+    }
 }

@@ -24,6 +24,9 @@ public class ConfigRoot
 
     [YamlMember(Alias = "launcher")]
     public List<LauncherEntry> Launcher { get; set; } = new();
+
+    [YamlMember(Alias = "autostart")]
+    public List<AutostartEntry> Autostart { get; set; } = new();
 }
 
 public class GeneralConfig
@@ -40,6 +43,9 @@ public class GeneralConfig
 
     [YamlMember(Alias = "enable_logging")]
     public bool EnableLogging { get; set; } = false;
+
+    [YamlMember(Alias = "enable_swallowing")]
+    public bool EnableSwallowing { get; set; } = true;
 }
 
 public class ThemeConfig
@@ -136,6 +142,9 @@ public class WindowRuleConfig
 
     [YamlMember(Alias = "floating")]
     public bool Floating { get; set; }
+
+    [YamlMember(Alias = "sticky")]
+    public bool Sticky { get; set; }
 }
 
 public class KeybindingEntry
@@ -154,4 +163,13 @@ public class LauncherEntry
 
     [YamlMember(Alias = "path")]
     public string Path { get; set; } = "";
+}
+
+public class AutostartEntry
+{
+    [YamlMember(Alias = "name")]
+    public string Name { get; set; } = "";
+
+    [YamlMember(Alias = "command")]
+    public string Command { get; set; } = "";
 }

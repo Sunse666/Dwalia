@@ -92,6 +92,23 @@ public partial class MainWindow : Window
         {
             hkm.Initialize(_hwnd);
             Logger.Info($"HotKeyManager initialized: {hkm.RegisteredCount} registered, {hkm.FailedRegistrations.Count} failed");
+
+            hkm.ResizeModeChanged += (_, inResize) =>
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (inResize)
+                    {
+                        LayoutLabel.Text = "RESIZE";
+                        LayoutLabel.Foreground = new SolidColorBrush(Colors.Yellow);
+                    }
+                    else
+                    {
+                        LayoutLabel.Text = _layoutLabelText;
+                        LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
+                    }
+                }));
+            };
         }
         else
         {
@@ -235,21 +252,33 @@ public partial class MainWindow : Window
 
         if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
         var activeWs = wsm.GetActiveWorkspace();
-        if (activeWs == null || activeWs.Windows.Count == 0) return;
+        if (activeWs == null) return;
+
+        var taskBarWindows = activeWs.Windows.ToList();
+        foreach (var otherWs in wsm.Workspaces)
+        {
+            if (otherWs.Id == activeWs.Id) continue;
+            foreach (var w in otherWs.Windows.Where(w => w.IsSticky))
+            {
+                if (!taskBarWindows.Contains(w))
+                    taskBarWindows.Add(w);
+            }
+        }
+        if (taskBarWindows.Count == 0) return;
 
         ServiceLocator.TryResolve<FocusMgr>(out var fm);
 
         int startIdx = 0;
         if (fm?.ActiveWindow != null)
         {
-            var idx = activeWs.Windows.IndexOf(fm.ActiveWindow);
+            var idx = taskBarWindows.IndexOf(fm.ActiveWindow);
             if (idx >= 0) startIdx = idx;
         }
 
-        var count = activeWs.Windows.Count;
+        var count = taskBarWindows.Count;
         for (int i = 0; i < count; i++)
         {
-            var mw = activeWs.Windows[(startIdx + i) % count];
+            var mw = taskBarWindows[(startIdx + i) % count];
             var title = mw.Title.Length > 30 ? mw.Title[..30] + "..." : mw.Title;
             var btn = new Button
             {
@@ -302,6 +331,20 @@ public partial class MainWindow : Window
             lm?.ToggleFloating(mw.Hwnd);
         };
         menu.Items.Add(floatItem);
+
+        var stickyItem = new MenuItem
+        {
+            Header = mw.IsSticky ? "Unstick" : "Make Sticky",
+            IsChecked = mw.IsSticky
+        };
+        stickyItem.Click += (_, _) =>
+        {
+            if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm2))
+                wsm2.ToggleSticky(mw);
+            if (ServiceLocator.TryResolve<LayoutManager>(out var lm2))
+                lm2.Relayout();
+        };
+        menu.Items.Add(stickyItem);
 
         menu.Items.Add(new Separator());
 

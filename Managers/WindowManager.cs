@@ -9,6 +9,7 @@ namespace Dwalia.Managers;
 public class WindowManager
 {
     private readonly Dictionary<IntPtr, ManagedWindow> _managedWindows = new();
+    private readonly Dictionary<IntPtr, IntPtr> _swallowedParents = new();
     private readonly HashSet<string> _excludedProcesses;
     private WorkspaceManager? _workspaceManager;
 
@@ -104,6 +105,11 @@ public class WindowManager
 
     public void OnWindowDestroyed(IntPtr hwnd)
     {
+        if (_swallowedParents.ContainsKey(hwnd))
+        {
+            RestoreSwallowedParent(hwnd);
+        }
+
         if (_managedWindows.TryGetValue(hwnd, out var mw))
         {
             Logger.Info($"Window destroyed: '{mw.Title}'");
@@ -113,6 +119,42 @@ public class WindowManager
             WindowsChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    public void SwallowWindow(IntPtr parentHwnd, IntPtr childHwnd)
+    {
+        if (!_managedWindows.TryGetValue(parentHwnd, out var parentMw)) return;
+        _swallowedParents[childHwnd] = parentHwnd;
+        parentMw.SwallowedByHwnd = childHwnd;
+        if (_managedWindows.TryGetValue(childHwnd, out var childMw))
+            childMw.SwallowingHwnd = parentHwnd;
+
+        ShowWindow(parentHwnd, SW_HIDE);
+        _workspaceManager?.RemoveWindow(parentMw);
+
+        Logger.Info($"Swallowing: parent '{parentMw.Title}' replaced by child HWND {childHwnd}");
+        WindowsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void RestoreSwallowedParent(IntPtr childHwnd)
+    {
+        if (!_swallowedParents.TryGetValue(childHwnd, out var parentHwnd)) return;
+        if (!_managedWindows.TryGetValue(parentHwnd, out var parentMw)) return;
+
+        if (_managedWindows.TryGetValue(childHwnd, out var childMw))
+            childMw.SwallowingHwnd = IntPtr.Zero;
+
+        parentMw.SwallowedByHwnd = IntPtr.Zero;
+        _workspaceManager?.AddWindow(parentMw, parentMw.WorkspaceId);
+        ShowWindow(parentHwnd, SW_SHOWNOACTIVATE);
+        _swallowedParents.Remove(childHwnd);
+
+        Logger.Info($"Restored swallowed parent: '{parentMw.Title}'");
+        WindowsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public bool IsSwallowingActive(IntPtr hwnd) => _swallowedParents.ContainsKey(hwnd);
+    public IntPtr GetSwallowedParent(IntPtr childHwnd) =>
+        _swallowedParents.TryGetValue(childHwnd, out var parent) ? parent : IntPtr.Zero;
 
     public void UpdateWindowTitle(IntPtr hwnd)
     {

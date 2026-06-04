@@ -136,6 +136,10 @@ public class ConfigManager
                 new() { Name = "Explorer", Path = "explorer.exe" },
             },
             Keybindings = GetDefaultKeybindings(),
+            Autostart = new List<AutostartEntry>
+            {
+                new() { Name = "Terminal", Command = "wt.exe" },
+            },
         };
     }
 
@@ -233,6 +237,8 @@ public class ConfigManager
             }
             if (rule.Floating)
                 mw.State = Models.WindowLayoutState.Floating;
+            if (rule.Sticky)
+                mw.IsSticky = true;
             break;
         }
     }

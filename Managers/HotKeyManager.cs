@@ -86,6 +86,9 @@ public class HotKeyManager : IDisposable
             ["bar_previous"] = DwaliaCommand.BarPrevious,
             ["toggle_bar"] = DwaliaCommand.ToggleBar,
             ["activate_window"] = DwaliaCommand.ActivateWindow,
+            ["toggle_sticky"] = DwaliaCommand.ToggleSticky,
+            ["enter_resize_mode"] = DwaliaCommand.EnterResizeMode,
+            ["exit_resize_mode"] = DwaliaCommand.ExitResizeMode,
         };
 
     private static readonly Dictionary<string, uint> KeyNameToVk =
@@ -99,8 +102,12 @@ public class HotKeyManager : IDisposable
         };
 
     public event EventHandler<DwaliaCommand>? CommandTriggered;
+    public event EventHandler<bool>? ResizeModeChanged;
     public IReadOnlyList<string> FailedRegistrations => _failedRegistrations;
     public int RegisteredCount => _keyMap.Count;
+
+    private bool _isResizeMode;
+    public bool IsResizeMode => _isResizeMode;
 
     public static (uint vkCode, bool shift, bool ctrl) ParseBinding(string binding)
     {
@@ -185,6 +192,8 @@ public class HotKeyManager : IDisposable
         ("Alt+Shift+Down", "bar_next"),
         ("Alt+Shift+Up", "bar_previous"),
         ("Alt+Shift+R", "reload_config"),
+        ("Alt+S", "toggle_sticky"),
+        ("Alt+R", "enter_resize_mode"),
         ("Alt+Ctrl+H", "resize_left"),
         ("Alt+Ctrl+J", "resize_down"),
         ("Alt+Ctrl+K", "resize_up"),
@@ -285,8 +294,29 @@ public class HotKeyManager : IDisposable
         return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
     }
 
+    public void EnterResizeMode()
+    {
+        if (_isResizeMode) return;
+        _isResizeMode = true;
+        StopRepeat();
+        Logger.Info("Entered keyboard resize mode (HJKL/Arrows to resize, Esc/Enter to exit)");
+        ResizeModeChanged?.Invoke(this, true);
+    }
+
+    public void ExitResizeMode()
+    {
+        if (!_isResizeMode) return;
+        _isResizeMode = false;
+        StopRepeat();
+        Logger.Info("Exited keyboard resize mode");
+        ResizeModeChanged?.Invoke(this, false);
+    }
+
     private IntPtr ProcessKeyDown(KBDLLHOOKSTRUCT kb)
     {
+        if (_isResizeMode)
+            return ProcessResizeModeKey(kb);
+
         if (kb.vkCode is VK_LSHIFT or VK_RSHIFT)
         {
             _shiftHeld = true;
@@ -371,6 +401,32 @@ public class HotKeyManager : IDisposable
         return IntPtr.Zero;
     }
 
+    private IntPtr ProcessResizeModeKey(KBDLLHOOKSTRUCT kb)
+    {
+        if (kb.vkCode == VK_ESCAPE || kb.vkCode == VK_RETURN)
+        {
+            ExitResizeMode();
+            return (IntPtr)1;
+        }
+
+        var cmd = kb.vkCode switch
+        {
+            VK_H or VK_LEFT => DwaliaCommand.ResizeLeft,
+            VK_J or VK_DOWN => DwaliaCommand.ResizeDown,
+            VK_K or VK_UP => DwaliaCommand.ResizeUp,
+            VK_L or VK_RIGHT => DwaliaCommand.ResizeRight,
+            _ => (DwaliaCommand?)null
+        };
+
+        if (cmd.HasValue)
+        {
+            PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)cmd.Value, IntPtr.Zero);
+            return (IntPtr)1;
+        }
+
+        return (IntPtr)1;
+    }
+
     private void StopRepeat()
     {
         _repeatTimer?.Dispose();
@@ -445,4 +501,7 @@ public enum DwaliaCommand
     BarNext, BarPrevious,
     ToggleBar,
     ActivateWindow,
+    ToggleSticky,
+    EnterResizeMode,
+    ExitResizeMode,
 }

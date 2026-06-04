@@ -78,6 +78,22 @@ public class MouseResizeManager : IDisposable
         }
     }
 
+    public bool IsInZone(int x, int y)
+    {
+        lock (_lock)
+        {
+            foreach (var zone in _zones)
+            {
+                if (x >= zone.Bounds.X && x <= zone.Bounds.X + zone.Bounds.Width
+                    && y >= zone.Bounds.Y && y <= zone.Bounds.Y + zone.Bounds.Height)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam)
     {
         if (nCode < 0 || _disposed)

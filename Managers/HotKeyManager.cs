@@ -14,8 +14,10 @@ public class HotKeyManager : IDisposable
     private readonly List<string> _failedRegistrations = new();
 
     private IntPtr _hookHandle;
+    private IntPtr _mouseHookHandle;
     private IntPtr _dwaliaHwnd;
     private LowLevelKeyboardProc _hookProcDelegate = null!;
+    private LowLevelMouseProc _mouseProcDelegate = null!;
     private bool _disposed;
 
     private bool _altHeld;
@@ -299,7 +301,8 @@ public class HotKeyManager : IDisposable
         if (_isResizeMode) return;
         _isResizeMode = true;
         StopRepeat();
-        Logger.Info("Entered keyboard resize mode (HJKL/Arrows to resize, Esc/Enter to exit)");
+        InstallMouseHook();
+        Logger.Info("Entered resize mode (HJKL/Arrows to resize, drag to swap, Esc/Enter to exit)");
         ResizeModeChanged?.Invoke(this, true);
     }
 
@@ -308,7 +311,8 @@ public class HotKeyManager : IDisposable
         if (!_isResizeMode) return;
         _isResizeMode = false;
         StopRepeat();
-        Logger.Info("Exited keyboard resize mode");
+        RemoveMouseHook();
+        Logger.Info("Exited resize mode");
         ResizeModeChanged?.Invoke(this, false);
     }
 
@@ -403,9 +407,44 @@ public class HotKeyManager : IDisposable
 
     private IntPtr ProcessResizeModeKey(KBDLLHOOKSTRUCT kb)
     {
+        if (kb.vkCode is VK_LSHIFT or VK_RSHIFT)
+        {
+            _shiftHeld = true;
+            return (IntPtr)1;
+        }
+        if (kb.vkCode is VK_LCONTROL or VK_RCONTROL)
+        {
+            _ctrlHeld = true;
+            return (IntPtr)1;
+        }
+        if (kb.vkCode is VK_LMENU or VK_RMENU)
+        {
+            _altHeld = true;
+            _altVkCode = kb.vkCode;
+            return (IntPtr)1;
+        }
+
         if (kb.vkCode == VK_ESCAPE || kb.vkCode == VK_RETURN)
         {
             ExitResizeMode();
+            return (IntPtr)1;
+        }
+
+        bool shift = _shiftHeld || (GetAsyncKeyState((int)VK_LSHIFT) & 0x8000) != 0
+            || (GetAsyncKeyState((int)VK_RSHIFT) & 0x8000) != 0;
+        bool ctrl = _ctrlHeld || (GetAsyncKeyState((int)VK_LCONTROL) & 0x8000) != 0
+            || (GetAsyncKeyState((int)VK_RCONTROL) & 0x8000) != 0;
+        bool alt = _altHeld || (GetAsyncKeyState((int)VK_LMENU) & 0x8000) != 0
+            || (GetAsyncKeyState((int)VK_RMENU) & 0x8000) != 0;
+
+        if (alt && _keyMap.TryGetValue((kb.vkCode, shift, ctrl), out var bindingCmd))
+        {
+            if (bindingCmd == DwaliaCommand.EnterResizeMode)
+            {
+                ExitResizeMode();
+                return (IntPtr)1;
+            }
+            PostMessage(_dwaliaHwnd, WM_DWALIA_COMMAND, (IntPtr)(int)bindingCmd, IntPtr.Zero);
             return (IntPtr)1;
         }
 
@@ -425,6 +464,66 @@ public class HotKeyManager : IDisposable
         }
 
         return (IntPtr)1;
+    }
+
+    private void InstallMouseHook()
+    {
+        _mouseProcDelegate = MouseHookProc;
+        _mouseHookHandle = SetWindowsHookEx(WH_MOUSE_LL, _mouseProcDelegate, IntPtr.Zero, 0);
+        if (_mouseHookHandle == IntPtr.Zero)
+            Logger.Error($"Mouse hook install failed: {Marshal.GetLastWin32Error()}");
+        else
+            Logger.Info("Mouse hook installed for resize mode");
+    }
+
+    private void RemoveMouseHook()
+    {
+        if (_mouseHookHandle != IntPtr.Zero)
+        {
+            UnhookWindowsHookEx(_mouseHookHandle);
+            _mouseHookHandle = IntPtr.Zero;
+            Logger.Info("Mouse hook removed");
+        }
+    }
+
+    private IntPtr MouseHookProc(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode < 0)
+            return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+
+        var msg = (uint)wParam;
+        if (msg != WM_LBUTTONDOWN && msg != WM_LBUTTONUP && msg != WM_MOUSEMOVE)
+            return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+
+        var ms = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
+
+        var fb = ServiceLocator.TryResolve<Views.FocusBackground>(out var f) ? f : null;
+        if (fb == null) return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+
+        if (msg == WM_LBUTTONDOWN)
+        {
+            if (ServiceLocator.TryResolve<MouseResizeManager>(out var mrm) && mrm.IsInZone(ms.ptX, ms.ptY))
+                return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+
+            if (fb.TryHandleMouseDown(IntPtr.Zero, ms.ptX, ms.ptY))
+                return (IntPtr)1;
+            return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+        }
+
+        if (msg == WM_MOUSEMOVE)
+        {
+            fb.TryHandleMouseMove(ms.ptX, ms.ptY);
+            return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+        }
+
+        if (msg == WM_LBUTTONUP)
+        {
+            if (fb.TryHandleMouseUp(ms.ptX, ms.ptY))
+                return (IntPtr)1;
+            return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+        }
+
+        return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
     }
 
     private void StopRepeat()

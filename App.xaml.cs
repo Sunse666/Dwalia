@@ -5,6 +5,7 @@ using System.Windows.Threading;
 using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Managers;
+using Dwalia.Models;
 using Dwalia.Views;
 using Dwalia.Win32;
 using static Dwalia.Win32.NativeMethods;
@@ -77,6 +78,7 @@ public partial class App : Application
             _workspaceManager.InitializeForMonitor(m.Id);
 
         _hotKeyManager.CommandTriggered += OnCommandTriggered;
+
 
         _layoutManager = new LayoutManager(_windowManager, _workspaceManager, _focusManager);
         _layoutManager.SetEnabledLayouts(_config.Layout.EnabledLayouts);
@@ -265,7 +267,7 @@ public partial class App : Application
             _hotKeyManager?.Dispose();
             _hotKeyManager = new HotKeyManager();
             _hotKeyManager.CommandTriggered += OnCommandTriggered;
-            _hotKeyManager.Initialize(_mainWindow.GetHwnd());
+                _hotKeyManager.Initialize(_mainWindow.GetHwnd());
             Logger.Info("Config reloaded");
         });
     }

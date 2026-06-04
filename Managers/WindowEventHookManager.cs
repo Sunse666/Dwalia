@@ -55,6 +55,8 @@ public class WindowEventHookManager
     {
         if (_mainWindowHwnd != IntPtr.Zero && hwnd != _mainWindowHwnd)
         {
+            if (ServiceLocator.TryResolve<Views.FocusBackground>(out var fb) && fb.DragMode)
+                return;
             SetWindowPos(_mainWindowHwnd, new IntPtr(1), 0, 0, 0, 0,
                 SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }

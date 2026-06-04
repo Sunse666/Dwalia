@@ -1272,6 +1272,50 @@ public class LayoutManager
     public void SwapLeft()  => SwapDirectional(FindWindowLeft, "Left");
     public void SwapRight() => SwapDirectional(FindWindowRight, "Right");
 
+    public void SwapWindows(ManagedWindow a, ManagedWindow b)
+    {
+        var aBounds = a.LayoutBounds;
+        var bBounds = b.LayoutBounds;
+        a.LayoutBounds = bBounds;
+        b.LayoutBounds = aBounds;
+
+        ReSortWorkspaceWindows();
+        _bspOrderedHwnds.Clear();
+
+        var dynRoot = GetDynamicRoot(a.WorkspaceId);
+        if (dynRoot != null)
+            SwapLeafWindows(dynRoot, a, b);
+        var bspRoot = _bspRoots.GetValueOrDefault(a.WorkspaceId);
+        if (bspRoot != null)
+            SwapLeafWindows(bspRoot, a, b);
+
+        if (ReferenceEquals(_currentMaster, a))
+            _currentMaster = b;
+        else if (ReferenceEquals(_currentMaster, b))
+            _currentMaster = a;
+
+        _isAnimating = true;
+        _pendingPositions.Clear();
+        Position(a, a.LayoutBounds);
+        Position(b, b.LayoutBounds);
+        _isAnimating = false;
+        ApplyAnimated();
+    }
+
+    private static bool SwapLeafWindows(SplitNode node, ManagedWindow a, ManagedWindow b)
+    {
+        if (node.Window != null)
+        {
+            if (ReferenceEquals(node.Window, a)) { node.Window = b; return true; }
+            if (ReferenceEquals(node.Window, b)) { node.Window = a; return true; }
+            return false;
+        }
+        bool found = false;
+        if (node.First != null && SwapLeafWindows(node.First, a, b)) found = true;
+        if (node.Second != null && SwapLeafWindows(node.Second, a, b)) found = true;
+        return found;
+    }
+
     private delegate ManagedWindow? WindowFinder(ManagedWindow active, List<ManagedWindow> tiled);
 
     private void SwapDirectional(WindowFinder finder, string direction)

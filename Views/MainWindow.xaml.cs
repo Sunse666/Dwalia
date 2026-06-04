@@ -141,6 +141,16 @@ public partial class MainWindow : Window
         var focusFill = cfg?.Theme.FocusFill ?? true;
 
         _focusBackground = new FocusBackground(_focusBgColor, focusRadius, focusActiveOp, focusInactiveOp, focusFill);
+        ServiceLocator.Register(_focusBackground);
+
+        _focusBackground.SwapDrop += (_, swap) =>
+            Dispatcher.BeginInvoke(new Action(() => HandleFocusSwapDrop(swap.SrcHwnd, swap.DstHwnd)));
+
+        if (ServiceLocator.TryResolve<HotKeyManager>(out var hkmDrag))
+        {
+            hkmDrag.ResizeModeChanged += (_, inResize) =>
+                Dispatcher.Invoke(new Action(() => _focusBackground?.SetDragMode(inResize)));
+        }
 
         if (ServiceLocator.TryResolve<FocusMgr>(out var focusMgr))
         {
@@ -182,6 +192,7 @@ public partial class MainWindow : Window
         }
         if (msg == WM_WINDOWPOSCHANGING)
         {
+            if (_focusBackground != null && _focusBackground.DragMode) return IntPtr.Zero;
             var wp = Marshal.PtrToStructure<WINDOWPOS>(lParam);
             if (!wp.hwndInsertAfter.Equals(new IntPtr(1)))
             {
@@ -334,6 +345,25 @@ public partial class MainWindow : Window
         Shell_NotifyIcon(NIM_DELETE, ref _trayData);
         _trayCreated = false;
         Logger.Info("System tray icon removed");
+    }
+
+    private void HandleFocusSwapDrop(IntPtr srcHwnd, IntPtr dstHwnd)
+    {
+        if (!ServiceLocator.TryResolve<WindowManager>(out var wm)) return;
+        if (!ServiceLocator.TryResolve<LayoutManager>(out var lm)) return;
+
+        var srcMw = wm.GetManagedWindow(srcHwnd);
+        if (srcMw == null || srcMw.State != Models.WindowLayoutState.Tiled) return;
+
+        var dstMw = wm.GetManagedWindow(dstHwnd);
+        if (dstMw == null || dstMw.State != Models.WindowLayoutState.Tiled) return;
+
+        if (srcMw.WorkspaceId != dstMw.WorkspaceId || srcMw.MonitorId != dstMw.MonitorId) return;
+
+        lm.SwapWindows(srcMw, dstMw);
+
+        if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm))
+            hkm.ExitResizeMode();
     }
 
     private void UpdateTaskBar()
@@ -805,6 +835,7 @@ public partial class MainWindow : Window
     private void RefreshAllBackgroundPositions()
     {
         if (_focusBackground == null) return;
+        if (_focusBackground.IsDragging) return;
         if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
         if (!ServiceLocator.TryResolve<LayoutManager>(out var lm)) return;
         if (!ServiceLocator.TryResolve<WindowManager>(out var wm)) return;
@@ -870,6 +901,7 @@ public partial class MainWindow : Window
     private void RefreshFloatingBackgroundPositions()
     {
         if (_focusBackground == null) return;
+        if (_focusBackground.IsDragging) return;
         if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
 
         var activeWs = wsm.GetActiveWorkspace();

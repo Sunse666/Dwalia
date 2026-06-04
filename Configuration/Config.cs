@@ -126,7 +126,7 @@ public class ThemeConfig
     public double ColorFilterOpacity { get; set; } = 0.0;
 
     [YamlMember(Alias = "font_size")]
-    public int FontSize { get; set; } = 11;
+    public int FontSize { get; set; } = 16;
 
     [YamlMember(Alias = "bar_font")]
     public string BarFont { get; set; } = "Segoe UI";
@@ -159,7 +159,7 @@ public class ThemeConfig
     public string ContextMenuBorder { get; set; } = "#444444";
 
     [YamlMember(Alias = "task_button_background")]
-    public string TaskButtonBackground { get; set; } = "#24283e";
+    public string TaskButtonBackground { get; set; } = "#1a1a3e";
 
     [YamlMember(Alias = "task_button_hover_background")]
     public string TaskButtonHoverBackground { get; set; } = "";
@@ -189,46 +189,46 @@ public class ThemeConfig
     public bool StatusShowMedia { get; set; } = true;
 
     [YamlMember(Alias = "widget_cpu_color")]
-    public string WidgetCpuColor { get; set; } = "#e5c07b";
+    public string WidgetCpuColor { get; set; } = "#00ff88";
 
     [YamlMember(Alias = "widget_mem_color")]
-    public string WidgetMemColor { get; set; } = "#61afef";
+    public string WidgetMemColor { get; set; } = "#00ccff";
 
     [YamlMember(Alias = "widget_battery_color")]
-    public string WidgetBatteryColor { get; set; } = "#98c379";
+    public string WidgetBatteryColor { get; set; } = "#88ff00";
 
     [YamlMember(Alias = "widget_network_down_color")]
-    public string WidgetNetworkDownColor { get; set; } = "#4fbf6f";
+    public string WidgetNetworkDownColor { get; set; } = "#00ff88";
 
     [YamlMember(Alias = "widget_network_up_color")]
-    public string WidgetNetworkUpColor { get; set; } = "#e06c75";
+    public string WidgetNetworkUpColor { get; set; } = "#ff4444";
 
     [YamlMember(Alias = "widget_media_color")]
-    public string WidgetMediaColor { get; set; } = "#c678dd";
+    public string WidgetMediaColor { get; set; } = "#ff88ff";
 
     [YamlMember(Alias = "widget_separator_color")]
-    public string WidgetSeparatorColor { get; set; } = "#3b4261";
+    public string WidgetSeparatorColor { get; set; } = "#334466";
 
     [YamlMember(Alias = "media_dot_playing_color")]
-    public string MediaDotPlayingColor { get; set; } = "#4fbf6f";
+    public string MediaDotPlayingColor { get; set; } = "#00ff88";
 
     [YamlMember(Alias = "media_dot_paused_color")]
-    public string MediaDotPausedColor { get; set; } = "#565f89";
+    public string MediaDotPausedColor { get; set; } = "#334466";
 
     [YamlMember(Alias = "bar_border_color")]
     public string BarBorderColor { get; set; } = "#3b4261";
 
     [YamlMember(Alias = "pill_corner_radius")]
-    public int PillCornerRadius { get; set; } = 9;
+    public int PillCornerRadius { get; set; } = 14;
 
     [YamlMember(Alias = "pill_height")]
-    public int PillHeight { get; set; } = 22;
+    public int PillHeight { get; set; } = 30;
 
     [YamlMember(Alias = "task_pill_corner_radius")]
     public int TaskPillCornerRadius { get; set; } = 14;
 
     [YamlMember(Alias = "task_pill_height")]
-    public int TaskPillHeight { get; set; } = 28;
+    public int TaskPillHeight { get; set; } = 32;
 
     [YamlMember(Alias = "task_hover_brighten")]
     public int TaskHoverBrighten { get; set; } = 20;
@@ -249,7 +249,7 @@ public class ThemeConfig
     public int MediaScriptInterval { get; set; } = 3;
 
     [YamlMember(Alias = "widget_pill_background")]
-    public string WidgetPillBackground { get; set; } = "#44ffffff";
+    public string WidgetPillBackground { get; set; } = "#1a1a3e";
 }
 
 public class LayoutConfig

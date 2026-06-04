@@ -92,6 +92,9 @@ public partial class App : Application
 
         _mouseResizeManager = new MouseResizeManager();
         ServiceLocator.Register(_mouseResizeManager);
+
+        var widgetManager = new WidgetManager();
+        ServiceLocator.Register(widgetManager);
         _mouseResizeManager.GetCurrentMasterFactor = () => _layoutManager?.CurrentMasterFactor ?? 0.6;
         _mouseResizeManager.GetSplitRatio = (splitId) => _layoutManager?.GetSplitRatio(splitId) ?? 0.5;
         _mouseResizeManager.GetAreaSize = () =>
@@ -205,6 +208,9 @@ public partial class App : Application
         };
 
         _mainWindow.Show();
+
+        if (ServiceLocator.TryResolve<WidgetManager>(out var wm))
+            wm.Initialize();
 
         if (_config.General.StartupWorkspace > 0
             && _config.General.StartupWorkspace < _workspaceManager.Workspaces.Count)

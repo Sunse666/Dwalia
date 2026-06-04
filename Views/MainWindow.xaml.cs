@@ -47,6 +47,24 @@ public partial class MainWindow : Window
     private Color _pillEmpty = Color.FromRgb(0x2b, 0x2f, 0x44);
     private bool _showPillCount;
     private Color _widgetPillBg = Color.FromArgb(0xFF, 0x1a, 0x1a, 0x2e);
+    private Color _widgetCpuColor = Color.FromRgb(0xe5, 0xc0, 0x7b);
+    private Color _widgetMemColor = Color.FromRgb(0x61, 0xaf, 0xef);
+    private Color _widgetBatteryColor = Color.FromRgb(0x98, 0xc3, 0x79);
+    private Color _widgetNetDownColor = Color.FromRgb(0x4f, 0xbf, 0x6f);
+    private Color _widgetNetUpColor = Color.FromRgb(0xe0, 0x6c, 0x75);
+    private Color _widgetMediaColor = Color.FromRgb(0xc6, 0x78, 0xdd);
+    private Color _widgetSeparatorColor = Color.FromRgb(0x3b, 0x42, 0x61);
+    private Color _mediaDotPlaying = Color.FromRgb(0x4f, 0xbf, 0x6f);
+    private Color _mediaDotPaused = Color.FromRgb(0x56, 0x5f, 0x89);
+    private Color _barBorderColor = Color.FromRgb(0x3b, 0x42, 0x61);
+    private int _pillCornerRadius = 9;
+    private int _pillHeight = 22;
+    private int _taskPillCR = 14;
+    private int _taskPillH = 28;
+    private int _taskHoverBrighten = 20;
+    private string _progressFilled = "▰";
+    private string _progressEmpty = "▱";
+    private int _marqueeSpeed = 25;
     private PerformanceCounter? _netDownCounter;
     private PerformanceCounter? _netUpCounter;
     private string _netDownText = "";
@@ -533,9 +551,10 @@ public partial class MainWindow : Window
             };
 
             var btnBg = new SolidColorBrush(_taskBtnBg);
+            var hb = _taskHoverBrighten;
             var btnHoverBg = new SolidColorBrush(Color.FromArgb(
-                (byte)(_taskBtnBg.A), (byte)Math.Min(_taskBtnBg.R + 20, 255),
-                (byte)Math.Min(_taskBtnBg.G + 20, 255), (byte)Math.Min(_taskBtnBg.B + 20, 255)));
+                (byte)(_taskBtnBg.A), (byte)Math.Min(_taskBtnBg.R + hb, 255),
+                (byte)Math.Min(_taskBtnBg.G + hb, 255), (byte)Math.Min(_taskBtnBg.B + hb, 255)));
 
             btn.MouseEnter += (_, _) => pillBorder.Background = btnHoverBg;
             btn.MouseLeave += (_, _) => pillBorder.Background = btnBg;
@@ -708,15 +727,27 @@ public partial class MainWindow : Window
 
         _showPillCount = c.Theme.WorkspacePillShowCount;
         ParseColor(c.Theme.WidgetPillBackground, ref _widgetPillBg, 0x1a, 0x1a, 0x2e);
-        var wbg = new SolidColorBrush(_widgetPillBg);
-        LayoutPill.Background = wbg;
-        InfoWinPill.Background = wbg;
-        ClockPill.Background = wbg;
-        CpuPill.Background = wbg;
-        MemPill.Background = wbg;
-        BatteryPill.Background = wbg;
-        NetworkPill.Background = wbg;
-        MediaPill.Background = wbg;
+        ParseColor(c.Theme.WidgetCpuColor, ref _widgetCpuColor, 0xe5, 0xc0, 0x7b);
+        ParseColor(c.Theme.WidgetMemColor, ref _widgetMemColor, 0x61, 0xaf, 0xef);
+        ParseColor(c.Theme.WidgetBatteryColor, ref _widgetBatteryColor, 0x98, 0xc3, 0x79);
+        ParseColor(c.Theme.WidgetNetworkDownColor, ref _widgetNetDownColor, 0x4f, 0xbf, 0x6f);
+        ParseColor(c.Theme.WidgetNetworkUpColor, ref _widgetNetUpColor, 0xe0, 0x6c, 0x75);
+        ParseColor(c.Theme.WidgetMediaColor, ref _widgetMediaColor, 0xc6, 0x78, 0xdd);
+        ParseColor(c.Theme.WidgetSeparatorColor, ref _widgetSeparatorColor, 0x3b, 0x42, 0x61);
+        ParseColor(c.Theme.MediaDotPlayingColor, ref _mediaDotPlaying, 0x4f, 0xbf, 0x6f);
+        ParseColor(c.Theme.MediaDotPausedColor, ref _mediaDotPaused, 0x56, 0x5f, 0x89);
+        ParseColor(c.Theme.BarBorderColor, ref _barBorderColor, 0x3b, 0x42, 0x61);
+        _pillCornerRadius = c.Theme.PillCornerRadius;
+        _pillHeight = c.Theme.PillHeight;
+        _taskPillCR = c.Theme.TaskPillCornerRadius;
+        _taskPillH = c.Theme.TaskPillHeight;
+        _taskHoverBrighten = c.Theme.TaskHoverBrighten;
+        _progressFilled = c.Theme.ProgressFilledChar.Length > 0 ? c.Theme.ProgressFilledChar : "▰";
+        _progressEmpty = c.Theme.ProgressEmptyChar.Length > 0 ? c.Theme.ProgressEmptyChar : "▱";
+        _marqueeSpeed = Math.Max(5, c.Theme.MarqueeSpeed);
+
+        ApplyPillStyling();
+        ApplyWidgetColors();
 
         if (c.Theme.EnableAcrylic)
         {
@@ -933,16 +964,18 @@ public partial class MainWindow : Window
         catch { }
     }
 
-    private static string CpuBar(int pct) =>
+    private string CpuBar(int pct) =>
         $"◈ {pct,3}%{ProgressBar(pct)}";
 
-    private static string MemBar(int pct) =>
+    private string MemBar(int pct) =>
         $"◉ {pct,3}%{ProgressBar(pct)}";
 
-    private static string ProgressBar(int pct)
+    private string ProgressBar(int pct)
     {
         int filled = Math.Clamp(pct * 8 / 100, 0, 8);
-        return new string('▰', filled) + new string('▱', 8 - filled);
+        var fc = _progressFilled.Length > 0 ? _progressFilled[0] : '▰';
+        var ec = _progressEmpty.Length > 0 ? _progressEmpty[0] : '▱';
+        return new string(fc, filled) + new string(ec, 8 - filled);
     }
 
     private static string GetBatteryIcon()
@@ -1106,7 +1139,7 @@ public partial class MainWindow : Window
     private void ApplyMediaState(bool playing)
     {
         MediaDot.Background = new SolidColorBrush(
-            playing ? Color.FromRgb(0x4f, 0xbf, 0x6f) : Color.FromRgb(0x56, 0x5f, 0x89));
+            playing ? _mediaDotPlaying : _mediaDotPaused);
 
         if (playing)
         {
@@ -1149,8 +1182,7 @@ public partial class MainWindow : Window
     {
         if (_marqueeHalfWidth <= 210) return;
 
-        // Move 5px per step (at 5 steps/sec = 25px/sec)
-        _marqueeScrollX -= 5;
+        _marqueeScrollX -= _marqueeSpeed / 5.0;
         if (_marqueeScrollX <= -_marqueeHalfWidth)
             _marqueeScrollX += _marqueeHalfWidth;
         MediaTransform.X = _marqueeScrollX;
@@ -1257,9 +1289,10 @@ public partial class MainWindow : Window
             var btn = (Button)pillBorder.Child;
             var cmd = entry.Path;
             var normalBg = new SolidColorBrush(_taskBtnBg);
+            var lhb = _taskHoverBrighten;
             var hoverBg = new SolidColorBrush(Color.FromArgb(
-                (byte)_taskBtnBg.A, (byte)Math.Min(_taskBtnBg.R + 25, 255),
-                (byte)Math.Min(_taskBtnBg.G + 25, 255), (byte)Math.Min(_taskBtnBg.B + 25, 255)));
+                (byte)_taskBtnBg.A, (byte)Math.Min(_taskBtnBg.R + lhb, 255),
+                (byte)Math.Min(_taskBtnBg.G + lhb, 255), (byte)Math.Min(_taskBtnBg.B + lhb, 255)));
             pillBorder.MouseEnter += (_, _) => pillBorder.Background = hoverBg;
             pillBorder.MouseLeave += (_, _) => pillBorder.Background = normalBg;
             btn.Click += (_, _) =>
@@ -1299,6 +1332,38 @@ public partial class MainWindow : Window
         _memCounter ??= new PerformanceCounter("Memory", "% Committed Bytes In Use");
         try { return _memCounter.NextValue(); }
         catch { return 0; }
+    }
+
+    private void ApplyPillStyling()
+    {
+        var cr = new CornerRadius(_pillCornerRadius);
+        var h = _pillHeight;
+        var tcr = new CornerRadius(_taskPillCR);
+        var th = _taskPillH;
+
+        LayoutPill.CornerRadius = cr; LayoutPill.Height = h;
+        InfoWinPill.CornerRadius = cr; InfoWinPill.Height = h;
+        ClockPill.CornerRadius = cr; ClockPill.Height = h;
+        CpuPill.CornerRadius = cr; CpuPill.Height = h;
+        MemPill.CornerRadius = cr; MemPill.Height = h;
+        BatteryPill.CornerRadius = cr; BatteryPill.Height = h;
+        NetworkPill.CornerRadius = cr; NetworkPill.Height = h;
+        MediaPill.CornerRadius = cr; MediaPill.Height = h;
+
+        var barBorder = new SolidColorBrush(_barBorderColor);
+        TaskBar.BorderBrush = barBorder;
+        InfoBar.BorderBrush = barBorder;
+        LauncherBar.BorderBrush = barBorder;
+    }
+
+    private void ApplyWidgetColors()
+    {
+        CpuText.Foreground = new SolidColorBrush(_widgetCpuColor);
+        MemText.Foreground = new SolidColorBrush(_widgetMemColor);
+        BatteryText.Foreground = new SolidColorBrush(_widgetBatteryColor);
+        NetDownText.Foreground = new SolidColorBrush(_widgetNetDownColor);
+        NetUpText.Foreground = new SolidColorBrush(_widgetNetUpColor);
+        MediaText.Foreground = new SolidColorBrush(_widgetMediaColor);
     }
 
     private static void ParseColor(string hex, ref Color target, byte? rr, byte? gg, byte? bb)

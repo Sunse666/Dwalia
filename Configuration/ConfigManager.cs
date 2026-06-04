@@ -117,6 +117,7 @@ public class ConfigManager
     {
         return new ConfigRoot
         {
+            Widgets = GetDefaultWidgets(),
             General = new GeneralConfig(),
             Theme = new ThemeConfig(),
             Layout = new LayoutConfig(),
@@ -140,6 +141,22 @@ public class ConfigManager
             {
                 new() { Name = "Terminal", Command = "wt.exe" },
             },
+        };
+    }
+
+    public static List<WidgetConfig> GetDefaultWidgets()
+    {
+        return new List<WidgetConfig>
+        {
+            new() { Type = "workspace",  BarPage = "All",   Align = "left",   Order = 1 },
+            new() { Type = "cpu",       BarPage = "Info",  Align = "right",  Order = 4 },
+            new() { Type = "memory",    BarPage = "Info",  Align = "right",  Order = 5 },
+            new() { Type = "battery",   BarPage = "Info",  Align = "right",  Order = 6 },
+            new() { Type = "network",   BarPage = "Info",  Align = "right",  Order = 3 },
+            new() { Type = "media",     BarPage = "Info",  Align = "right",  Order = 7 },
+            new() { Type = "clock",     BarPage = "Info",  Align = "center", Order = 1 },
+            new() { Type = "active_window", BarPage = "Info", Align = "left", Order = 2 },
+            new() { Type = "layout",    BarPage = "Docker", Align = "right",  Order = 2 },
         };
     }
 

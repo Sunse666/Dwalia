@@ -19,6 +19,9 @@ public class ConfigRoot
     [YamlMember(Alias = "window_rules")]
     public List<WindowRuleConfig> WindowRules { get; set; } = new();
 
+    [YamlMember(Alias = "widgets")]
+    public List<WidgetConfig> Widgets { get; set; } = new();
+
     [YamlMember(Alias = "keybindings")]
     public List<KeybindingEntry> Keybindings { get; set; } = new();
 
@@ -184,6 +187,60 @@ public class ThemeConfig
 
     [YamlMember(Alias = "status_show_media")]
     public bool StatusShowMedia { get; set; } = true;
+
+    [YamlMember(Alias = "widget_cpu_color")]
+    public string WidgetCpuColor { get; set; } = "#e5c07b";
+
+    [YamlMember(Alias = "widget_mem_color")]
+    public string WidgetMemColor { get; set; } = "#61afef";
+
+    [YamlMember(Alias = "widget_battery_color")]
+    public string WidgetBatteryColor { get; set; } = "#98c379";
+
+    [YamlMember(Alias = "widget_network_down_color")]
+    public string WidgetNetworkDownColor { get; set; } = "#4fbf6f";
+
+    [YamlMember(Alias = "widget_network_up_color")]
+    public string WidgetNetworkUpColor { get; set; } = "#e06c75";
+
+    [YamlMember(Alias = "widget_media_color")]
+    public string WidgetMediaColor { get; set; } = "#c678dd";
+
+    [YamlMember(Alias = "widget_separator_color")]
+    public string WidgetSeparatorColor { get; set; } = "#3b4261";
+
+    [YamlMember(Alias = "media_dot_playing_color")]
+    public string MediaDotPlayingColor { get; set; } = "#4fbf6f";
+
+    [YamlMember(Alias = "media_dot_paused_color")]
+    public string MediaDotPausedColor { get; set; } = "#565f89";
+
+    [YamlMember(Alias = "bar_border_color")]
+    public string BarBorderColor { get; set; } = "#3b4261";
+
+    [YamlMember(Alias = "pill_corner_radius")]
+    public int PillCornerRadius { get; set; } = 9;
+
+    [YamlMember(Alias = "pill_height")]
+    public int PillHeight { get; set; } = 22;
+
+    [YamlMember(Alias = "task_pill_corner_radius")]
+    public int TaskPillCornerRadius { get; set; } = 14;
+
+    [YamlMember(Alias = "task_pill_height")]
+    public int TaskPillHeight { get; set; } = 28;
+
+    [YamlMember(Alias = "task_hover_brighten")]
+    public int TaskHoverBrighten { get; set; } = 20;
+
+    [YamlMember(Alias = "progress_filled_char")]
+    public string ProgressFilledChar { get; set; } = "▰";
+
+    [YamlMember(Alias = "progress_empty_char")]
+    public string ProgressEmptyChar { get; set; } = "▱";
+
+    [YamlMember(Alias = "marquee_speed")]
+    public int MarqueeSpeed { get; set; } = 25;
 
     [YamlMember(Alias = "media_script")]
     public string MediaScript { get; set; } = "";

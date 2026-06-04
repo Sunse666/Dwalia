@@ -147,32 +147,32 @@ public class WidgetManager
                 pill.Child = new StackPanel { Orientation = Orientation.Horizontal };
                 break;
             case "layout":
-                we.Text = new TextBlock { FontSize = 11, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = 16, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "active_window":
-                we.Text = new TextBlock { FontSize = 11, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = 16, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "clock":
             case "time_only":
             case "date_only":
-                we.Text = new TextBlock { FontSize = 12, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = 18, FontWeight = FontWeights.SemiBold, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
             case "network":
                 we.Panel = new StackPanel { Orientation = Orientation.Horizontal };
-                we.Text = new TextBlock { FontSize = 10, FontFamily = new FontFamily("Consolas") };
-                we.SecondaryText = new TextBlock { FontSize = 10, FontFamily = new FontFamily("Consolas") };
+                we.Text = new TextBlock { FontSize = 15, FontFamily = new FontFamily("Consolas") };
+                we.SecondaryText = new TextBlock { FontSize = 15, FontFamily = new FontFamily("Consolas") };
                 we.Panel.Children.Add(we.Text);
-                we.Panel.Children.Add(new TextBlock { Text = " · ", FontSize = 10 });
+                we.Panel.Children.Add(new TextBlock { Text = " · ", FontSize = 15 });
                 we.Panel.Children.Add(we.SecondaryText);
                 pill.Child = we.Panel;
                 break;
             case "media":
                 we.Dot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 5, 0) };
                 we.Canvas = new Canvas { ClipToBounds = true, Width = c.Width > 0 ? c.Width - 30 : 170 };
-                we.Text = new TextBlock { FontSize = 10, FontFamily = new FontFamily("Consolas") };
+                we.Text = new TextBlock { FontSize = 15, FontFamily = new FontFamily("Consolas") };
                 we.Canvas.Children.Add(we.Text);
                 we.Text.RenderTransform = new TranslateTransform();
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -213,7 +213,7 @@ public class WidgetManager
             case "label":
             case "button":
             default:
-                we.Text = new TextBlock { FontSize = 10, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = 15, Text = we.CachedText };
                 pill.Child = we.Text;
                 break;
         }
@@ -707,7 +707,7 @@ public class WidgetManager
             var title = captured.Title.Length > 25 ? captured.Title[..25] : captured.Title;
             var stack = new StackPanel { Orientation = Orientation.Horizontal };
 
-            var btn = new Button { Content = title, Height = h, FontSize = 10,
+            var btn = new Button { Content = title, Height = h, FontSize = 15,
                 Padding = new Thickness(10, 0, 2, 0), Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0), ToolTip = captured.Title,
                 Cursor = System.Windows.Input.Cursors.Hand,
@@ -718,7 +718,7 @@ public class WidgetManager
             btn.MouseDown += (_, e) => { if (e.MiddleButton == System.Windows.Input.MouseButtonState.Pressed) PostMessage(hwnd, WM_CLOSE, 0, 0); };
             stack.Children.Add(btn);
 
-            var cb = new Button { Content = "✕", Width = 20, Height = h, FontSize = 8,
+            var cb = new Button { Content = "✕", Width = 20, Height = h, FontSize = 12,
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
                 Cursor = System.Windows.Input.Cursors.Hand,
@@ -754,7 +754,7 @@ public class WidgetManager
             }
             catch { }
             content.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center });
-            var btn = new Button { Content = content, Height = h, FontSize = 10, Padding = new Thickness(12, 0, 12, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand, Foreground = new SolidColorBrush(ParseColor(cfg.Theme.Foreground) ?? Colors.White) };
+            var btn = new Button { Content = content, Height = h, FontSize = 15, Padding = new Thickness(12, 0, 12, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand, Foreground = new SolidColorBrush(ParseColor(cfg.Theme.Foreground) ?? Colors.White) };
             var cmd = entry.Path;
             btn.Click += (_, _) => { try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); } catch { } };
             var pill = new Border { CornerRadius = new CornerRadius(h / 2), Height = h, Background = new SolidColorBrush(ParseColor(cfg.Theme.TaskButtonBackground) ?? Color.FromRgb(0x24, 0x28, 0x3e)), Child = btn, Margin = new Thickness(2, 0, 2, 0) };

@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private Color _monitorBarBorder = Color.FromRgb(0x3b, 0x42, 0x61);
     private Color _pillInactive = Color.FromRgb(0x56, 0x5f, 0x89);
     private Color _pillEmpty = Color.FromRgb(0x2b, 0x2f, 0x44);
+    private bool _showPillCount;
     private readonly List<System.Windows.Controls.Border> _monitorBars = new();
     private NOTIFYICONDATA _trayData;
     private bool _trayCreated;
@@ -155,6 +156,8 @@ public partial class MainWindow : Window
             else
                 _pillEmpty = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
 
+            _showPillCount = cfg.Theme.WorkspacePillShowCount;
+
             var barH = Math.Clamp(cfg.General.BarHeight, 16, 80);
             TaskBar.Height = barH;
             InfoBar.Height = barH;
@@ -169,6 +172,12 @@ public partial class MainWindow : Window
             LauncherBar.SetValue(TextElement.FontSizeProperty, (double)fontSize);
             LauncherBar.SetValue(TextElement.FontFamilyProperty, fontFamily);
             LayoutLabel.FontSize = fontSize;
+            LayoutLabel.Cursor = System.Windows.Input.Cursors.Hand;
+            LayoutLabel.MouseLeftButtonDown += (_, _) =>
+            {
+                if (ServiceLocator.TryResolve<LayoutManager>(out var llm))
+                    llm.CycleLayout();
+            };
 
             var barPos = cfg.General.BarPosition?.ToLowerInvariant() ?? "top";
             if (barPos == "bottom")
@@ -442,7 +451,7 @@ public partial class MainWindow : Window
                     taskBarWindows.Add(w);
             }
         }
-        if (taskBarWindows.Count == 0) return;
+        if (taskBarWindows.Count == 0) { UpdateWorkspacePills(); return; }
 
         ServiceLocator.TryResolve<FocusMgr>(out var fm);
 
@@ -457,21 +466,30 @@ public partial class MainWindow : Window
         for (int i = 0; i < count; i++)
         {
             var mw = taskBarWindows[(startIdx + i) % count];
-            var title = mw.Title.Length > 30 ? mw.Title[..30] + "..." : mw.Title;
+            var shortTitle = mw.Title.Length > 25 ? mw.Title[..25] + "..." : mw.Title;
+            var hwnd = mw.Hwnd;
+            var captured = mw;
+
+            var container = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(2, 0, 2, 0),
+            };
+
             var btn = new Button
             {
-                Content = title,
-                Height = 28, Margin = new Thickness(4, 0, 4, 0),
-                Padding = new Thickness(8, 0, 8, 0), FontSize = 11,
+                Content = shortTitle,
+                Height = 28,
+                Padding = new Thickness(8, 0, 4, 0),
+                FontSize = 11,
                 Foreground = mw.IsActive
                     ? new SolidColorBrush(_focusBgColor)
                     : new SolidColorBrush(_foregroundColor),
                 Background = new SolidColorBrush(_taskBtnBg),
-                BorderThickness = new Thickness(0)
+                BorderThickness = new Thickness(0),
+                ToolTip = mw.Title
             };
 
-            var hwnd = mw.Hwnd;
-            var captured = mw;
             btn.Click += (_, _) =>
             {
                 ShowWindow(hwnd, SW_RESTORE);
@@ -479,9 +497,31 @@ public partial class MainWindow : Window
                 fm?.SetActiveWindow(captured);
             };
 
-            btn.ContextMenu = BuildWindowContextMenu(captured);
+            btn.MouseDown += (_, e) =>
+            {
+                if (e.MiddleButton == MouseButtonState.Pressed)
+                    PostMessage(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+            };
 
-            TaskBarItems.Items.Add(btn);
+            btn.ContextMenu = BuildWindowContextMenu(captured);
+            container.Children.Add(btn);
+
+            var closeBtn = new Button
+            {
+                Content = "✕",
+                Width = 20, Height = 28,
+                Padding = new Thickness(0),
+                FontSize = 9,
+                Foreground = new SolidColorBrush(_mutedColor),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                ToolTip = "Close"
+            };
+            closeBtn.Click += (_, _) =>
+                PostMessage(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+            container.Children.Add(closeBtn);
+
+            TaskBarItems.Items.Add(container);
         }
         UpdateWorkspacePills();
     }
@@ -605,6 +645,8 @@ public partial class MainWindow : Window
             ParseColor(c.Theme.WorkspacePillEmpty, ref _pillEmpty, null, null, null);
         else
             _pillEmpty = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
+
+        _showPillCount = c.Theme.WorkspacePillShowCount;
 
         if (c.Theme.EnableAcrylic)
         {
@@ -880,15 +922,52 @@ public partial class MainWindow : Window
                 pillColor = _pillInactive;
             else
                 pillColor = _pillEmpty;
+
+            var container = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(2, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            var wsId = ws.Id;
+            container.MouseLeftButtonDown += (_, _) =>
+            {
+                if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm2))
+                    wsm2.SwitchToWorkspace(wsId);
+            };
+
             var pill = new Border
             {
-                Width = isActive ? 24 : 8,
+                Width = isActive ? 20 : 8,
                 Height = 8,
                 CornerRadius = new CornerRadius(4),
-                Margin = new Thickness(2, 0, 2, 0),
+                Margin = new Thickness(0, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
                 Background = new SolidColorBrush(pillColor)
             };
-            WorkspacePills.Children.Add(pill);
+            container.Children.Add(pill);
+
+            if (_showPillCount)
+            {
+                var countText = new TextBlock
+                {
+                    Text = ws.Windows.Count.ToString(),
+                    FontSize = 10,
+                    Foreground = isActive
+                        ? new SolidColorBrush(_focusBgColor)
+                        : (hasWindows
+                            ? new SolidColorBrush(_foregroundColor)
+                            : new SolidColorBrush(_mutedColor)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                container.Children.Add(countText);
+            }
+
+            container.ToolTip = $"{ws.Id + 1}: {ws.Name}  ({ws.Windows.Count} windows)";
+
+            WorkspacePills.Children.Add(container);
         }
     }
 

@@ -172,6 +172,9 @@ public class ThemeConfig
 
     [YamlMember(Alias = "workspace_pill_empty_color")]
     public string WorkspacePillEmpty { get; set; } = "";
+
+    [YamlMember(Alias = "workspace_pill_show_count")]
+    public bool WorkspacePillShowCount { get; set; } = false;
 }
 
 public class LayoutConfig

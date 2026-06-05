@@ -137,6 +137,7 @@ public class FocusBackground : IDisposable
         {
             bg.Hwnd = new WindowInteropHelper(window).Handle;
             _byHwnd[bg.Hwnd] = bg;
+            SetWindowDisplayAffinity(bg.Hwnd, WDA_EXCLUDEFROMCAPTURE);
             var exStyle = GetWindowLongPtr(bg.Hwnd, GWL_EXSTYLE);
             SetWindowLongPtr(bg.Hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
             SetWindowPos(bg.Hwnd, new IntPtr(1), bg.X, bg.Y, bg.W, bg.H,

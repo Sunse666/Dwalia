@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Managers;
+using Dwalia.Models;
 using FocusMgr = Dwalia.Managers.FocusManager;
 using static Dwalia.Win32.NativeMethods;
 using static Dwalia.Win32.NativeConstants;
@@ -1384,69 +1385,154 @@ public partial class MainWindow : Window
 
     private void PopulatePills(Panel panel)
     {
-        panel.Children.Clear();
         if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
 
+        var expectedKids = _showPillCount ? wsm.Workspaces.Count * 2 : wsm.Workspaces.Count;
+        var canUpdate = panel.Children.Count == expectedKids && expectedKids > 0;
+
+        if (!canUpdate)
+        {
+            panel.Children.Clear();
+            foreach (var ws in wsm.Workspaces)
+                BuildPill(panel, wsm, ws);
+            return;
+        }
+
+        var kidIdx = 0;
         foreach (var ws in wsm.Workspaces)
         {
             var isActive = ws.Id == wsm.ActiveWorkspaceId;
             var hasWindows = ws.Windows.Count > 0;
-            Color pillBg;
+            Color targetBg;
             if (isActive)
-                pillBg = _focusBgColor;
+                targetBg = _focusBgColor;
             else if (hasWindows)
-                pillBg = _pillInactive;
+                targetBg = _pillInactive;
             else
-                pillBg = _pillEmpty;
+                targetBg = _pillEmpty;
 
-            var wsId = ws.Id;
-            var pill = new Border
+            if (panel.Children[kidIdx] is Border pill)
             {
-                Width = isActive ? 28 : 10,
-                Height = 10,
-                CornerRadius = new CornerRadius(5),
-                Margin = new Thickness(3, 0, 3, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                Background = new SolidColorBrush(pillBg),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = $"{wsId + 1}: {ws.Name}  ({ws.Windows.Count} windows)"
-            };
-
-            pill.MouseLeftButtonDown += (_, _) =>
-            {
-                if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm2))
-                    wsm2.SwitchToWorkspace(wsId);
-            };
-
-            if (isActive)
-            {
-                pill.MouseEnter += (_, _) =>
-                    pill.Background = new SolidColorBrush(Color.FromArgb(
-                        255, (byte)Math.Min(_focusBgColor.R + 30, 255),
-                        (byte)Math.Min(_focusBgColor.G + 30, 255),
-                        (byte)Math.Min(_focusBgColor.B + 30, 255)));
-                pill.MouseLeave += (_, _) =>
-                    pill.Background = new SolidColorBrush(_focusBgColor);
+                AnimatePillWidth(pill, isActive ? 28 : 10);
+                AnimatePillColor(pill, targetBg);
             }
+            kidIdx++;
 
-            panel.Children.Add(pill);
-
-            if (_showPillCount)
+            if (_showPillCount && kidIdx < panel.Children.Count
+                && panel.Children[kidIdx] is TextBlock countTb)
             {
-                panel.Children.Add(new TextBlock
-                {
-                    Text = ws.Windows.Count.ToString(),
-                    FontSize = 10,
-                    Foreground = isActive
-                        ? new SolidColorBrush(_focusBgColor)
-                        : new SolidColorBrush(_mutedColor),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 4, 0),
-                });
+                countTb.Text = ws.Windows.Count.ToString();
+                countTb.Foreground = new SolidColorBrush(
+                    isActive ? _focusBgColor : _mutedColor);
+                kidIdx++;
             }
         }
     }
 
+    private static void AnimatePillWidth(Border pill, double targetWidth)
+    {
+        if (Math.Abs(pill.Width - targetWidth) < 0.5) return;
+        var anim = new System.Windows.Media.Animation.DoubleAnimation(
+            pill.Width, targetWidth,
+            TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+            }
+        };
+        pill.BeginAnimation(Border.WidthProperty, anim);
+    }
+
+    private static void AnimatePillColor(Border pill, Color toColor)
+    {
+        if (pill.Background is SolidColorBrush current
+            && ColorEquals(current.Color, toColor))
+            return;
+
+        var toBrush = new SolidColorBrush(toColor);
+        var anim = new System.Windows.Media.Animation.ColorAnimation(
+            toColor, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+            }
+        };
+
+        pill.Background = toBrush;
+        pill.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
+    }
+
+    private static bool ColorEquals(Color a, Color b) =>
+        a.R == b.R && a.G == b.G && a.B == b.B && a.A == b.A;
+
+    private void BuildPill(Panel panel, WorkspaceManager wsm, Workspace ws)
+    {
+        var isActive = ws.Id == wsm.ActiveWorkspaceId;
+        var hasWindows = ws.Windows.Count > 0;
+        Color pillBg;
+        if (isActive)
+            pillBg = _focusBgColor;
+        else if (hasWindows)
+            pillBg = _pillInactive;
+        else
+            pillBg = _pillEmpty;
+
+        var wsId = ws.Id;
+        var pill = new Border
+        {
+            Width = isActive ? 28 : 10,
+            Height = 10,
+            CornerRadius = new CornerRadius(5),
+            Margin = new Thickness(3, 0, 3, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = new SolidColorBrush(pillBg),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = $"{wsId + 1}: {ws.Name}  ({ws.Windows.Count} windows)"
+        };
+
+        pill.MouseLeftButtonDown += (_, _) =>
+        {
+            if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm2))
+                wsm2.SwitchToWorkspace(wsId);
+        };
+
+        pill.MouseEnter += (_, _) =>
+            pill.Background = new SolidColorBrush(Color.FromArgb(
+                255, (byte)Math.Min(_focusBgColor.R + 30, 255),
+                (byte)Math.Min(_focusBgColor.G + 30, 255),
+                (byte)Math.Min(_focusBgColor.B + 30, 255)));
+        pill.MouseLeave += (_, _) =>
+        {
+            if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm3))
+            {
+                var active = ws.Id == wsm3.ActiveWorkspaceId;
+                var hw = ws.Windows.Count > 0;
+                Color c;
+                if (active) c = _focusBgColor;
+                else if (hw) c = _pillInactive;
+                else c = _pillEmpty;
+                pill.Background = new SolidColorBrush(c);
+            }
+        };
+
+        panel.Children.Add(pill);
+
+        if (_showPillCount)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = ws.Windows.Count.ToString(),
+                FontSize = 10,
+                Foreground = isActive
+                    ? new SolidColorBrush(_focusBgColor)
+                    : new SolidColorBrush(_mutedColor),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 4, 0),
+            });
+        }
+    }
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {

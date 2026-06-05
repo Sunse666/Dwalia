@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Dwalia.Configuration;
 using Dwalia.Infrastructure;
+using Dwalia.Models;
 using Dwalia.Win32;
 using static Dwalia.Win32.NativeMethods;
 using static Dwalia.Win32.NativeConstants;
@@ -79,7 +80,18 @@ public class WidgetManager
         _marqueeTimer.Tick += (_, _) => StepMarqueeAll();
         _marqueeTimer.Start();
 
+        if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
+            wsm.WorkspaceChanged += (_, _) => RefreshWorkspaceWidgets();
+
         WidgetsChanged?.Invoke();
+    }
+
+    private void RefreshWorkspaceWidgets()
+    {
+        foreach (var list in _widgetsByBar.Values)
+            foreach (var we in list)
+                if (we.Config.Type == "workspace")
+                    UpdateWorkspace(we);
     }
 
     public Panel BuildBarContent(string page)
@@ -630,46 +642,119 @@ public class WidgetManager
 
     private void UpdateWorkspace(WidgetEntry we)
     {
-        if (we.Pill?.Child is StackPanel sp)
+        if (we.Pill?.Child is not StackPanel sp) return;
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm) ||
+            !ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
+            return;
+
+        var wsCount = wsm.Workspaces.Count;
+        var existingPills = sp.Children.OfType<Border>().ToList();
+        var needRebuild = existingPills.Count != wsCount;
+
+        if (needRebuild)
         {
             sp.Children.Clear();
-            if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm) &&
-                ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
-            {
-                foreach (var ws in wsm.Workspaces)
-                {
-                    var isActive = ws.Id == wsm.ActiveWorkspaceId;
-                    var hasWindows = ws.Windows.Count > 0;
-                    Color c;
-                    if (isActive)
-                    {
-                        try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent); }
-                        catch { c = Color.FromRgb(0x7a, 0xa2, 0xf7); }
-                    }
-                    else if (hasWindows)
-                    {
-                        try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.WorkspacePillInactive); }
-                        catch { c = Color.FromRgb(0x56, 0x5f, 0x89); }
-                    }
-                    else
-                    {
-                        try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.WorkspacePillEmpty); }
-                        catch { c = Color.FromRgb(0x2b, 0x2f, 0x44); }
-                    }
-                    var wsId = ws.Id;
-                    var pill = new Border
-                    {
-                        Width = isActive ? 28 : 10, Height = 10,
-                        CornerRadius = new CornerRadius(5),
-                        Margin = new Thickness(3, 0, 3, 0),
-                        Background = new SolidColorBrush(c),
-                        Cursor = System.Windows.Input.Cursors.Hand,
-                    };
-                    pill.MouseLeftButtonDown += (_, _) => wsm.SwitchToWorkspace(wsId);
-                    sp.Children.Add(pill);
-                }
-            }
+            foreach (var ws in wsm.Workspaces)
+                AddWorkspacePill(sp, wsm, ws, cfg);
+            return;
         }
+
+        for (int i = 0; i < wsCount; i++)
+        {
+            var ws = wsm.Workspaces[i];
+            var isActive = ws.Id == wsm.ActiveWorkspaceId;
+            var hasWindows = ws.Windows.Count > 0;
+            Color c;
+            if (isActive)
+            {
+                try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent); }
+                catch { c = Color.FromRgb(0x7a, 0xa2, 0xf7); }
+            }
+            else if (hasWindows)
+            {
+                try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.WorkspacePillInactive); }
+                catch { c = Color.FromRgb(0x56, 0x5f, 0x89); }
+            }
+            else
+            {
+                try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.WorkspacePillEmpty); }
+                catch { c = Color.FromRgb(0x2b, 0x2f, 0x44); }
+            }
+
+            var pill = existingPills[i];
+            AnimatePillWidth(pill, isActive ? 28 : 10);
+            AnimatePillColor(pill, c);
+        }
+    }
+
+    private void AddWorkspacePill(StackPanel sp, WorkspaceManager wsm, Workspace ws, ConfigRoot cfg)
+    {
+        var isActive = ws.Id == wsm.ActiveWorkspaceId;
+        var hasWindows = ws.Windows.Count > 0;
+        Color c;
+        if (isActive)
+        {
+            try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent); }
+            catch { c = Color.FromRgb(0x7a, 0xa2, 0xf7); }
+        }
+        else if (hasWindows)
+        {
+            try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.WorkspacePillInactive); }
+            catch { c = Color.FromRgb(0x56, 0x5f, 0x89); }
+        }
+        else
+        {
+            try { c = (Color)ColorConverter.ConvertFromString(cfg.Theme.WorkspacePillEmpty); }
+            catch { c = Color.FromRgb(0x2b, 0x2f, 0x44); }
+        }
+        var wsId = ws.Id;
+        var pill = new Border
+        {
+            Width = isActive ? 28 : 10, Height = 10,
+            CornerRadius = new CornerRadius(5),
+            Margin = new Thickness(3, 0, 3, 0),
+            Background = new SolidColorBrush(c),
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        pill.MouseLeftButtonDown += (_, _) => wsm.SwitchToWorkspace(wsId);
+        sp.Children.Add(pill);
+    }
+
+    private static void AnimatePillWidth(Border pill, double targetWidth)
+    {
+        if (Math.Abs(pill.Width - targetWidth) < 0.5) return;
+        var anim = new System.Windows.Media.Animation.DoubleAnimation(
+            pill.Width, targetWidth,
+            TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+            }
+        };
+        pill.BeginAnimation(Border.WidthProperty, anim);
+    }
+
+    private static void AnimatePillColor(Border pill, Color toColor)
+    {
+        if (pill.Background is SolidColorBrush current)
+        {
+            if (current.Color.R == toColor.R && current.Color.G == toColor.G
+                && current.Color.B == toColor.B && current.Color.A == toColor.A)
+                return;
+        }
+
+        var toBrush = new SolidColorBrush(toColor);
+        var anim = new System.Windows.Media.Animation.ColorAnimation(
+            toColor, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+            }
+        };
+        pill.Background = toBrush;
+        pill.Background.BeginAnimation(SolidColorBrush.ColorProperty, anim);
     }
 
     private void UpdateLayout(WidgetEntry we)

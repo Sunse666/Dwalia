@@ -68,6 +68,16 @@ public partial class App : Application
         ServiceLocator.Register(_configManager);
         ServiceLocator.Register(_focusManager);
 
+        _layoutManager = new LayoutManager(_windowManager, _workspaceManager, _focusManager);
+        _layoutManager.SetEnabledLayouts(_config.Layout.EnabledLayouts);
+        if (_config.General.DefaultLayout is { Length: > 0 } defLayout
+            && Enum.TryParse<Managers.LayoutType>(defLayout, true, out var lt))
+        {
+            foreach (var ws in _workspaceManager.Workspaces)
+                ws.Layout = lt;
+        }
+        ServiceLocator.Register(_layoutManager);
+
         _mainWindow = new MainWindow(_windowManager, _hookManager);
 
         _monitorManager = new MonitorManager();
@@ -78,17 +88,6 @@ public partial class App : Application
             _workspaceManager.InitializeForMonitor(m.Id);
 
         _hotKeyManager.CommandTriggered += OnCommandTriggered;
-
-
-        _layoutManager = new LayoutManager(_windowManager, _workspaceManager, _focusManager);
-        _layoutManager.SetEnabledLayouts(_config.Layout.EnabledLayouts);
-        if (_config.General.DefaultLayout is { Length: > 0 } defLayout
-            && Enum.TryParse<Managers.LayoutType>(defLayout, true, out var lt))
-        {
-            foreach (var ws in _workspaceManager.Workspaces)
-                ws.Layout = lt;
-        }
-        ServiceLocator.Register(_layoutManager);
 
         _mouseResizeManager = new MouseResizeManager();
         ServiceLocator.Register(_mouseResizeManager);

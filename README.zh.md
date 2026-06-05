@@ -131,6 +131,31 @@ theme:
   monitor_bar_border: ""              # 多显示器工具栏边框（空=使用 muted 色）
   workspace_pill_inactive_color: ""   # 非活动工作区指示器
   workspace_pill_empty_color: ""      # 空工作区指示器
+  workspace_pill_show_count: false    # 工作区胶囊旁显示窗口计数
+  widget_pill_background: "#1a1a3e"   # 默认 widget 胶囊背景
+  widget_cpu_color: "#00ff88"         # CPU widget 文字色
+  widget_mem_color: "#00ccff"         # 内存 widget 文字色
+  widget_battery_color: "#88ff00"     # 电池 widget 文字色
+  widget_network_down_color: "#00ff88" # 网络下载文字色
+  widget_network_up_color: "#ff4444"   # 网络上传文字色
+  widget_media_color: "#ff88ff"        # 媒体 widget 文字色
+  widget_separator_color: "#334466"    # widget 分隔符颜色
+  media_dot_playing_color: "#00ff88"   # 媒体播放指示灯色
+  media_dot_paused_color: "#334466"    # 媒体暂停指示灯色
+  bar_border_color: "#3b4261"          # 状态栏边框色
+  pill_corner_radius: 14               # 胶囊圆角
+  pill_height: 30                      # 胶囊高度
+  task_pill_corner_radius: 14          # 任务标签圆角
+  task_pill_height: 32                 # 任务标签高度
+  task_hover_brighten: 20              # 悬停增亮值
+  progress_filled_char: "▰"            # 进度条实心字符
+  progress_empty_char: "▱"             # 进度条空心字符
+  marquee_speed: 25                    # 媒体文字滚动速度
+  media_script: ""                     # 自定义媒体信息脚本路径
+  media_script_interval: 3             # 脚本轮询间隔（秒）
+  date_format: "HH:mm:ss  yyyy-MM-dd"  # 时钟日期格式
+  status_show_network: true            # 显示网络速率
+  status_show_media: true              # 显示媒体信息
 
 layout:
   inner_gap: 4                     # 窗口内边距
@@ -279,6 +304,28 @@ resize_mode:
 # 多显示器设置
 monitor:
   monitor_bar_enabled: true        # 非主屏显示辅助工具栏
+
+widgets:
+  - type: workspace                # BarPage: All = 在每页显示
+    bar_page: All
+    align: left
+    order: 1
+  - type: layout                   # BarPage: Docker = 仅在 Docker 页显示
+    bar_page: Docker
+    align: right
+    order: 2
+  - type: clock
+    bar_page: Basic
+    align: center
+    order: 1
+  # Widget 选项：
+  #   bar_page: All | Docker | Basic | Advanced
+  #   align: left | center | right
+  #   order: 排序优先级（越小越靠前）
+  #   width / height / font_size: 自定义尺寸
+  #   pill_color / text_color: 自定义颜色
+  #   format / args: widget 特定选项
+  #   enabled: true | false
 ```
 
 ### 全部命令
@@ -314,18 +361,58 @@ monitor:
 
 ### 状态栏模式
 
-状态栏有 3 种模式，用 `Alt+Shift+Down` / `Alt+Shift+Up` 循环切换：
+状态栏由 Widget 驱动，有 3 页，用 `Alt+Shift+Down` / `Alt+Shift+Up` 循环切换：
 
-| 模式 | 内容 |
+| 页面 | 内容 |
 |---|---|
 | **Docker** | 工作区指示器、窗口标签、布局名称 |
-| **Info** | 时钟、CPU 使用率、内存使用率、电池状态 |
-| **Launcher** | 快捷启动按钮（在 `launcher:` 下配置） |
+| **Basic** | 活动窗口标题、时钟、CPU、内存、电池、网络、媒体 |
+| **Advanced** | 窗口数、CPU、内存、网络、GPU、磁盘使用率、磁盘 I/O |
+
+每页由 `widgets:` 配置下的 widget 组成。所有支持的 widget 类型：
+
+| Widget | 说明 |
+|---|---|
+| `workspace` | 工作区指示胶囊 |
+| `window_tabs` | 窗口标签页（带标题和关闭按钮） |
+| `active_window` | 当前活动窗口标题 |
+| `layout` | 当前布局名称 / 主区域比例 |
+| `clock` | 日期和时间 |
+| `time_only` | 仅时间 |
+| `date_only` | 仅日期 |
+| `cpu` | CPU 使用率（带进度条） |
+| `memory` | 内存使用率（带进度条） |
+| `battery` | 电池电量 / 交流电源状态 |
+| `network` | 网络下载 / 上传速度 |
+| `media` | 当前播放媒体信息（带滚动字幕） |
+| `gpu` | GPU 使用率 |
+| `disk` | 磁盘读写速度 |
+| `disk_usage` | 磁盘空闲 / 总空间 |
+| `uptime` | 系统运行时间 |
+| `wifi_ssid` | Wi-Fi SSID |
+| `ip_address` | 本地 IP 地址 |
+| `public_ip` | 公网 IP（通过 ipify） |
+| `window_count` | 当前工作区窗口数量 |
+| `world_clock` | 多时区时钟（逗号分隔 `args`） |
+| `countdown` | 目标日期倒计时（`args`） |
+| `launcher` | 快捷启动按钮 |
+| `label` | 静态文本标签（`args`） |
+| `button` | 可点击按钮（`args`） |
+| `script` | 自定义脚本输出 |
 
 在 `theme:` 下可配置：
-- `status_show_clock` / `status_show_cpu` / `status_show_mem` / `status_show_battery` — 独立开关各信息栏组件
 - `font_size` / `bar_font` — 自定义字体
 - `bar_height` / `bar_position` — 状态栏尺寸与位置
+- `widget_pill_background` — 默认 widget 胶囊背景色
+- `widget_cpu_color` / `widget_mem_color` / `widget_battery_color` — widget 文字颜色
+- `widget_network_down_color` / `widget_network_up_color` / `widget_media_color` — 网络与媒体颜色
+- `pill_corner_radius` / `pill_height` / `task_pill_corner_radius` / `task_pill_height` — 胶囊样式
+- `progress_filled_char` / `progress_empty_char` — CPU/内存进度条字符
+- `marquee_speed` — 媒体文字滚动速度
+- `media_script` — 自定义媒体信息脚本路径
+- `workspace_pill_show_count` — 工作区胶囊旁显示窗口计数
+- `status_show_network` / `status_show_media` — 网络和媒体 widget 开关
+- `date_format` — 时钟日期格式字符串
 
 ### 图层结构
 

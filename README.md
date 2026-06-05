@@ -131,6 +131,31 @@ theme:
   monitor_bar_border: ""          # empty = use muted color
   workspace_pill_inactive_color: ""  # empty = use muted color
   workspace_pill_empty_color: ""     # empty = half-muted
+  workspace_pill_show_count: false   # show window count beside pills
+  widget_pill_background: "#1a1a3e"  # default widget pill background
+  widget_cpu_color: "#00ff88"
+  widget_mem_color: "#00ccff"
+  widget_battery_color: "#88ff00"
+  widget_network_down_color: "#00ff88"
+  widget_network_up_color: "#ff4444"
+  widget_media_color: "#ff88ff"
+  widget_separator_color: "#334466"
+  media_dot_playing_color: "#00ff88"
+  media_dot_paused_color: "#334466"
+  bar_border_color: "#3b4261"
+  pill_corner_radius: 14
+  pill_height: 30
+  task_pill_corner_radius: 14
+  task_pill_height: 32
+  task_hover_brighten: 20
+  progress_filled_char: "▰"
+  progress_empty_char: "▱"
+  marquee_speed: 25              # media text scroll speed
+  media_script: ""               # custom media info script path
+  media_script_interval: 3       # script polling interval (seconds)
+  date_format: "HH:mm:ss  yyyy-MM-dd"
+  status_show_network: true
+  status_show_media: true
 
 layout:
   inner_gap: 4
@@ -279,6 +304,28 @@ resize_mode:
 # Multi-monitor settings
 monitor:
   monitor_bar_enabled: true       # show per-monitor bars
+
+widgets:
+  - type: workspace               # BarPage: All = shown on every page
+    bar_page: All
+    align: left
+    order: 1
+  - type: layout                  # BarPage: Docker = only on Docker page
+    bar_page: Docker
+    align: right
+    order: 2
+  - type: clock
+    bar_page: Basic
+    align: center
+    order: 1
+  # Widget options:
+  #   bar_page: All | Docker | Basic | Advanced
+  #   align: left | center | right
+  #   order: sort priority (lower = first)
+  #   width / height / font_size: custom dimensions
+  #   pill_color / text_color: custom colors
+  #   format / args: widget-specific options
+  #   enabled: true | false
 ```
 
 ### Available Commands
@@ -314,18 +361,58 @@ monitor:
 
 ### Bar Modes
 
-Dwalia's bar has 3 modes, cycled with `Alt+Shift+Down` / `Alt+Shift+Up`:
+Dwalia's bar is widget-driven and has 3 pages, cycled with `Alt+Shift+Down` / `Alt+Shift+Up`:
 
-| Mode | Content |
+| Page | Content |
 |---|---|
 | **Docker** | Workspace pills, window tabs, layout indicator |
-| **Info** | Clock, CPU usage, memory usage, battery status |
-| **Launcher** | Quick-launch buttons (configured under `launcher:`) |
+| **Basic** | Active window title, clock, CPU, memory, battery, network, media |
+| **Advanced** | Window count, CPU, memory, network, GPU, disk usage, disk I/O |
+
+Each page is composed of widgets configured under `widgets:`. The built-in widget types:
+
+| Widget | Description |
+|---|---|
+| `workspace` | Workspace indicator pills |
+| `window_tabs` | Per-window tabs with title and close button |
+| `active_window` | Active window title |
+| `layout` | Current layout name / master factor |
+| `clock` | Date and time |
+| `time_only` | Time only |
+| `date_only` | Date only |
+| `cpu` | CPU usage with progress bar |
+| `memory` | Memory usage with progress bar |
+| `battery` | Battery level / AC status |
+| `network` | Network download / upload speed |
+| `media` | Now-playing media info with marquee |
+| `gpu` | GPU usage |
+| `disk` | Disk read / write speed |
+| `disk_usage` | Disk free / total space |
+| `uptime` | System uptime |
+| `wifi_ssid` | Wi-Fi SSID |
+| `ip_address` | Local IP address |
+| `public_ip` | Public IP (from ipify) |
+| `window_count` | Window count in active workspace |
+| `world_clock` | Multiple timezone clocks (comma-separated `args`) |
+| `countdown` | Countdown to a target date (`args`) |
+| `launcher` | Quick-launch app buttons |
+| `label` | Static text label (`args`) |
+| `button` | Clickable button with text (`args`) |
+| `script` | Custom script output |
 
 Configure under `theme:`:
-- `status_show_clock` / `status_show_cpu` / `status_show_mem` / `status_show_battery` — toggle individual info bar items
 - `font_size` / `bar_font` — customize bar typography
 - `bar_height` / `bar_position` — customize bar dimensions and placement
+- `widget_pill_background` — default widget pill background
+- `widget_cpu_color` / `widget_mem_color` / `widget_battery_color` — widget text colors
+- `widget_network_down_color` / `widget_network_up_color` / `widget_media_color` — network & media colors
+- `pill_corner_radius` / `pill_height` / `task_pill_corner_radius` / `task_pill_height` — pill styling
+- `progress_filled_char` / `progress_empty_char` — CPU/memory progress bar characters
+- `marquee_speed` — media text scroll speed
+- `media_script` — custom media info script path
+- `workspace_pill_show_count` — show window count next to workspace pills
+- `status_show_network` / `status_show_media` — toggle network and media widgets
+- `date_format` — clock date/time format string
 
 ### Layer Stack
 

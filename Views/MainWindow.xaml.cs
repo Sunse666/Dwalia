@@ -11,6 +11,7 @@ using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Managers;
 using Dwalia.Models;
+using Dwalia.Styling;
 using FocusMgr = Dwalia.Managers.FocusManager;
 using static Dwalia.Win32.NativeMethods;
 using static Dwalia.Win32.NativeConstants;
@@ -876,9 +877,11 @@ public partial class MainWindow : Window
             FadeInBar(nextBar, duration);
         }
 
-
         UpdateTaskBar();
         UpdateWorkspacePills();
+
+        var activeBar = mode switch { BarMode.Basic => InfoBar, BarMode.Advanced => LauncherBar, _ => TaskBar };
+        Styling.StyleEngine.ApplyToVisualTree(activeBar);
 
         UpdateBarArea();
     }

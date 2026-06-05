@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
@@ -6,6 +7,7 @@ using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Managers;
 using Dwalia.Models;
+using Dwalia.Styling;
 using Dwalia.Views;
 using Dwalia.Win32;
 using static Dwalia.Win32.NativeMethods;
@@ -212,7 +214,11 @@ public partial class App : Application
         if (ServiceLocator.TryResolve<WidgetManager>(out var wm))
         {
             wm.Initialize();
-            _mainWindow?.Dispatcher.Invoke(() => _mainWindow.SetupWidgetBars());
+            _mainWindow?.Dispatcher.Invoke(() =>
+            {
+                _mainWindow.SetupWidgetBars();
+                LoadAndApplyStyles();
+            });
         }
 
         if (_config.General.StartupWorkspace > 0
@@ -285,12 +291,21 @@ public partial class App : Application
         {
             _mainWindow.ApplyThemeFromConfig();
             _mainWindow.UpdateTaskBarColors();
+            LoadAndApplyStyles();
             _hotKeyManager?.Dispose();
             _hotKeyManager = new HotKeyManager();
             _hotKeyManager.CommandTriggered += OnCommandTriggered;
                 _hotKeyManager.Initialize(_mainWindow.GetHwnd());
             Logger.Info("Config reloaded");
         });
+    }
+
+    private void LoadAndApplyStyles()
+    {
+        var cssPath = Path.Combine(AppContext.BaseDirectory, "styles.css");
+        StyleEngine.LoadAndApply(cssPath);
+        _mainWindow?.Dispatcher.Invoke(() =>
+            StyleEngine.ApplyToVisualTree(_mainWindow));
     }
 
     protected override void OnExit(ExitEventArgs e)

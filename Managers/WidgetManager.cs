@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Models;
+using Dwalia.Styling;
 using Dwalia.Win32;
 using static Dwalia.Win32.NativeMethods;
 using static Dwalia.Win32.NativeConstants;
@@ -49,6 +50,7 @@ public class WidgetManager
         public Canvas? Canvas;
         public TextBlock? SecondaryText;
         public string CachedText = "";
+        public Dictionary<IntPtr, Border> TabPills = new();
     }
 
     public void Initialize()
@@ -150,6 +152,7 @@ public class WidgetManager
             Padding = new Thickness(8, 2, 8, 2),
             Margin = new Thickness(3, 0, 3, 0),
             VerticalAlignment = VerticalAlignment.Center,
+            Tag = $"widget type:{c.Type}"
         };
         if (c.Width > 0) pill.Width = c.Width;
 
@@ -251,6 +254,8 @@ public class WidgetManager
         {
             ApplyWidgetColor(we);
         }
+        if (Styling.StyleEngine.HasStyles)
+            Styling.StyleEngine.ApplyToElement(pill);
         return pill;
     }
 
@@ -682,6 +687,8 @@ public class WidgetManager
             }
 
             var pill = existingPills[i];
+            var stateClass = isActive ? "active" : (hasWindows ? "inactive" : "empty");
+            pill.Tag = $"workspace-pill {stateClass}";
             AnimatePillWidth(pill, isActive ? 28 : 10);
             AnimatePillColor(pill, c);
         }
@@ -708,6 +715,7 @@ public class WidgetManager
             catch { c = Color.FromRgb(0x2b, 0x2f, 0x44); }
         }
         var wsId = ws.Id;
+        var stateClass = isActive ? "active" : (hasWindows ? "inactive" : "empty");
         var pill = new Border
         {
             Width = isActive ? 28 : 10, Height = 10,
@@ -715,8 +723,11 @@ public class WidgetManager
             Margin = new Thickness(3, 0, 3, 0),
             Background = new SolidColorBrush(c),
             Cursor = System.Windows.Input.Cursors.Hand,
+            Tag = $"workspace-pill {stateClass}"
         };
         pill.MouseLeftButtonDown += (_, _) => wsm.SwitchToWorkspace(wsId);
+        if (Styling.StyleEngine.HasStyles)
+            Styling.StyleEngine.ApplyToElement(pill);
         sp.Children.Add(pill);
     }
 
@@ -791,12 +802,14 @@ public class WidgetManager
         foreach (var ow in wsm.Workspaces.Where(w => w.Id != activeWs.Id))
             windows.AddRange(ow.Windows.Where(w => w.IsSticky).Except(windows));
 
-        var existing = we.Panel.Children.OfType<Border>().ToDictionary(b => b.Tag as IntPtr? ?? 0, b => b);
+        var existing = we.TabPills;
         foreach (var mw in windows)
         {
             if (!IsWindow(mw.Hwnd)) continue;
             if (existing.TryGetValue(mw.Hwnd, out var oldPill)) { existing.Remove(mw.Hwnd); continue; }
 
+            var isActiveTab = fm?.ActiveWindow == mw;
+            var stateClass = isActiveTab ? "active" : "inactive";
             var h = we.Config.Height > 0 ? we.Config.Height : 28;
             var hwnd = mw.Hwnd; var captured = mw;
             var title = captured.Title.Length > 25 ? captured.Title[..25] : captured.Title;
@@ -806,7 +819,7 @@ public class WidgetManager
                 Padding = new Thickness(10, 0, 2, 0), Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0), ToolTip = captured.Title,
                 Cursor = System.Windows.Input.Cursors.Hand,
-                Foreground = new SolidColorBrush(fm?.ActiveWindow == mw
+                Foreground = new SolidColorBrush(isActiveTab
                     ? ParseColor(cfg?.Theme.Accent) ?? Colors.Cyan
                     : ParseColor(cfg?.Theme.Foreground) ?? Colors.White) };
             btn.Click += (_, _) => { ShowWindow(hwnd, SW_RESTORE); SetForegroundWindow(hwnd); fm?.SetActiveWindow(captured); };
@@ -816,17 +829,24 @@ public class WidgetManager
             var cb = new Button { Content = "✕", Width = 20, Height = h, FontSize = 12,
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
-                Cursor = System.Windows.Input.Cursors.Hand,
+                Cursor = System.Windows.Input.Cursors.Hand, Tag = "window-tab-close",
                 Foreground = new SolidColorBrush(ParseColor(cfg?.Theme.Muted) ?? Colors.Gray) };
             cb.Click += (_, _) => PostMessage(hwnd, WM_CLOSE, 0, 0);
             stack.Children.Add(cb);
 
             var pill = new Border { CornerRadius = new CornerRadius(h / 2), Height = h,
                 Background = new SolidColorBrush(ParseColor(cfg?.Theme.TaskButtonBackground) ?? Color.FromRgb(0x24, 0x28, 0x3e)),
-                Child = stack, Tag = mw.Hwnd, Margin = new Thickness(2, 0, 2, 0) };
+                Child = stack, Margin = new Thickness(2, 0, 2, 0),
+                Tag = $"window-tab {stateClass} type:window_tab" };
+            we.TabPills[mw.Hwnd] = pill;
+            if (Styling.StyleEngine.HasStyles)
+            {
+                Styling.StyleEngine.ApplyToElement(pill);
+                Styling.StyleEngine.ApplyToElement(cb);
+            }
             we.Panel.Children.Add(pill);
         }
-        foreach (var kv in existing) we.Panel.Children.Remove(kv.Value);
+        foreach (var kv in existing) { we.Panel.Children.Remove(kv.Value); we.TabPills.Remove(kv.Key); }
     }
 
     private void UpdateLauncher(WidgetEntry we)

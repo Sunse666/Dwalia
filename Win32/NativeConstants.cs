@@ -115,8 +115,6 @@ internal static class NativeConstants
     public const int HTTRANSPARENT = -1;
     public static readonly IntPtr HWND_TOPMOST = new(-1);
 
-    public const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
-
     public const uint DWMWA_BORDER_COLOR = 34;
     public const int DWM_ACTIVE_BORDER = unchecked((int)0xFF7AA2F7);
     public const int DWM_INACTIVE_BORDER = unchecked((int)0xFF1A1B26);

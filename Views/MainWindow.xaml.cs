@@ -113,8 +113,6 @@ public partial class MainWindow : Window
         _hwndSource = HwndSource.FromHwnd(_hwnd);
         _hwndSource?.AddHook(WndProcHook);
 
-        SetWindowDisplayAffinity(_hwnd, WDA_EXCLUDEFROMCAPTURE);
-
         Logger.Info($"MainWindow.OnSourceInitialized: HWND={_hwnd}, HwndSource={(_hwndSource != null ? "ok" : "NULL")}");
 
         if (ServiceLocator.TryResolve<ConfigRoot>(out var acCfg))

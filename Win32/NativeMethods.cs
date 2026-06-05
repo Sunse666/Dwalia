@@ -247,9 +247,6 @@ public static partial class NativeMethods
     [DllImport(DwmApi)]
     public static extern int DwmFlush();
 
-    [DllImport("user32.dll")]
-    public static extern int SetWindowDisplayAffinity(IntPtr hwnd, uint dwAffinity);
-
     #endregion
 
     #region Shell

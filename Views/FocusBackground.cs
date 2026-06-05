@@ -39,7 +39,9 @@ public class FocusBackground : IDisposable
         public IntPtr Hwnd;
         public IntPtr OwnerHwnd;
         public int X, Y, W, H;
-        public bool Pending;
+        public bool PositionPending;
+        public bool HidePending;
+        public bool IsVisible = true;
     }
 
     public FocusBackground(Color color, int radius, double activeOpacity, double inactiveOpacity, bool fill = true)
@@ -140,7 +142,18 @@ public class FocusBackground : IDisposable
             SetWindowPos(bg.Hwnd, new IntPtr(1), bg.X, bg.Y, bg.W, bg.H,
                 SWP_NOACTIVATE | SWP_FRAMECHANGED);
             ApplyColor(bg);
-            bg.Pending = false;
+
+            if (bg.PositionPending)
+            {
+                SetWindowPos(bg.Hwnd, new IntPtr(1), bg.X, bg.Y, bg.W, bg.H,
+                    SWP_NOACTIVATE);
+                bg.PositionPending = false;
+            }
+            if (bg.HidePending)
+            {
+                window.Hide();
+                bg.HidePending = false;
+            }
 
             if (_dragMode)
             {
@@ -176,20 +189,33 @@ public class FocusBackground : IDisposable
         if (bg.Hwnd != IntPtr.Zero)
         {
             SetWindowPos(bg.Hwnd, new IntPtr(1), x, y, w, h, SWP_NOACTIVATE);
-            bg.Pending = false;
+            bg.PositionPending = false;
         }
         else
         {
-            bg.Pending = true;
+            bg.PositionPending = true;
         }
     }
 
     public void SetVisible(IntPtr ownerHwnd, bool visible)
     {
-        if (!_windows.TryGetValue(ownerHwnd, out var bg) || bg.Hwnd == IntPtr.Zero) return;
-        SetWindowPos(bg.Hwnd, new IntPtr(1), 0, 0, 0, 0,
-            SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE |
-            (visible ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
+        if (!_windows.TryGetValue(ownerHwnd, out var bg)) return;
+        if (bg.Hwnd == IntPtr.Zero)
+        {
+            if (!visible) bg.HidePending = true;
+            else bg.HidePending = false;
+            return;
+        }
+        if (visible)
+        {
+            bg.Window.Show();
+            SetWindowPos(bg.Hwnd, new IntPtr(1), bg.X, bg.Y, bg.W, bg.H,
+                SWP_NOACTIVATE);
+        }
+        else
+        {
+            bg.Window.Hide();
+        }
     }
 
     public void SetActive(IntPtr? activeOwnerHwnd)
@@ -198,7 +224,8 @@ public class FocusBackground : IDisposable
         var prev = _activeOwnerHwnd;
         _activeOwnerHwnd = activeOwnerHwnd ?? IntPtr.Zero;
 
-        if (prev != IntPtr.Zero && _windows.TryGetValue(prev, out var prevBg))
+        if (prev != IntPtr.Zero && _windows.TryGetValue(prev, out var prevBg)
+            && prevBg.Window.Visibility == System.Windows.Visibility.Visible)
             ApplyColor(prevBg);
         if (_activeOwnerHwnd != IntPtr.Zero && _windows.TryGetValue(_activeOwnerHwnd, out var activeBg))
             ApplyColor(activeBg);

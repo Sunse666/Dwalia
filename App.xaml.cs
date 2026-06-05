@@ -152,7 +152,7 @@ public partial class App : Application
         _hookManager.FocusChanged += (_, hwnd) =>
         {
             _focusManager.OnFocusEvent(hwnd);
-            if (_monitorManager != null)
+            if (_monitorManager != null && _focusManager.ActiveWindow != null)
             {
                 var monitorId = _monitorManager.GetMonitorIdForWindow(hwnd);
                 _workspaceManager!.CurrentMonitorId = monitorId;
@@ -199,6 +199,7 @@ public partial class App : Application
                 {
                     _configManager!.ApplyRulesToWindow(_config!, _workspaceManager!, mw);
                     _mainWindow.RefreshBackgrounds();
+                    _layoutManager?.Relayout();
                 }
             });
         _windowManager.WindowUnmanaged += (_, mw) =>

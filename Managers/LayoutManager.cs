@@ -69,6 +69,8 @@ public class LayoutManager
         {
             Relayout(resetFocus: false);
             _focusManager.SetActiveWindow(mw);
+            UpdateResizeZones();
+            RelayoutCompleted?.Invoke();
         };
         _windowManager.WindowUnmanaged += (_, _) => Relayout();
         _workspaceManager.WorkspaceChanged += (_, id) =>
@@ -145,13 +147,18 @@ public class LayoutManager
             if (!Win32.WindowHelper.IsWindowOnCurrentDesktop(mw.Hwnd)) continue;
             if (mw.IsScratchpad) continue;
             if (mw.SwallowedByHwnd != IntPtr.Zero) continue;
-            if (mw.State == WindowLayoutState.Floating) continue;
             if (mw.IsSticky)
             {
                 ShowWindow(mw.Hwnd, SW_SHOWNOACTIVATE);
                 continue;
             }
             var onActive = activeWorkspaceIds.Contains(mw.WorkspaceId);
+            if (mw.State == WindowLayoutState.Floating)
+            {
+                if (!onActive)
+                    ShowWindow(mw.Hwnd, SW_HIDE);
+                continue;
+            }
             var sw = onActive ? SW_SHOWNOACTIVATE : SW_HIDE;
             ShowWindow(mw.Hwnd, sw);
         }

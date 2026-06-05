@@ -815,7 +815,10 @@ public partial class MainWindow : Window
 
     public void RefreshBackgrounds()
     {
-        Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
+        if (Dispatcher.CheckAccess())
+            RefreshAllBackgroundPositions();
+        else
+            Dispatcher.BeginInvoke(RefreshAllBackgroundPositions);
     }
 
     public void SetupWidgetBars()

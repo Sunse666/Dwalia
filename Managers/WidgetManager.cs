@@ -125,12 +125,25 @@ public class WidgetManager
 
         foreach (var we in ordered)
         {
-            we.Pill = BuildPill(we);
-            switch (we.Config.Align)
+            if (we.Config.Type is "window_tabs" or "launcher")
             {
-                case "left": left.Children.Add(we.Pill); break;
-                case "center": center.Children.Add(we.Pill); break;
-                default: right.Children.Add(we.Pill); break;
+                we.Panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                switch (we.Config.Align)
+                {
+                    case "left": left.Children.Add(we.Panel); break;
+                    case "center": center.Children.Add(we.Panel); break;
+                    default: right.Children.Add(we.Panel); break;
+                }
+            }
+            else
+            {
+                we.Pill = BuildPill(we);
+                switch (we.Config.Align)
+                {
+                    case "left": left.Children.Add(we.Pill); break;
+                    case "center": center.Children.Add(we.Pill); break;
+                    default: right.Children.Add(we.Pill); break;
+                }
             }
         }
         return grid;
@@ -205,18 +218,6 @@ public class WidgetManager
                 sp.Children.Add(we.Canvas);
                 pill.Child = sp;
                 if (c.Width <= 0) pill.Width = c.Width > 0 ? c.Width : 200;
-                break;
-            case "window_tabs":
-                we.Panel = new StackPanel { Orientation = Orientation.Horizontal };
-                pill.Child = we.Panel;
-                pill.Padding = new Thickness(0);
-                pill.Background = Brushes.Transparent;
-                break;
-            case "launcher":
-                we.Panel = new StackPanel { Orientation = Orientation.Horizontal };
-                pill.Child = we.Panel;
-                pill.Padding = new Thickness(0);
-                pill.Background = Brushes.Transparent;
                 break;
             case "volume":
             case "gpu":
@@ -802,7 +803,7 @@ public class WidgetManager
         foreach (var ow in wsm.Workspaces.Where(w => w.Id != activeWs.Id))
             windows.AddRange(ow.Windows.Where(w => w.IsSticky).Except(windows));
 
-        var existing = we.TabPills;
+        var existing = new Dictionary<IntPtr, Border>(we.TabPills);
         foreach (var mw in windows)
         {
             if (!IsWindow(mw.Hwnd)) continue;

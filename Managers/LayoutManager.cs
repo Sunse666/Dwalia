@@ -1485,11 +1485,10 @@ public class LayoutManager
             goSibling = inFirst;
 
         bool toTop = dir is SnapDirection.LeftTop or SnapDirection.RightTop;
-        var colArea = new System.Windows.Rect(0, 0, 1, 2);
+        var colArea = new System.Windows.Rect(0, 0, 10, 1000);
 
         if (goSibling)
         {
-            // Collect leaves from both sides of the vertical split
             var mySideLeaves = new List<ManagedWindow>();
             CollectLeaves(inFirst ? parentSplit.First : parentSplit.Second, mySideLeaves);
             mySideLeaves.Remove(mw);
@@ -1516,17 +1515,21 @@ public class LayoutManager
         }
         else
         {
-            // Same side: reorder within current column
             var sideLeaves = new List<ManagedWindow>();
-            CollectLeaves(inFirst ? parentSplit.First : parentSplit.Second, sideLeaves);
+            var currentSide = inFirst ? parentSplit.First : parentSplit.Second;
+            CollectLeaves(currentSide, sideLeaves);
             if (sideLeaves.Count <= 1) return;
             sideLeaves.Remove(mw);
-            if (toTop) sideLeaves.Insert(0, mw);
-            else sideLeaves.Add(mw);
 
-            var newSubtree = BuildColumnSubtree(sideLeaves, colArea);
-            if (inFirst) parentSplit.First = newSubtree!;
-            else parentSplit.Second = newSubtree!;
+            var remaining = BuildColumnSubtree(sideLeaves, colArea);
+            var mwLeaf = new SplitNode { Window = mw };
+
+            SplitNode newInner = inFirst
+                ? new SplitNode { Vertical = true, Ratio = 0.5, First = mwLeaf, Second = remaining! }
+                : new SplitNode { Vertical = true, Ratio = 0.5, First = remaining!, Second = mwLeaf };
+
+            if (inFirst) parentSplit.First = newInner;
+            else parentSplit.Second = newInner;
         }
 
         SetDynamicRoot(mw.WorkspaceId, root);

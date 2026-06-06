@@ -91,6 +91,10 @@ public class HotKeyManager : IDisposable
             ["toggle_sticky"] = DwaliaCommand.ToggleSticky,
             ["enter_resize_mode"] = DwaliaCommand.EnterResizeMode,
             ["exit_resize_mode"] = DwaliaCommand.ExitResizeMode,
+            ["snap_left_top"] = DwaliaCommand.SnapLeftTop,
+            ["snap_right_top"] = DwaliaCommand.SnapRightTop,
+            ["snap_left_bottom"] = DwaliaCommand.SnapLeftBottom,
+            ["snap_right_bottom"] = DwaliaCommand.SnapRightBottom,
         };
 
     private static readonly Dictionary<string, uint> KeyNameToVk =
@@ -101,6 +105,7 @@ public class HotKeyManager : IDisposable
             ["Left"] = VK_LEFT, ["Right"] = VK_RIGHT, ["Up"] = VK_UP, ["Down"] = VK_DOWN,
             ["Oem3"] = VK_OEM_3, ["OemOpenBrackets"] = VK_OEM_4, ["OemCloseBrackets"] = VK_OEM_6,
             ["OemComma"] = VK_OEM_COMMA, ["OemPeriod"] = VK_OEM_PERIOD,
+            ["Oem5"] = VK_OEM_5, ["Oem7"] = VK_OEM_7,
         };
 
     public event EventHandler<DwaliaCommand>? CommandTriggered;
@@ -204,6 +209,10 @@ public class HotKeyManager : IDisposable
         ("Alt+Ctrl+J", "resize_down"),
         ("Alt+Ctrl+K", "resize_up"),
         ("Alt+Ctrl+L", "resize_right"),
+        ("Alt+Ctrl+OemOpenBrackets", "snap_left_top"),
+        ("Alt+Ctrl+OemCloseBrackets", "snap_right_top"),
+        ("Alt+Ctrl+Oem7", "snap_left_bottom"),
+        ("Alt+Ctrl+Oem5", "snap_right_bottom"),
     };
 
     public void Initialize(IntPtr dwaliaHwnd)
@@ -623,4 +632,8 @@ public enum DwaliaCommand
     ToggleSticky,
     EnterResizeMode,
     ExitResizeMode,
+    SnapLeftTop,
+    SnapRightTop,
+    SnapLeftBottom,
+    SnapRightBottom,
 }

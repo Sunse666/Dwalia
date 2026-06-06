@@ -87,6 +87,10 @@ public static class CommandDispatcher
                 if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm2))
                     hkm2.ExitResizeMode();
                 break;
+            case DwaliaCommand.SnapLeftTop: lm.SnapCorner(LayoutManager.SnapDirection.LeftTop); break;
+            case DwaliaCommand.SnapRightTop: lm.SnapCorner(LayoutManager.SnapDirection.RightTop); break;
+            case DwaliaCommand.SnapLeftBottom: lm.SnapCorner(LayoutManager.SnapDirection.LeftBottom); break;
+            case DwaliaCommand.SnapRightBottom: lm.SnapCorner(LayoutManager.SnapDirection.RightBottom); break;
         }
     }
 

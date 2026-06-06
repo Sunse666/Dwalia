@@ -1195,6 +1195,8 @@ public class LayoutManager
 
     private enum EdgeDir { Left, Right, Top, Bottom, None }
 
+    public enum SnapDirection { LeftTop, RightTop, LeftBottom, RightBottom }
+
     public void ResizeLeft() => DoResize(false, true);
     public void ResizeRight() => DoResize(false, false);
     public void ResizeDown() => DoResize(true, false);
@@ -1462,6 +1464,150 @@ public class LayoutManager
             .OrderBy(w => w.LayoutBounds.Left)
             .ThenBy(w => w.LayoutBounds.Top)
             .FirstOrDefault();
+    }
+
+    public void SnapCorner(SnapDirection dir)
+    {
+        if (_layout != LayoutType.Dynamic) return;
+        var mw = _focusManager.ActiveWindow;
+        if (mw == null || mw.State != WindowLayoutState.Tiled) return;
+
+        var root = GetDynamicRoot(mw.WorkspaceId);
+        if (root == null || root.Window != null) return;
+
+        var (parentSplit, inFirst) = FindNearestVerticalAbove(root, mw.Hwnd);
+        if (parentSplit == null) return;
+
+        bool goSibling;
+        if (dir is SnapDirection.LeftTop or SnapDirection.LeftBottom)
+            goSibling = !inFirst;
+        else
+            goSibling = inFirst;
+
+        bool toTop = dir is SnapDirection.LeftTop or SnapDirection.RightTop;
+        var colArea = new System.Windows.Rect(0, 0, 1, 2);
+
+        if (goSibling)
+        {
+            // Collect leaves from both sides of the vertical split
+            var mySideLeaves = new List<ManagedWindow>();
+            CollectLeaves(inFirst ? parentSplit.First : parentSplit.Second, mySideLeaves);
+            mySideLeaves.Remove(mw);
+
+            var targetSideLeaves = new List<ManagedWindow>();
+            CollectLeaves(inFirst ? parentSplit.Second : parentSplit.First, targetSideLeaves);
+
+            if (toTop)
+                targetSideLeaves.Insert(0, mw);
+            else
+                targetSideLeaves.Add(mw);
+
+            bool targetIsFirst = dir is SnapDirection.LeftTop or SnapDirection.LeftBottom;
+            SplitNode? newFirst = BuildColumnSubtree(targetIsFirst ? targetSideLeaves : mySideLeaves, colArea);
+            SplitNode? newSecond = BuildColumnSubtree(targetIsFirst ? mySideLeaves : targetSideLeaves, colArea);
+
+            if (newFirst == null) { root = newSecond ?? new SplitNode { Window = mw }; }
+            else if (newSecond == null) { root = newFirst; }
+            else
+            {
+                parentSplit.First = newFirst;
+                parentSplit.Second = newSecond;
+            }
+        }
+        else
+        {
+            // Same side: reorder within current column
+            var sideLeaves = new List<ManagedWindow>();
+            CollectLeaves(inFirst ? parentSplit.First : parentSplit.Second, sideLeaves);
+            if (sideLeaves.Count <= 1) return;
+            sideLeaves.Remove(mw);
+            if (toTop) sideLeaves.Insert(0, mw);
+            else sideLeaves.Add(mw);
+
+            var newSubtree = BuildColumnSubtree(sideLeaves, colArea);
+            if (inFirst) parentSplit.First = newSubtree!;
+            else parentSplit.Second = newSubtree!;
+        }
+
+        SetDynamicRoot(mw.WorkspaceId, root);
+        _bspOrderedHwnds.Clear();
+        Relayout();
+        _focusManager.SetActiveWindow(mw);
+        mw.Focus();
+        StatusMessage?.Invoke($"{dir}");
+    }
+
+    private static void CollectLeaves(SplitNode? node, List<ManagedWindow> list)
+    {
+        if (node == null) return;
+        if (node.Window != null) { list.Add(node.Window); return; }
+        CollectLeaves(node.First, list);
+        CollectLeaves(node.Second, list);
+    }
+
+    private SplitNode? BuildColumnSubtree(List<ManagedWindow> windows, System.Windows.Rect area)
+    {
+        if (windows.Count == 0) return null;
+        if (windows.Count == 1) return new SplitNode { Window = windows[0] };
+
+        bool vert = area.Width > area.Height;
+        var root = new SplitNode
+        {
+            Vertical = vert,
+            Ratio = 0.5,
+            First = new SplitNode { Window = windows[0] },
+            Second = new SplitNode { Window = windows[1] }
+        };
+
+        for (int i = 2; i < windows.Count; i++)
+        {
+            var prev = windows[i - 1];
+            var leaf = FindLeaf(root, prev.Hwnd);
+            if (leaf == null) continue;
+
+            var leafArea = ComputeLeafArea(root, area, prev.Hwnd);
+            bool leafVert = leafArea.Width > leafArea.Height;
+
+            var split = new SplitNode
+            {
+                Vertical = leafVert,
+                Ratio = 0.5,
+                First = new SplitNode { Window = prev },
+                Second = new SplitNode { Window = windows[i] }
+            };
+            ReplaceLeaf(root, prev.Hwnd, split);
+        }
+
+        return root;
+    }
+
+    private static (SplitNode? split, bool inFirst) FindNearestVerticalAbove(SplitNode node, IntPtr hwnd)
+    {
+        if (node.Window != null) return (null, false);
+
+        bool hwndInFirst = ContainsWindow(node.First, hwnd);
+        var child = hwndInFirst ? node.First : node.Second;
+
+        var deeper = FindNearestVerticalAbove(child!, hwnd);
+        if (deeper.split != null) return deeper;
+
+        if (node.Vertical) return (node, hwndInFirst);
+
+        return (null, false);
+    }
+
+    private static ManagedWindow? GetFirstLeaf(SplitNode? node)
+    {
+        if (node == null) return null;
+        if (node.Window != null) return node.Window;
+        return GetFirstLeaf(node.First) ?? GetFirstLeaf(node.Second);
+    }
+
+    private static ManagedWindow? GetLastLeaf(SplitNode? node)
+    {
+        if (node == null) return null;
+        if (node.Window != null) return node.Window;
+        return GetLastLeaf(node.Second) ?? GetLastLeaf(node.First);
     }
 
     public void ToggleFloating(IntPtr hwnd)

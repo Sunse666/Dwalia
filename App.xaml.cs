@@ -228,8 +228,6 @@ public partial class App : Application
             _workspaceManager.SwitchToWorkspace(_config.General.StartupWorkspace);
         }
 
-        Views.MainWindow.WarmupInfoBar();
-
         _mouseResizeManager.Initialize(_mainWindow!.GetHwnd());
 
         _configManager.ApplyRules(_config, _windowManager, _workspaceManager);

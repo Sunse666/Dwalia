@@ -32,8 +32,6 @@ public partial class MainWindow : Window
     private ColorFilterOverlay? _colorFilter;
     private DispatcherTimer? _focusBgTimer;
     private BarMode _barMode = BarMode.Docker;
-    private PerformanceCounter? _cpuCounter;
-    private PerformanceCounter? _memCounter;
     private Color _focusBgColor;
     private Color _foregroundColor;
     private Color _mutedColor;
@@ -46,16 +44,6 @@ public partial class MainWindow : Window
     private Color _pillInactive = Color.FromRgb(0x56, 0x5f, 0x89);
     private Color _pillEmpty = Color.FromRgb(0x2b, 0x2f, 0x44);
     private bool _showPillCount;
-    private Color _widgetPillBg = Color.FromArgb(0xFF, 0x1a, 0x1a, 0x2e);
-    private Color _widgetCpuColor = Color.FromRgb(0xe5, 0xc0, 0x7b);
-    private Color _widgetMemColor = Color.FromRgb(0x61, 0xaf, 0xef);
-    private Color _widgetBatteryColor = Color.FromRgb(0x98, 0xc3, 0x79);
-    private Color _widgetNetDownColor = Color.FromRgb(0x4f, 0xbf, 0x6f);
-    private Color _widgetNetUpColor = Color.FromRgb(0xe0, 0x6c, 0x75);
-    private Color _widgetMediaColor = Color.FromRgb(0xc6, 0x78, 0xdd);
-    private Color _widgetSeparatorColor = Color.FromRgb(0x3b, 0x42, 0x61);
-    private Color _mediaDotPlaying = Color.FromRgb(0x4f, 0xbf, 0x6f);
-    private Color _mediaDotPaused = Color.FromRgb(0x56, 0x5f, 0x89);
     private Color _barBorderColor = Color.FromRgb(0x3b, 0x42, 0x61);
     private int _pillCornerRadius = 9;
     private int _pillHeight = 22;
@@ -65,16 +53,6 @@ public partial class MainWindow : Window
     private string _progressFilled = "▰";
     private string _progressEmpty = "▱";
     private int _marqueeSpeed = 25;
-    private PerformanceCounter? _netDownCounter;
-    private PerformanceCounter? _netUpCounter;
-    private string _netDownText = "";
-    private string _netUpText = "";
-    private string _cachedMediaText = "";
-    private string _mediaScript = "";
-    private int _mediaScriptInterval = 2;
-    private int _mediaTick;
-    private bool _mediaPaused;
-    private string _lastMarqueeText = "";
     private readonly List<System.Windows.Controls.Border> _monitorBars = new();
     private NOTIFYICONDATA _trayData;
     private bool _trayCreated;
@@ -187,11 +165,7 @@ public partial class MainWindow : Window
                 _pillEmpty = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
 
             _showPillCount = cfg.Theme.WorkspacePillShowCount;
-            ParseColor(cfg.Theme.WidgetPillBackground, ref _widgetPillBg, 0x1a, 0x1a, 0x2e);
-            var pillBrush = new SolidColorBrush(_widgetPillBg);
-            LayoutPill.Background = pillBrush;
-            InfoWinPill.Background = pillBrush;
-            ClockPill.Background = pillBrush;
+            LayoutPill.Background = new SolidColorBrush(Color.FromArgb(0x44, 0xff, 0xff, 0xff));
 
             var barH = Math.Clamp(cfg.General.BarHeight, 16, 80);
             TaskBar.Height = barH;
@@ -212,8 +186,6 @@ public partial class MainWindow : Window
             TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
             TextOptions.SetTextRenderingMode(this, TextRenderingMode.ClearType);
 
-            ClockText.FontWeight = FontWeights.SemiBold;
-            InfoWinTitle.FontWeight = FontWeights.Medium;
             LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
             LayoutLabel.Cursor = System.Windows.Input.Cursors.Hand;
             LayoutLabel.MouseLeftButtonDown += (_, _) =>
@@ -383,10 +355,6 @@ public partial class MainWindow : Window
     {
         Logger.Info("Shutting down — restoring all windows...");
         _focusBgTimer?.Stop();
-        _cpuCounter?.Dispose();
-        _memCounter?.Dispose();
-        _netDownCounter?.Dispose();
-        _netUpCounter?.Dispose();
         _colorFilter?.Dispose();
         DwmFlush();
         _windowEventHookManager.Stop();
@@ -724,16 +692,6 @@ public partial class MainWindow : Window
             _pillEmpty = Color.FromRgb((byte)(_mutedColor.R / 2), (byte)(_mutedColor.G / 2), (byte)(_mutedColor.B / 2));
 
         _showPillCount = c.Theme.WorkspacePillShowCount;
-        ParseColor(c.Theme.WidgetPillBackground, ref _widgetPillBg, 0x1a, 0x1a, 0x2e);
-        ParseColor(c.Theme.WidgetCpuColor, ref _widgetCpuColor, 0xe5, 0xc0, 0x7b);
-        ParseColor(c.Theme.WidgetMemColor, ref _widgetMemColor, 0x61, 0xaf, 0xef);
-        ParseColor(c.Theme.WidgetBatteryColor, ref _widgetBatteryColor, 0x98, 0xc3, 0x79);
-        ParseColor(c.Theme.WidgetNetworkDownColor, ref _widgetNetDownColor, 0x4f, 0xbf, 0x6f);
-        ParseColor(c.Theme.WidgetNetworkUpColor, ref _widgetNetUpColor, 0xe0, 0x6c, 0x75);
-        ParseColor(c.Theme.WidgetMediaColor, ref _widgetMediaColor, 0xc6, 0x78, 0xdd);
-        ParseColor(c.Theme.WidgetSeparatorColor, ref _widgetSeparatorColor, 0x3b, 0x42, 0x61);
-        ParseColor(c.Theme.MediaDotPlayingColor, ref _mediaDotPlaying, 0x4f, 0xbf, 0x6f);
-        ParseColor(c.Theme.MediaDotPausedColor, ref _mediaDotPaused, 0x56, 0x5f, 0x89);
         ParseColor(c.Theme.BarBorderColor, ref _barBorderColor, 0x3b, 0x42, 0x61);
         _pillCornerRadius = c.Theme.PillCornerRadius;
         _pillHeight = c.Theme.PillHeight;
@@ -745,7 +703,6 @@ public partial class MainWindow : Window
         _marqueeSpeed = Math.Max(5, c.Theme.MarqueeSpeed);
 
         ApplyPillStyling();
-        ApplyWidgetColors();
 
         if (c.Theme.EnableAcrylic)
         {
@@ -779,14 +736,6 @@ public partial class MainWindow : Window
 
         LayoutLabel.FontWeight = FontWeights.SemiBold;
         LayoutLabel.Foreground = new SolidColorBrush(_mutedColor);
-        InfoWinTitle.FontWeight = FontWeights.Medium;
-        InfoWinTitle.Foreground = new SolidColorBrush(_foregroundColor);
-        ClockText.FontWeight = FontWeights.SemiBold;
-        ClockText.Foreground = new SolidColorBrush(_foregroundColor);
-        var accentBrush = new SolidColorBrush(_focusBgColor);
-        CpuText.Foreground = accentBrush;
-        MemText.Foreground = accentBrush;
-        BatteryText.Foreground = accentBrush;
 
         _focusBackground?.UpdateStyle(_focusBgColor, c.Theme.FocusRadius,
             c.Theme.FocusActiveOpacity, c.Theme.FocusInactiveOpacity, c.Theme.FocusFill);
@@ -914,291 +863,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void UpdateInfoBar()
-    {
-        if (ServiceLocator.TryResolve<ConfigRoot>(out var icfg))
-        {
-            try { ClockText.Text = DateTime.Now.ToString(icfg.Theme.DateFormat); }
-            catch (Exception ex) { Logger.Warn($"Clock format failed: {ex.Message}"); ClockText.Text = DateTime.Now.ToString("HH:mm:ss  yyyy-MM-dd"); }
-        }
-
-        if (ServiceLocator.TryResolve<FocusMgr>(out var fm) && fm.ActiveWindow != null)
-            InfoWinTitle.Text = fm.ActiveWindow.Title;
-        else
-            InfoWinTitle.Text = "";
-
-        try { CpuText.Text = CpuBar((int)GetCpuUsage()); }
-        catch (Exception ex) { Logger.Warn($"CPU bar update failed: {ex.Message}"); CpuText.Text = " --%"; }
-
-        try { MemText.Text = MemBar((int)GetMemUsage()); }
-        catch (Exception ex) { Logger.Warn($"Memory bar update failed: {ex.Message}"); MemText.Text = " --%"; }
-
-        try { BatteryText.Text = GetBatteryIcon(); }
-        catch { BatteryText.Text = "🔋 --%"; }
-
-        try
-        {
-            UpdateNetworkSpeeds();
-            NetDownText.Text = _netDownText;
-            NetUpText.Text = _netUpText;
-        }
-        catch (Exception ex) { Logger.Warn($"MainWindow operation failed: {ex.Message}"); }
-    }
-
-    private string CpuBar(int pct) =>
-        $"◈ {pct,3}%{ProgressBar(pct)}";
-
-    private string MemBar(int pct) =>
-        $"◉ {pct,3}%{ProgressBar(pct)}";
-
-    private string ProgressBar(int pct)
-    {
-        int filled = Math.Clamp(pct * 8 / 100, 0, 8);
-        var fc = _progressFilled.Length > 0 ? _progressFilled[0] : '▰';
-        var ec = _progressEmpty.Length > 0 ? _progressEmpty[0] : '▱';
-        return new string(fc, filled) + new string(ec, 8 - filled);
-    }
-
-    private static string GetBatteryIcon()
-    {
-        if (!GetSystemPowerStatus(out var ps)) return "🔋 --%";
-        if (ps.BatteryFlag == 128) return "⚡ AC";
-        var pct = ps.BatteryLifePercent;
-        if (pct > 100) return "🔋 --%";
-        string icon = pct switch
-        {
-            >= 90 => "🔋",
-            >= 60 => "🔋",
-            >= 30 => "🔋",
-            >= 10 => "🪫",
-            _ => "🪫"
-        };
-        return $"{icon} {pct,3}%";
-    }
-
-    private static string GetBatteryText() => GetBatteryIcon();
-
-    private void InitNetworkCounters()
-    {
-        try
-        {
-            var cat = new PerformanceCounterCategory("Network Interface");
-            var instances = cat.GetInstanceNames();
-            var iface = instances.FirstOrDefault(i =>
-                i.StartsWith("Ethernet") || i.StartsWith("Wi-Fi") || i.StartsWith("WLAN"))
-                ?? instances.FirstOrDefault()
-                ?? "";
-            if (!string.IsNullOrEmpty(iface))
-            {
-                _netDownCounter = new PerformanceCounter("Network Interface", "Bytes Received/sec", iface);
-                _netUpCounter = new PerformanceCounter("Network Interface", "Bytes Sent/sec", iface);
-                _netDownCounter.NextValue();
-                _netUpCounter.NextValue();
-            }
-        }
-        catch (Exception ex) { Logger.Warn($"MainWindow operation failed: {ex.Message}"); }
-    }
-
-    private void UpdateNetworkSpeeds()
-    {
-        try
-        {
-            if (_netDownCounter == null || _netUpCounter == null) return;
-            float down = _netDownCounter.NextValue();
-            float up = _netUpCounter.NextValue();
-            _netDownText = FormatSpeed(down);
-            _netUpText = FormatSpeed(up);
-        }
-        catch (Exception ex) { Logger.Warn($"Network counter init failed: {ex.Message}"); }
-    }
-
-    private static string FormatSpeed(float bps)
-    {
-        if (bps < 1024) return $"{bps,4:F0} B";
-        if (bps < 1024 * 1024) return $"{bps / 1024,4:F1}K";
-        return $"{bps / (1024 * 1024),4:F1}M";
-    }
-
-    private void InitMediaMonitor()
-    {
-        if (!string.IsNullOrEmpty(_mediaScript)) { PollMediaScript(); return; }
-        UpdateMediaInfo();
-    }
-
-    private void PollMediaScript()
-    {
-        Task.Run(() =>
-        {
-            try
-            {
-                using var proc = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c {_mediaScript}",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true,
-                    }
-                };
-                proc.Start();
-                var output = proc.StandardOutput.ReadToEnd().Trim();
-                proc.WaitForExit(3000);
-                if (!proc.HasExited) { proc.Kill(); return; }
-                Dispatcher.Invoke(() =>
-                {
-                    var oldText = _cachedMediaText;
-                    _cachedMediaText = output;
-                    _mediaPaused = string.IsNullOrEmpty(output);
-                    if (_cachedMediaText != oldText) _lastMarqueeText = "";
-                });
-            }
-            catch (Exception ex) { Logger.Warn($"Media update failed: {ex.Message}"); }
-        });
-    }
-
-    private void UpdateMediaInfo()
-    {
-        if (!string.IsNullOrEmpty(_mediaScript)) { PollMediaScript(); return; }
-        Task.Run(() =>
-        {
-            try
-            {
-                var manager = Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager
-                    .RequestAsync().GetAwaiter().GetResult();
-                var session = manager.GetCurrentSession();
-                string text;
-                bool paused;
-                if (session == null)
-                {
-                    text = "";
-                    paused = true;
-                }
-                else
-                {
-                    var pb = session.GetPlaybackInfo();
-                    paused = pb.PlaybackStatus != Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-                    var info = session.TryGetMediaPropertiesAsync().GetAwaiter().GetResult();
-                    if (info != null)
-                    {
-                        var title = info.Title ?? "";
-                        var artist = info.Artist ?? "";
-                        text = string.IsNullOrEmpty(artist) ? title : $"♫ {artist} - {title}";
-                    }
-                    else { text = ""; paused = true; }
-                }
-                Dispatcher.Invoke(() =>
-                {
-                    var old = _cachedMediaText;
-                    _cachedMediaText = text;
-                    _mediaPaused = paused;
-                    if (_cachedMediaText != old) _lastMarqueeText = "";
-                });
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn($"Media info update failed: {ex.Message}");
-                Dispatcher.Invoke(() =>
-                {
-                    _cachedMediaText = "";
-                    _mediaPaused = true;
-                });
-            }
-        });
-    }
-
-    private void TickMarquee()
-    {
-        _mediaTick++;
-        if (_mediaTick % (_mediaScriptInterval * 5) == 0)
-            UpdateMediaInfo();
-        MarqueeMedia();
-        if (!_mediaPaused && !string.IsNullOrEmpty(_cachedMediaText))
-            StepMarquee();
-    }
-
-    private void ApplyMediaState(bool playing)
-    {
-        MediaDot.Background = new SolidColorBrush(
-            playing ? _mediaDotPlaying : _mediaDotPaused);
-
-        if (playing)
-        {
-            var anim = new System.Windows.Media.Animation.DoubleAnimation(0.3, 1.0,
-                TimeSpan.FromMilliseconds(800))
-            {
-                AutoReverse = true,
-                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
-            };
-            MediaDot.BeginAnimation(UIElement.OpacityProperty, anim);
-        }
-        else
-        {
-            MediaDot.BeginAnimation(UIElement.OpacityProperty, null);
-            MediaDot.Opacity = 0.5;
-        }
-    }
-
-    private double _marqueeHalfWidth;
-    private double _marqueeScrollX;
-
-    private void StartMarqueeScroll(string text)
-    {
-        MediaTransform.BeginAnimation(TranslateTransform.XProperty, null);
-
-        var display = $"  {text}     {text}  ";
-        MediaText.Text = display;
-        MediaText.Measure(new System.Windows.Size(double.PositiveInfinity, 16));
-        _marqueeHalfWidth = MediaText.DesiredSize.Width / 2;
-        _marqueeScrollX = 0;
-        MediaTransform.X = 0;
-
-        if (_marqueeHalfWidth <= 210)
-        {
-            MediaText.Text = text;
-        }
-    }
-
-    private void StepMarquee()
-    {
-        if (_marqueeHalfWidth <= 210) return;
-
-        _marqueeScrollX -= _marqueeSpeed / 5.0;
-        if (_marqueeScrollX <= -_marqueeHalfWidth)
-            _marqueeScrollX += _marqueeHalfWidth;
-        MediaTransform.X = _marqueeScrollX;
-    }
-
-    private void MarqueeMedia()
-    {
-        if (string.IsNullOrEmpty(_cachedMediaText))
-        {
-            MediaText.Text = "";
-            MediaTransform.BeginAnimation(TranslateTransform.XProperty, null);
-            MediaTransform.X = 0;
-            ApplyMediaState(false);
-            return;
-        }
-
-        if (_mediaPaused)
-        {
-            MediaTransform.BeginAnimation(TranslateTransform.XProperty, null);
-            MediaTransform.X = 0;
-            MediaText.Text = _cachedMediaText;
-            ApplyMediaState(false);
-            return;
-        }
-
-        ApplyMediaState(true);
-
-        if (_cachedMediaText != _lastMarqueeText)
-        {
-            _lastMarqueeText = _cachedMediaText;
-            StartMarqueeScroll(_cachedMediaText);
-        }
-    }
-
     private void BuildLauncherButtons()
     {
         LauncherButtons.Children.Clear();
@@ -1286,66 +950,16 @@ public partial class MainWindow : Window
         }
     }
 
-    public static void WarmupInfoBar()
-    {
-        Task.Run(() =>
-        {
-            try
-            {
-                using var cpu = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-                using var mem = new PerformanceCounter("Memory", "% Committed Bytes In Use");
-                cpu.NextValue();
-                mem.NextValue();
-                Logger.Info("InfoBar performance counters warmed up");
-            }
-            catch (Exception ex) { Logger.Warn($"InfoBar warmup failed: {ex.Message}"); }
-        });
-    }
-
-    private double GetCpuUsage()
-    {
-        _cpuCounter ??= new PerformanceCounter("Processor", "% Processor Time", "_Total");
-        try { return _cpuCounter.NextValue() / Environment.ProcessorCount; }
-        catch (Exception ex) { Logger.Warn($"CPU counter read failed: {ex.Message}"); return 0; }
-    }
-
-    private double GetMemUsage()
-    {
-        _memCounter ??= new PerformanceCounter("Memory", "% Committed Bytes In Use");
-        try { return _memCounter.NextValue(); }
-        catch (Exception ex) { Logger.Warn($"Memory counter read failed: {ex.Message}"); return 0; }
-    }
-
     private void ApplyPillStyling()
     {
         var cr = new CornerRadius(_pillCornerRadius);
         var h = _pillHeight;
-        var tcr = new CornerRadius(_taskPillCR);
-        var th = _taskPillH;
-
         LayoutPill.CornerRadius = cr; LayoutPill.Height = h;
-        InfoWinPill.CornerRadius = cr; InfoWinPill.Height = h;
-        ClockPill.CornerRadius = cr; ClockPill.Height = h;
-        CpuPill.CornerRadius = cr; CpuPill.Height = h;
-        MemPill.CornerRadius = cr; MemPill.Height = h;
-        BatteryPill.CornerRadius = cr; BatteryPill.Height = h;
-        NetworkPill.CornerRadius = cr; NetworkPill.Height = h;
-        MediaPill.CornerRadius = cr; MediaPill.Height = h;
 
         var barBorder = new SolidColorBrush(_barBorderColor);
         TaskBar.BorderBrush = barBorder;
         InfoBar.BorderBrush = barBorder;
         LauncherBar.BorderBrush = barBorder;
-    }
-
-    private void ApplyWidgetColors()
-    {
-        CpuText.Foreground = new SolidColorBrush(_widgetCpuColor);
-        MemText.Foreground = new SolidColorBrush(_widgetMemColor);
-        BatteryText.Foreground = new SolidColorBrush(_widgetBatteryColor);
-        NetDownText.Foreground = new SolidColorBrush(_widgetNetDownColor);
-        NetUpText.Foreground = new SolidColorBrush(_widgetNetUpColor);
-        MediaText.Foreground = new SolidColorBrush(_widgetMediaColor);
     }
 
     private static void ParseColor(string hex, ref Color target, byte? rr, byte? gg, byte? bb)
@@ -1383,7 +997,6 @@ public partial class MainWindow : Window
     private void UpdateWorkspacePills()
     {
         PopulatePills(WorkspacePills);
-        PopulatePills(InfoWorkspacePills);
         PopulatePills(LauncherWorkspacePills);
     }
 

@@ -405,7 +405,7 @@ public class WidgetManager
     private void UpdateMedia(WidgetEntry we)
     {
         if (string.IsNullOrEmpty(_cachedMedia))
-            PollWinRtMedia();
+            _ = PollWinRtMediaAsync();
         else
             UpdateWinRtMedia();
 
@@ -947,10 +947,10 @@ public class WidgetManager
 
     private void InitMediaMonitor()
     {
-        PollWinRtMedia();
+        _ = PollWinRtMediaAsync();
     }
 
-    private async void PollWinRtMedia()
+    private async Task PollWinRtMediaAsync()
     {
         try
         {
@@ -967,7 +967,7 @@ public class WidgetManager
                 _cachedMedia = string.IsNullOrEmpty(artist) ? title : $"{artist} - {title}";
             }
         }
-        catch { _cachedMedia = ""; }
+        catch (Exception ex) { Logger.Warn($"WinRT media poll failed: {ex.Message}"); _cachedMedia = ""; }
     }
 
     private int _mediaPollTick;
@@ -975,7 +975,7 @@ public class WidgetManager
     {
         _mediaPollTick++;
         if (_mediaPollTick % 2 == 0)
-            PollWinRtMedia();
+            _ = PollWinRtMediaAsync();
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]

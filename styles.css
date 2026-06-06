@@ -1,0 +1,141 @@
+#TaskBar, #InfoBar, #LauncherBar {
+    background: transparent;
+    border-width: 0px;
+    font-size: 13px;
+    color: #cdd6f4;
+}
+
+.widget {
+    background: #313244;
+    border-radius: 10px;
+    padding: 4px 12px;
+    margin: 4px 3px;
+    border-color: #45475a;
+    border-width: 1px;
+}
+
+.workspace-pill {
+    height: 8px;
+    border-radius: 4px;
+    margin: 6px 3px;
+}
+
+.workspace-pill.active {
+    background: #89b4fa;
+    width: 32px;
+}
+
+.workspace-pill.inactive {
+    background: #45475a;
+    width: 8px;
+}
+
+.workspace-pill.empty {
+    background: #313244;
+    width: 8px;
+}
+
+.widget[type="clock"] {
+    color: #cdd6f4;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.widget[type="layout"] {
+    color: #a6adc8;
+    font-weight: semibold;
+}
+
+.widget[type="active_window"] {
+    color: #cdd6f4;
+    font-weight: medium;
+    font-size: 13px;
+}
+
+.widget[type="cpu"] {
+    color: #f9e2af;
+    font-size: 12px;
+}
+
+.widget[type="memory"] {
+    color: #89b4fa;
+    font-size: 12px;
+}
+
+.widget[type="battery"] {
+    color: #a6e3a1;
+    font-size: 12px;
+}
+
+.widget[type="network"] {
+    color: #94e2d5;
+    font-size: 12px;
+}
+
+.widget[type="media"] {
+    color: #f5c2e7;
+    font-size: 12px;
+}
+
+.widget[type="wifi_ssid"] {
+    color: #89b4fa;
+    font-size: 12px;
+}
+
+.widget[type="uptime"] {
+    color: #b4befe;
+    font-size: 12px;
+}
+
+.widget[type="ip_address"] {
+    color: #b4befe;
+    font-size: 12px;
+}
+
+.widget[type="disk_usage"] {
+    color: #fab387;
+    font-size: 12px;
+}
+
+.widget[type="gpu"] {
+    color: #f5c2e7;
+    font-size: 12px;
+}
+
+.widget[type="disk"] {
+    color: #fab387;
+    font-size: 12px;
+}
+
+.widget[type="window_count"] {
+    color: #b4befe;
+    font-size: 12px;
+}
+
+.widget[type="window_tabs"] {
+    background: transparent;
+    border-width: 0px;
+    padding: 0px 2px;
+}
+
+.window-tab {
+    border-radius: 8px;
+    background: #313244;
+    margin: 2px 2px;
+    border-color: #45475a;
+    border-width: 1px;
+}
+
+.window-tab.active {
+    color: #89b4fa;
+}
+
+.window-tab.inactive {
+    color: #a6adc8;
+}
+
+.window-tab-close {
+    color: #6c7086;
+    font-size: 11px;
+    margin: 0px 6px 0px 0px;
+}

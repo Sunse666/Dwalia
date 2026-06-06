@@ -304,52 +304,212 @@ widgets:
     bar_page: All
     align: left
     order: 1
+    width: 0
+    height: 30
+    pill_color: ''
+    text_color: ''
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 0
   - type: window_tabs
     bar_page: Docker
-    align: left
-    order: 2
+    align: center
+    order: 1
+    width: 0
+    height: 32
+    pill_color: '#1a1a3e'
+    text_color: '#00ccff'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 13
   - type: layout
     bar_page: Docker
     align: right
     order: 1
 
   # 信息页 — 系统状态（每个 widget 单独控制颜色和开关）
+  - type: battery
+    bar_page: Docker
+    align: right
+    order: 1
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#88ff00'
+    enabled: true
+    format: simple
+    args: ''
+    font_size: 13
+  - type: wifi_ssid
+    bar_page: Docker
+    align: right
+    order: 2
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#44ff44'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 13
+  - type: layout
+    bar_page: Docker
+    align: right
+    order: 3
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#ffaa00'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 14
+  - type: active_window
+    bar_page: Basic
+    align: left
+    order: 1
+    width: 360
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#ffffff'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 14
   - type: clock
     bar_page: Basic
     align: center
     order: 1
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#00ffcc'
     enabled: true
-    font_size: 14
-  - type: cpu
+    format: ''
+    args: ''
+    font_size: 18
+  - type: media
+    bar_page: Basic
+    align: right
+    order: 1
+    width: 200
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#ff88ff'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 12
+  - type: uptime
     bar_page: Basic
     align: right
     order: 2
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#8888ff'
     enabled: true
-    text_color: "#00ff88"
-  - type: memory
+    format: ''
+    args: ''
+    font_size: 13
+  - type: ip_address
     bar_page: Basic
     align: right
     order: 3
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#88aaff'
     enabled: true
-    text_color: "#00ccff"
-  - type: battery
-    bar_page: Basic
+    format: ''
+    args: ''
+    font_size: 13
+  - type: network
+    bar_page: Advanced
+    align: right
+    order: 1
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#00ff88'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 13
+  - type: cpu
+    bar_page: Advanced
+    align: right
+    order: 2
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#00ff88'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 13
+  - type: memory
+    bar_page: Advanced
+    align: right
+    order: 3
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#00ccff'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 13
+  - type: disk_usage
+    bar_page: Advanced
     align: right
     order: 4
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#ff8844'
     enabled: true
-    text_color: "#88ff00"
-  - type: network
-    bar_page: Basic
+    format: ''
+    args: C
+    font_size: 13
+  - type: gpu
+    bar_page: Advanced
     align: right
     order: 5
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#ff4488'
     enabled: true
-    text_color: "#00ff88"
-  - type: media
-    bar_page: Basic
-    align: center
+    format: ''
+    args: ''
+    font_size: 13
+  - type: disk
+    bar_page: Advanced
+    align: right
     order: 6
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#ffaa44'
     enabled: true
-    text_color: "#ff88ff"
+    format: ''
+    args: ''
+    font_size: 13
+  - type: window_count
+    bar_page: Advanced
+    align: center
+    order: 1
+    width: 0
+    height: 30
+    pill_color: '#1a1a3e'
+    text_color: '#88aaff'
+    enabled: true
+    format: ''
+    args: ''
+    font_size: 13
   # 每个 widget 可选参数：
   #   bar_page: All | Docker | Basic | Advanced
   #   align: left | center | right

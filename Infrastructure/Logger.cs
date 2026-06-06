@@ -10,6 +10,8 @@ internal static class Logger
 
     private static readonly object _lock = new();
     private static volatile bool _enabled;
+    private const long MaxFileSize = 10 * 1024 * 1024;
+    private const int MaxRotations = 3;
 
     public static bool Enabled
     {
@@ -35,11 +37,36 @@ internal static class Logger
         {
             try
             {
+                RotateIfNeeded();
                 File.AppendAllText(LogPath, entry + Environment.NewLine);
             }
             catch
             {
             }
+        }
+    }
+
+    private static void RotateIfNeeded()
+    {
+        try
+        {
+            if (!File.Exists(LogPath)) return;
+            var info = new FileInfo(LogPath);
+            if (info.Length < MaxFileSize) return;
+
+            for (int i = MaxRotations - 1; i >= 0; i--)
+            {
+                var oldPath = i == 0 ? LogPath : Path.Combine(AppContext.BaseDirectory, $"dwalia.{i}.log");
+                var newPath = Path.Combine(AppContext.BaseDirectory, $"dwalia.{i + 1}.log");
+                if (File.Exists(oldPath))
+                {
+                    if (File.Exists(newPath)) File.Delete(newPath);
+                    File.Move(oldPath, newPath);
+                }
+            }
+        }
+        catch
+        {
         }
     }
 }

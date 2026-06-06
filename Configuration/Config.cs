@@ -73,6 +73,9 @@ public class GeneralConfig
 
     [YamlMember(Alias = "startup_workspace")]
     public int StartupWorkspace { get; set; } = 0;
+
+    [YamlMember(Alias = "auto_start")]
+    public bool AutoStart { get; set; } = false;
 }
 
 public class ThemeConfig

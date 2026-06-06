@@ -41,8 +41,8 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
         {
             if (ex.ExceptionObject is Exception ex2) Logger.Error("Domain exception", ex2);
-            try { _windowManager?.RestoreAllWindows(); }
-            catch (Exception restoreEx) { Logger.Error("Failed to restore windows on domain crash", restoreEx); }
+            try { PerformCleanup(); }
+            catch (Exception cleanupEx) { Logger.Error("Cleanup on crash failed", cleanupEx); }
         };
 
         _configManager = new ConfigManager();
@@ -260,7 +260,35 @@ public partial class App : Application
         _ipcServer = new IpcServer(Dispatcher);
         _ipcServer.Start();
 
+        ApplyAutoStart(_config.General.AutoStart);
+
         Logger.Info("Dwalia started");
+    }
+
+    private static void ApplyAutoStart(bool enable)
+    {
+        try
+        {
+            var exePath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exePath)) return;
+
+            const string runKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(runKey, writable: true);
+            if (key == null) return;
+
+            if (enable)
+            {
+                key.SetValue("Dwalia", $"\"{exePath}\"");
+                Logger.Info("Auto-start enabled");
+            }
+            else
+            {
+                try { key.DeleteValue("Dwalia", throwOnMissingValue: false); }
+                catch { }
+                Logger.Info("Auto-start disabled");
+            }
+        }
+        catch (Exception ex) { Logger.Warn($"Auto-start registry update failed: {ex.Message}"); }
     }
 
     private void OnCommandTriggered(object? sender, DwaliaCommand cmd)
@@ -311,15 +339,31 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _configManager?.StopWatching();
-        _ipcServer?.Dispose();
-        try { _windowManager?.RestoreAllWindows(); }
-        catch (Exception ex) { Logger.Error("Failed to restore windows on exit", ex); }
-        _hotKeyManager?.Dispose();
-        _mouseResizeManager?.Dispose();
-        timeEndPeriod(1);
-        DwmFlush();
+        PerformCleanup();
         base.OnExit(e);
         Logger.Info("Dwalia exited");
+    }
+
+    private void PerformCleanup()
+    {
+        _configManager?.StopWatching();
+        _ipcServer?.Dispose();
+
+        try { _windowManager?.RestoreAllWindows(); }
+        catch (Exception ex) { Logger.Error("Failed to restore windows", ex); }
+
+        try { _hotKeyManager?.Dispose(); }
+        catch (Exception ex) { Logger.Error("Failed to dispose hot key hooks", ex); }
+
+        try { _mouseResizeManager?.Dispose(); }
+        catch (Exception ex) { Logger.Error("Failed to dispose mouse resize manager", ex); }
+
+        try { timeEndPeriod(1); }
+        catch { }
+
+        try { DwmFlush(); }
+        catch { }
+
+        Logger.Info("Cleanup complete");
     }
 }

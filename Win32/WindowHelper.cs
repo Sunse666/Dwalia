@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using Dwalia.Infrastructure;
 using Dwalia.Models;
 using static Dwalia.Win32.NativeMethods;
 using static Dwalia.Win32.WindowStyles;
@@ -65,7 +66,7 @@ internal static class WindowHelper
             using var process = Process.GetProcessById((int)processId);
             return process.ProcessName.ToLowerInvariant();
         }
-        catch { return "unknown"; }
+        catch (Exception ex) { Logger.Warn($"Failed to get process name for hwnd 0x{hwnd:X}: {ex.Message}"); return "unknown"; }
     }
 
     public static uint GetProcessId(IntPtr hwnd)
@@ -135,13 +136,13 @@ internal static class WindowHelper
             if (t == null) return null;
             return (IVirtualDesktopManager)Activator.CreateInstance(t)!;
         }
-        catch { return null; }
+        catch (Exception ex) { Logger.Warn($"Failed to create VirtualDesktopManager: {ex.Message}"); return null; }
     });
 
     public static bool IsWindowOnCurrentDesktop(IntPtr hwnd)
     {
         if (_vdm.Value == null) return true;
         try { return _vdm.Value.IsWindowOnCurrentVirtualDesktop(hwnd) != 0; }
-        catch { return true; }
+        catch (Exception ex) { Logger.Warn($"VirtualDesktopManager check failed: {ex.Message}"); return true; }
     }
 }

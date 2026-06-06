@@ -61,7 +61,7 @@ public class FocusBackground : IDisposable
                 else
                     _dragSourceColor = color;
             }
-            catch { _dragSourceColor = color; }
+            catch (Exception ex) { Logger.Warn($"Failed to parse drag_source_color, using accent: {ex.Message}"); _dragSourceColor = color; }
 
             try
             {
@@ -70,7 +70,7 @@ public class FocusBackground : IDisposable
                 else
                     _dragTargetColor = Color.FromRgb(0xFF, 0xFF, 0xFF);
             }
-            catch { _dragTargetColor = Color.FromRgb(0xFF, 0xFF, 0xFF); }
+            catch (Exception ex) { Logger.Warn($"Failed to parse drag_target_color, using white: {ex.Message}"); _dragTargetColor = Color.FromRgb(0xFF, 0xFF, 0xFF); }
         }
         else
         {

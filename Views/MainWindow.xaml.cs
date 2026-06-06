@@ -162,11 +162,11 @@ public partial class MainWindow : Window
         if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
         {
             try { _focusBgColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent ?? "#7aa2f7"); }
-            catch { _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7); }
+            catch (Exception ex) { Logger.Warn($"Failed to parse accent color: {ex.Message}"); _focusBgColor = Color.FromRgb(0x7a, 0xa2, 0xf7); }
             try { _foregroundColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Foreground ?? "#c0caf5"); }
-            catch { _foregroundColor = Color.FromRgb(0xc0, 0xca, 0xf5); }
+            catch (Exception ex) { Logger.Warn($"Failed to parse foreground color: {ex.Message}"); _foregroundColor = Color.FromRgb(0xc0, 0xca, 0xf5); }
             try { _mutedColor = (Color)ColorConverter.ConvertFromString(cfg.Theme.Muted ?? "#565f89"); }
-            catch { _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89); }
+            catch (Exception ex) { Logger.Warn($"Failed to parse muted color: {ex.Message}"); _mutedColor = Color.FromRgb(0x56, 0x5f, 0x89); }
 
             ParseColor(cfg.Theme.ContextMenuBackground, ref _ctxMenuBg, 0x2d, 0x2d, 0x2d);
             ParseColor(cfg.Theme.ContextMenuForeground, ref _ctxMenuFg, 0xcc, 0xcc, 0xcc);
@@ -668,7 +668,7 @@ public partial class MainWindow : Window
         try
         {
             var bgColor = Color.FromRgb(0x1A, 0x1B, 0x26);
-            try { bgColor = (Color)ColorConverter.ConvertFromString(bgHex); } catch { }
+            try { bgColor = (Color)ColorConverter.ConvertFromString(bgHex); } catch (Exception ex) { Logger.Warn($"Failed to parse acrylic bg color: {ex.Message}"); }
 
             var gradientColor = unchecked((int)(0x40000000
                 | (uint)bgColor.R << 16 | (uint)bgColor.G << 8 | bgColor.B));
@@ -701,9 +701,9 @@ public partial class MainWindow : Window
             return;
 
         try { _foregroundColor = (Color)ColorConverter.ConvertFromString(c.Theme.Foreground ?? "#c0caf5"); }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"ApplyTheme: foreground color parse failed: {ex.Message}"); }
         try { _mutedColor = (Color)ColorConverter.ConvertFromString(c.Theme.Muted ?? "#565f89"); }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"ApplyTheme: muted color parse failed: {ex.Message}"); }
 
         ParseColor(c.Theme.ContextMenuBackground, ref _ctxMenuBg, 0x2d, 0x2d, 0x2d);
         ParseColor(c.Theme.ContextMenuForeground, ref _ctxMenuFg, 0xcc, 0xcc, 0xcc);
@@ -764,7 +764,7 @@ public partial class MainWindow : Window
                 var accentColor = (Color)ColorConverter.ConvertFromString(accent);
                 Application.Current.Resources["AccentBrush"] = new SolidColorBrush(accentColor);
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"ApplyTheme: accent brush failed: {ex.Message}"); }
         }
 
         if (c.Theme.TaskbarBackground is { Length: > 0 } tbHex)
@@ -774,7 +774,7 @@ public partial class MainWindow : Window
                 var tbColor = (Color)ColorConverter.ConvertFromString(tbHex);
                 TaskBar.Background = new SolidColorBrush(tbColor);
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"MainWindow operation failed: {ex.Message}"); }
         }
 
         LayoutLabel.FontWeight = FontWeights.SemiBold;
@@ -812,7 +812,7 @@ public partial class MainWindow : Window
             _colorFilter ??= new ColorFilterOverlay();
             _colorFilter.Apply(filterColor);
         }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"Color filter apply failed: {ex.Message}"); }
     }
 
     public void RefreshBackgrounds()
@@ -919,7 +919,7 @@ public partial class MainWindow : Window
         if (ServiceLocator.TryResolve<ConfigRoot>(out var icfg))
         {
             try { ClockText.Text = DateTime.Now.ToString(icfg.Theme.DateFormat); }
-            catch { ClockText.Text = DateTime.Now.ToString("HH:mm:ss  yyyy-MM-dd"); }
+            catch (Exception ex) { Logger.Warn($"Clock format failed: {ex.Message}"); ClockText.Text = DateTime.Now.ToString("HH:mm:ss  yyyy-MM-dd"); }
         }
 
         if (ServiceLocator.TryResolve<FocusMgr>(out var fm) && fm.ActiveWindow != null)
@@ -928,10 +928,10 @@ public partial class MainWindow : Window
             InfoWinTitle.Text = "";
 
         try { CpuText.Text = CpuBar((int)GetCpuUsage()); }
-        catch { CpuText.Text = " --%"; }
+        catch (Exception ex) { Logger.Warn($"CPU bar update failed: {ex.Message}"); CpuText.Text = " --%"; }
 
         try { MemText.Text = MemBar((int)GetMemUsage()); }
-        catch { MemText.Text = " --%"; }
+        catch (Exception ex) { Logger.Warn($"Memory bar update failed: {ex.Message}"); MemText.Text = " --%"; }
 
         try { BatteryText.Text = GetBatteryIcon(); }
         catch { BatteryText.Text = "🔋 --%"; }
@@ -942,7 +942,7 @@ public partial class MainWindow : Window
             NetDownText.Text = _netDownText;
             NetUpText.Text = _netUpText;
         }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"MainWindow operation failed: {ex.Message}"); }
     }
 
     private string CpuBar(int pct) =>
@@ -996,7 +996,7 @@ public partial class MainWindow : Window
                 _netUpCounter.NextValue();
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"MainWindow operation failed: {ex.Message}"); }
     }
 
     private void UpdateNetworkSpeeds()
@@ -1009,7 +1009,7 @@ public partial class MainWindow : Window
             _netDownText = FormatSpeed(down);
             _netUpText = FormatSpeed(up);
         }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"Network counter init failed: {ex.Message}"); }
     }
 
     private static string FormatSpeed(float bps)
@@ -1054,7 +1054,7 @@ public partial class MainWindow : Window
                     if (_cachedMediaText != oldText) _lastMarqueeText = "";
                 });
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"Media update failed: {ex.Message}"); }
         });
     }
 
@@ -1096,8 +1096,9 @@ public partial class MainWindow : Window
                     if (_cachedMediaText != old) _lastMarqueeText = "";
                 });
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn($"Media info update failed: {ex.Message}");
                 Dispatcher.Invoke(() =>
                 {
                     _cachedMediaText = "";
@@ -1241,7 +1242,7 @@ public partial class MainWindow : Window
                     icon.Dispose();
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"Window icon extract failed: {ex.Message}"); }
 
             content.Children.Add(new TextBlock
             {
@@ -1305,14 +1306,14 @@ public partial class MainWindow : Window
     {
         _cpuCounter ??= new PerformanceCounter("Processor", "% Processor Time", "_Total");
         try { return _cpuCounter.NextValue() / Environment.ProcessorCount; }
-        catch { return 0; }
+        catch (Exception ex) { Logger.Warn($"CPU counter read failed: {ex.Message}"); return 0; }
     }
 
     private double GetMemUsage()
     {
         _memCounter ??= new PerformanceCounter("Memory", "% Committed Bytes In Use");
         try { return _memCounter.NextValue(); }
-        catch { return 0; }
+        catch (Exception ex) { Logger.Warn($"Memory counter read failed: {ex.Message}"); return 0; }
     }
 
     private void ApplyPillStyling()
@@ -1352,7 +1353,7 @@ public partial class MainWindow : Window
         if (!string.IsNullOrEmpty(hex))
         {
             try { target = (Color)ColorConverter.ConvertFromString(hex); return; }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"ParseColor failed for '{hex}': {ex.Message}"); }
         }
         if (rr.HasValue)
             target = Color.FromRgb(rr.Value, gg!.Value, bb!.Value);
@@ -1565,7 +1566,7 @@ public partial class MainWindow : Window
                     _focusBackground.Add(mw.Hwnd, wr.Left, wr.Top, wr.Width, wr.Height);
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"Focus background update failed: {ex.Message}"); }
     }
 
     private void OnWindowUnmanaged(Dwalia.Models.ManagedWindow mw)
@@ -1636,7 +1637,7 @@ public partial class MainWindow : Window
                     _focusBackground.SetVisible(mw.Hwnd, IsWindowVisible(mw.Hwnd));
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"Focus visibility update failed: {ex.Message}"); }
         }
     }
 
@@ -1662,7 +1663,7 @@ public partial class MainWindow : Window
                     _focusBackground.SetVisible(mw.Hwnd, true);
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"Floating bg position update failed: {ex.Message}"); }
         }
     }
 

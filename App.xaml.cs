@@ -41,7 +41,8 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
         {
             if (ex.ExceptionObject is Exception ex2) Logger.Error("Domain exception", ex2);
-            try { _windowManager?.RestoreAllWindows(); } catch { }
+            try { _windowManager?.RestoreAllWindows(); }
+            catch (Exception restoreEx) { Logger.Error("Failed to restore windows on domain crash", restoreEx); }
         };
 
         _configManager = new ConfigManager();
@@ -312,7 +313,8 @@ public partial class App : Application
     {
         _configManager?.StopWatching();
         _ipcServer?.Dispose();
-        try { _windowManager?.RestoreAllWindows(); } catch { }
+        try { _windowManager?.RestoreAllWindows(); }
+        catch (Exception ex) { Logger.Error("Failed to restore windows on exit", ex); }
         _hotKeyManager?.Dispose();
         _mouseResizeManager?.Dispose();
         timeEndPeriod(1);

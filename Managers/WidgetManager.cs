@@ -274,7 +274,7 @@ public class WidgetManager
         if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
         {
             try { return (Color)ColorConverter.ConvertFromString(cfg.Theme.WidgetPillBackground); }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"Widget update failed: {ex.Message}"); }
         }
         return Color.FromArgb(0x44, 0xff, 0xff, 0xff);
     }
@@ -283,7 +283,7 @@ public class WidgetManager
     {
         if (string.IsNullOrEmpty(hex)) return null;
         try { return (Color)ColorConverter.ConvertFromString(hex); }
-        catch { return null; }
+        catch (Exception ex) { Logger.Warn($"Failed to parse color '{hex}': {ex.Message}"); return null; }
     }
 
     public void UpdateAll()
@@ -354,7 +354,7 @@ public class WidgetManager
             var pct = (int)(_cpuCounter.NextValue() / Environment.ProcessorCount);
             if (we.Text != null) we.Text.Text = $"{(we.Config.Format == "simple" ? "" : "◈ ")}{pct,3}%{ProgressBar(pct)}";
         }
-        catch { if (we.Text != null) we.Text.Text = " --%"; }
+        catch (Exception ex) { Logger.Warn($"Widget {we.Config.Type} update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = " --%"; }
     }
 
     private void UpdateMemory(WidgetEntry we)
@@ -365,7 +365,7 @@ public class WidgetManager
             var pct = (int)_memCounter.NextValue();
             if (we.Text != null) we.Text.Text = $"{(we.Config.Format == "simple" ? "" : "◉ ")}{pct,3}%{ProgressBar(pct)}";
         }
-        catch { if (we.Text != null) we.Text.Text = " --%"; }
+        catch (Exception ex) { Logger.Warn($"Widget {we.Config.Type} update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = " --%"; }
     }
 
     private void UpdateBattery(WidgetEntry we)
@@ -378,7 +378,7 @@ public class WidgetManager
             if (pct > 100) { if (we.Text != null) we.Text.Text = "🔋 --"; return; }
             if (we.Text != null) we.Text.Text = $"{(pct >= 90 ? "🔋" : pct >= 30 ? "🔋" : "🪫")} {pct,3}%";
         }
-        catch { if (we.Text != null) we.Text.Text = "🔋 --"; }
+        catch (Exception ex) { Logger.Warn($"Battery widget update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = "🔋 --"; }
     }
 
     private void UpdateNetwork(WidgetEntry we)
@@ -393,7 +393,7 @@ public class WidgetManager
             _lastNetDown = _netDownCounter.NextValue();
             _lastNetUp = _netUpCounter.NextValue();
         }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"Network widget update failed: {ex.Message}"); }
         if (we.Text != null) we.Text.Text = $"▼ {FormatSpeed(_lastNetDown)}";
         if (we.SecondaryText != null) we.SecondaryText.Text = $"▲ {FormatSpeed(_lastNetUp)}";
     }
@@ -462,7 +462,7 @@ public class WidgetManager
             var pct = (int)_gpuCounter.NextValue();
             if (we.Text != null) we.Text.Text = $"GPU {pct,3}%";
         }
-        catch { if (we.Text != null) we.Text.Text = "GPU --"; }
+        catch (Exception ex) { Logger.Warn($"GPU widget update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = "GPU --"; }
     }
 
     private void UpdateDisk(WidgetEntry we)
@@ -474,7 +474,7 @@ public class WidgetManager
             var write = _diskWriteCounter.NextValue();
             if (we.Text != null) we.Text.Text = $"💿 {FormatSpeed(read)} {FormatSpeed(write)}";
         }
-        catch { if (we.Text != null) we.Text.Text = "💿 --"; }
+        catch (Exception ex) { Logger.Warn($"Disk widget update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = "💿 --"; }
     }
 
     private void UpdateDiskUsage(WidgetEntry we)
@@ -488,7 +488,7 @@ public class WidgetManager
             var total = di.TotalSize / (1024 * 1024 * 1024);
             if (we.Text != null) we.Text.Text = $"{drive}: {free}/{total}G";
         }
-        catch { if (we.Text != null) we.Text.Text = "💾 --"; }
+        catch (Exception ex) { Logger.Warn($"DiskUsage widget update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = "💾 --"; }
     }
 
     private void UpdateUptime(WidgetEntry we)
@@ -510,7 +510,7 @@ public class WidgetManager
             if (we.Text != null)
                 we.Text.Text = wifi != null ? $"📶 {wifi.Name}" : "📶 --";
         }
-        catch { if (we.Text != null) we.Text.Text = "📶 --"; }
+        catch (Exception ex) { Logger.Warn($"WiFi widget update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = "📶 --"; }
     }
 
     private void UpdateIpAddress(WidgetEntry we)
@@ -524,7 +524,7 @@ public class WidgetManager
             if (we.Text != null)
                 we.Text.Text = ip != null ? $"🌐 {ip.Address}" : "🌐 --";
         }
-        catch { if (we.Text != null) we.Text.Text = "🌐 --"; }
+        catch (Exception ex) { Logger.Warn($"IP widget update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = "🌐 --"; }
     }
 
     private string _publicIpText = "";
@@ -540,7 +540,7 @@ public class WidgetManager
                     using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
                     _publicIpText = await client.GetStringAsync("https://api.ipify.org");
                 }
-                catch { _publicIpText = "N/A"; }
+                catch (Exception ex) { Logger.Warn($"Public IP fetch failed: {ex.Message}"); _publicIpText = "N/A"; }
             });
         }
     }
@@ -557,7 +557,7 @@ public class WidgetManager
                 we.Text.Text = vpn != null && vpn.OperationalStatus == OperationalStatus.Up
                     ? "🔒 VPN" : "";
         }
-        catch { if (we.Text != null) we.Text.Text = ""; }
+        catch (Exception ex) { Logger.Warn($"Widget {we.Config.Type} update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
     }
 
     private void UpdateVolume(WidgetEntry we)
@@ -583,11 +583,11 @@ public class WidgetManager
                     var tz = TimeZoneInfo.FindSystemTimeZoneById(z.Trim());
                     parts.Add($"{z.Trim()} {TimeZoneInfo.ConvertTime(DateTime.Now, tz):HH:mm}");
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn($"Widget update failed: {ex.Message}"); }
             }
             if (we.Text != null) we.Text.Text = string.Join(" · ", parts);
         }
-        catch { if (we.Text != null) we.Text.Text = ""; }
+        catch (Exception ex) { Logger.Warn($"Widget {we.Config.Type} update failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
     }
 
     private void UpdateCountdown(WidgetEntry we)
@@ -603,7 +603,7 @@ public class WidgetManager
                         : "🎉 Done!";
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"WidgetManager operation failed: {ex.Message}"); }
     }
 
     private void UpdateWindowCount(WidgetEntry we)
@@ -868,11 +868,11 @@ public class WidgetManager
                     content.Children.Add(img);
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.Warn($"Widget update failed: {ex.Message}"); }
             content.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center });
             var btn = new Button { Content = content, Height = h, FontSize = 15, Padding = new Thickness(12, 0, 12, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand, Foreground = new SolidColorBrush(ParseColor(cfg.Theme.Foreground) ?? Colors.White) };
             var cmd = entry.Path;
-            btn.Click += (_, _) => { try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); } catch { } };
+            btn.Click += (_, _) => { try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); } catch (Exception ex) { Logger.Warn($"Launch failed: {cmd}: {ex.Message}"); } };
             var pill = new Border { CornerRadius = new CornerRadius(h / 2), Height = h, Background = new SolidColorBrush(ParseColor(cfg.Theme.TaskButtonBackground) ?? Color.FromRgb(0x24, 0x28, 0x3e)), Child = btn, Margin = new Thickness(2, 0, 2, 0) };
             we.Panel.Children.Add(pill);
         }
@@ -909,7 +909,7 @@ public class WidgetManager
                 _netUpCounter = new PerformanceCounter("Network Interface", "Bytes Sent/sec", iface);
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.Warn($"WidgetManager operation failed: {ex.Message}"); }
 
         var widgetTypes = _widgetsByBar.Values.SelectMany(v => v).Select(w => w.Config.Type).ToHashSet();
         if (widgetTypes.Contains("gpu"))
@@ -923,7 +923,7 @@ public class WidgetManager
                     if (!string.IsNullOrEmpty(gpuInst))
                         _gpuCounter = new PerformanceCounter("GPU Engine", "Utilization Percentage", gpuInst);
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn($"Widget update failed: {ex.Message}"); }
             });
         }
         if (widgetTypes.Contains("disk"))
@@ -940,7 +940,7 @@ public class WidgetManager
                         _diskWriteCounter = new PerformanceCounter("PhysicalDisk", "Disk Write Bytes/sec", diskInst);
                     }
                 }
-                catch { }
+                catch (Exception ex) { Logger.Warn($"Widget update failed: {ex.Message}"); }
             });
         }
     }

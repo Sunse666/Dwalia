@@ -87,6 +87,7 @@ public class ConfigManager
             var config = Deserializer.Deserialize<ConfigRoot>(yaml);
             if (config != null)
             {
+                Validate(config);
                 Logger.Info($"Config loaded from {ConfigPath}");
                 return config;
             }
@@ -110,6 +111,68 @@ public class ConfigManager
         catch (Exception ex)
         {
             Logger.Error("Failed to save config", ex);
+        }
+    }
+
+    public void Validate(ConfigRoot config)
+    {
+        if (config == null) return;
+        var g = config.General; var t = config.Theme; var l = config.Layout;
+
+        if (g.BarHeight < 16 || g.BarHeight > 80)
+        { Logger.Warn($"bar_height {g.BarHeight} out of range [16-80], clamped"); g.BarHeight = Math.Clamp(g.BarHeight, 16, 80); }
+        if (g.BarPosition is not "top" and not "bottom")
+        { Logger.Warn($"bar_position '{g.BarPosition}' invalid, using 'top'"); g.BarPosition = "top"; }
+        if (g.AnimationDuration < 0 || g.AnimationDuration > 2000)
+        { Logger.Warn($"animation_duration {g.AnimationDuration} out of range, clamped"); g.AnimationDuration = Math.Clamp(g.AnimationDuration, 0, 2000); }
+        if (!Enum.TryParse<Managers.LayoutType>(g.DefaultLayout, true, out _))
+        { Logger.Warn($"default_layout '{g.DefaultLayout}' invalid, using 'Dynamic'"); g.DefaultLayout = "Dynamic"; }
+
+        if (t.FontSize < 8 || t.FontSize > 24)
+        { Logger.Warn($"font_size {t.FontSize} out of range [8-24], clamped"); t.FontSize = Math.Clamp(t.FontSize, 8, 24); }
+        if (t.BorderWidth < 1 || t.BorderWidth > 8)
+        { Logger.Warn($"border_width {t.BorderWidth} out of range [1-8], clamped"); t.BorderWidth = Math.Clamp(t.BorderWidth, 1, 8); }
+        if (t.FocusActiveOpacity < 0 || t.FocusActiveOpacity > 1)
+        { Logger.Warn($"focus_active_opacity {t.FocusActiveOpacity} out of range, clamped"); t.FocusActiveOpacity = Math.Clamp(t.FocusActiveOpacity, 0, 1); }
+        if (t.FocusInactiveOpacity < 0 || t.FocusInactiveOpacity > 1)
+        { Logger.Warn($"focus_inactive_opacity {t.FocusInactiveOpacity} out of range, clamped"); t.FocusInactiveOpacity = Math.Clamp(t.FocusInactiveOpacity, 0, 1); }
+        if (t.ColorFilterOpacity < 0 || t.ColorFilterOpacity > 1)
+        { Logger.Warn($"color_filter_opacity {t.ColorFilterOpacity} out of range, clamped"); t.ColorFilterOpacity = Math.Clamp(t.ColorFilterOpacity, 0, 1); }
+        if (t.PillCornerRadius < 0 || t.PillCornerRadius > 40)
+        { Logger.Warn($"pill_corner_radius {t.PillCornerRadius} out of range, clamped"); t.PillCornerRadius = Math.Clamp(t.PillCornerRadius, 0, 40); }
+        if (t.PillHeight < 10 || t.PillHeight > 80)
+        { Logger.Warn($"pill_height {t.PillHeight} out of range, clamped"); t.PillHeight = Math.Clamp(t.PillHeight, 10, 80); }
+        if (t.MarqueeSpeed < 5 || t.MarqueeSpeed > 200)
+        { Logger.Warn($"marquee_speed {t.MarqueeSpeed} out of range, clamped"); t.MarqueeSpeed = Math.Clamp(t.MarqueeSpeed, 5, 200); }
+        if (t.MediaScriptInterval < 1 || t.MediaScriptInterval > 60)
+        { Logger.Warn($"media_script_interval {t.MediaScriptInterval} out of range, clamped"); t.MediaScriptInterval = Math.Clamp(t.MediaScriptInterval, 1, 60); }
+
+        if (l.MasterFactor < 0.2 || l.MasterFactor > 0.85)
+        { Logger.Warn($"master_factor {l.MasterFactor} out of range [0.2-0.85], clamped"); l.MasterFactor = Math.Clamp(l.MasterFactor, 0.2, 0.85); }
+        if (l.InnerGap < 0 || l.InnerGap > 24)
+        { Logger.Warn($"inner_gap {l.InnerGap} out of range [0-24], clamped"); l.InnerGap = Math.Clamp(l.InnerGap, 0, 24); }
+        if (l.OuterGap < 0 || l.OuterGap > 12)
+        { Logger.Warn($"outer_gap {l.OuterGap} out of range [0-12], clamped"); l.OuterGap = Math.Clamp(l.OuterGap, 0, 12); }
+
+        var validLayouts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "Dynamic","MasterStack","Monocle","Grid","HorizontalStack","Columns","VerticalStack","BSP" };
+        l.EnabledLayouts.RemoveAll(name => { if (!validLayouts.Contains(name)) { Logger.Warn($"Unknown layout '{name}' removed from enabled_layouts"); return true; } return false; });
+        if (l.EnabledLayouts.Count == 0) { l.EnabledLayouts.Add("Dynamic"); Logger.Warn("enabled_layouts was empty, added Dynamic"); }
+
+        var validBarPages = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "All","Docker","Basic","Advanced" };
+        foreach (var w in config.Widgets)
+        {
+            if (!validBarPages.Contains(w.BarPage))
+            { Logger.Warn($"Widget '{w.Type}': unknown bar_page '{w.BarPage}', using 'All'"); w.BarPage = "All"; }
+            if (w.Align is not "left" and not "center" and not "right")
+            { Logger.Warn($"Widget '{w.Type}': unknown align '{w.Align}', using 'right'"); w.Align = "right"; }
+        }
+
+        foreach (var rule in config.WindowRules)
+        {
+            if (rule.TitleMatchMode is { Length: > 0 } mode
+                && mode is not "Exact" and not "Contains" and not "StartsWith" and not "Regex")
+            { Logger.Warn($"Window rule '{rule.Process}': unknown title_match_mode '{mode}', using 'Exact'"); rule.TitleMatchMode = "Exact"; }
         }
     }
 

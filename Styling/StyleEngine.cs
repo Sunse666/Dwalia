@@ -209,7 +209,7 @@ public static class StyleEngine
                     break;
             }
         }
-        catch { /* skip invalid property values */ }
+        catch (Exception ex) { Logger.Warn($"Skipping invalid CSS property '{property}'={value}: {ex.Message}"); }
     }
 
     private class ElementContext

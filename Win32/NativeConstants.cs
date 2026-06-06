@@ -1,3 +1,5 @@
+using Dwalia.Infrastructure;
+
 namespace Dwalia.Win32;
 
 internal static class NativeConstants
@@ -136,6 +138,6 @@ internal static class NativeConstants
             var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
             return unchecked((int)(0xFF000000 | ((uint)c.R << 16) | ((uint)c.G << 8) | c.B));
         }
-        catch { return DWM_ACTIVE_BORDER; }
+        catch (Exception ex) { Logger.Warn($"Failed to parse DWM color '{hex}', using default: {ex.Message}"); return DWM_ACTIVE_BORDER; }
     }
 }

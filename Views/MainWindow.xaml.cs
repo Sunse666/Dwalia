@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -19,8 +20,6 @@ using static Dwalia.Win32.WindowStyles;
 
 namespace Dwalia.Views;
 
-public enum BarMode { Docker, Basic, Advanced }
-
 public partial class MainWindow : Window
 {
     private readonly WindowManager _windowManager;
@@ -31,7 +30,8 @@ public partial class MainWindow : Window
     private FocusBackground? _focusBackground;
     private ColorFilterOverlay? _colorFilter;
     private DispatcherTimer? _focusBgTimer;
-    private BarMode _barMode = BarMode.Docker;
+    private readonly List<string> _pageNames = new();
+    private int _pageIndex;
     private Color _focusBgColor;
     private Color _foregroundColor;
     private Color _mutedColor;
@@ -50,6 +50,7 @@ public partial class MainWindow : Window
     private int _taskPillCR = 14;
     private int _taskPillH = 28;
     private int _taskHoverBrighten = 20;
+    private readonly Dictionary<string, Border> _pageBars = new();
     private readonly List<System.Windows.Controls.Border> _monitorBars = new();
     private NOTIFYICONDATA _trayData;
     private bool _trayCreated;
@@ -168,6 +169,9 @@ public partial class MainWindow : Window
             TaskBar.Height = barH;
             InfoBar.Height = barH;
             LauncherBar.Height = barH;
+            _pageBars["Docker"] = TaskBar;
+            _pageBars["Basic"] = InfoBar;
+            _pageBars["Advanced"] = LauncherBar;
 
             var fontSize = Math.Clamp(cfg.Theme.FontSize, 8, 24);
             var fontFamily = new FontFamily(cfg.Theme.BarFont);
@@ -768,63 +772,92 @@ public partial class MainWindow : Window
 
     public void SetupWidgetBars()
     {
-        if (ServiceLocator.TryResolve<WidgetManager>(out var wm))
+        if (!ServiceLocator.TryResolve<WidgetManager>(out var wm)) { Logger.Warn("SetupWidgetBars: WidgetManager not found"); return; }
+        if (!ServiceLocator.TryResolve<ConfigRoot>(out var cfg)) { Logger.Warn("SetupWidgetBars: ConfigRoot not found"); return; }
+
+        _pageNames.Clear();
+        _pageBars.Clear();
+        _pageBars["Docker"] = TaskBar;
+        _pageBars["Basic"] = InfoBar;
+        _pageBars["Advanced"] = LauncherBar;
+
+        foreach (var w in cfg.Widgets.Where(w => w.Enabled))
         {
-            TaskBar.Child = wm.BuildBarContent("Docker");
-            InfoBar.Child = wm.BuildBarContent("Basic");
-            LauncherBar.Child = wm.BuildBarContent("Advanced");
+            Logger.Info($"  Widget '{w.Type}' bar_page='{w.BarPage}'");
+            if (w.BarPage != "All" && !_pageNames.Contains(w.BarPage))
+                _pageNames.Add(w.BarPage);
         }
+        if (!_pageNames.Contains("Docker"))
+            _pageNames.Insert(0, "Docker");
+
+        Logger.Info($"SetupWidgetBars: {_pageNames.Count} pages: [{string.Join(", ", _pageNames)}]");
+
+        var mainGrid = (Grid)Content;
+        var barH = TaskBar.Height;
+        foreach (var page in _pageNames)
+        {
+            if (_pageBars.ContainsKey(page)) continue;
+            var bar = CreateBar(page, barH);
+            mainGrid.Children.Add(bar);
+            _pageBars[page] = bar;
+            Logger.Info($"SetupWidgetBars: created dynamic bar '{page}'");
+        }
+
+        foreach (var page in _pageNames)
+        {
+            if (_pageBars.TryGetValue(page, out var bar))
+                bar.Child = wm.BuildBarContent(page);
+        }
+
+        _pageIndex = 0;
+        ShowBarPage(0);
+        Logger.Info($"SetupWidgetBars: shown page 0 '{_pageNames[0]}', total bars: {_pageBars.Count}");
         UpdateTaskBar();
         UpdateWorkspacePills();
     }
 
     public void CycleBarMode(int direction)
     {
-        var modes = new[] { BarMode.Docker, BarMode.Basic, BarMode.Advanced };
-        var idx = Array.IndexOf(modes, _barMode);
-        var next = modes[(idx + direction + modes.Length) % modes.Length];
-        ShowBarMode(next);
+        if (_pageNames.Count == 0) { Logger.Warn("CycleBarMode: _pageNames is empty"); return; }
+        var prev = _pageIndex;
+        _pageIndex = (_pageIndex + direction + _pageNames.Count) % _pageNames.Count;
+        Logger.Info($"CycleBarMode: {_pageNames[prev]} -> {_pageNames[_pageIndex]} (dir={direction})");
+        ShowBarPage(_pageIndex);
     }
 
     public void ToggleBar()
     {
-        var anyVisible = TaskBar.Visibility == Visibility.Visible
-                      || InfoBar.Visibility == Visibility.Visible
-                      || LauncherBar.Visibility == Visibility.Visible;
+        var anyVisible = _pageBars.Values.Any(b => b.Visibility == Visibility.Visible);
         if (anyVisible)
         {
-            TaskBar.Visibility = Visibility.Collapsed;
-            InfoBar.Visibility = Visibility.Collapsed;
-            LauncherBar.Visibility = Visibility.Collapsed;
+            foreach (var b in _pageBars.Values) b.Visibility = Visibility.Collapsed;
         }
         else
         {
-            ShowBarMode(_barMode);
+            ShowBarPage(_pageIndex);
         }
         UpdateBarArea();
     }
 
-    private void ShowBarMode(BarMode mode)
+    private void ShowBarPage(int index)
     {
-        var prevMode = _barMode;
-        _barMode = mode;
+        if (index < 0 || index >= _pageNames.Count) return;
+        var prevIndex = _pageIndex;
+        _pageIndex = index;
         var duration = TimeSpan.FromMilliseconds(150);
 
-        TaskBar.Visibility = mode == BarMode.Docker ? Visibility.Visible : Visibility.Collapsed;
-        InfoBar.Visibility = mode == BarMode.Basic ? Visibility.Visible : Visibility.Collapsed;
-        LauncherBar.Visibility = mode == BarMode.Advanced ? Visibility.Visible : Visibility.Collapsed;
+        var targetPage = _pageNames[index];
+        foreach (var kv in _pageBars)
+            kv.Value.Visibility = kv.Key == targetPage ? Visibility.Visible : Visibility.Collapsed;
 
-        if (prevMode != mode)
-        {
-            var nextBar = mode switch { BarMode.Basic => InfoBar, BarMode.Advanced => LauncherBar, _ => TaskBar };
-            FadeInBar(nextBar, duration);
-        }
+        if (index != prevIndex && _pageBars.TryGetValue(targetPage, out var bar))
+            FadeInBar(bar, duration);
 
         UpdateTaskBar();
         UpdateWorkspacePills();
 
-        var activeBar = mode switch { BarMode.Basic => InfoBar, BarMode.Advanced => LauncherBar, _ => TaskBar };
-        Styling.StyleEngine.ApplyToVisualTree(activeBar);
+        if (_pageBars.TryGetValue(targetPage, out var activeBar))
+            Styling.StyleEngine.ApplyToVisualTree(activeBar);
 
         UpdateBarArea();
     }
@@ -844,9 +877,7 @@ public partial class MainWindow : Window
 
     private void UpdateBarArea()
     {
-        bool visible = TaskBar.Visibility == Visibility.Visible
-                    || InfoBar.Visibility == Visibility.Visible
-                    || LauncherBar.Visibility == Visibility.Visible;
+        bool visible = _pageBars.Values.Any(b => b.Visibility == Visibility.Visible);
         if (ServiceLocator.TryResolve<LayoutManager>(out var lm))
         {
             var barH = visible ? TaskBar.Height : 0;
@@ -855,6 +886,21 @@ public partial class MainWindow : Window
                 barTop = (cfg.General.BarPosition?.ToLowerInvariant() ?? "top") != "bottom";
             lm.SetArea(_hwnd, barTop ? barH : 0, barH);
         }
+    }
+
+    private Border CreateBar(string name, double height)
+    {
+        var bar = new Border
+        {
+            Name = name,
+            Background = Brushes.Transparent,
+            BorderBrush = new SolidColorBrush(_barBorderColor),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Height = height,
+            Visibility = Visibility.Collapsed,
+        };
+        Grid.SetRow(bar, 0);
+        return bar;
     }
 
     private void BuildLauncherButtons()

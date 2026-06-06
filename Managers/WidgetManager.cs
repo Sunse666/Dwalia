@@ -38,6 +38,18 @@ public class WidgetManager
     private float _lastNetDown;
     private float _lastNetUp;
 
+    private object? _volumeEndpoint;
+    private bool _volInit;
+    private string _weatherCache = "";
+    private DateTime _weatherLastFetch;
+    private string _stockCache = "";
+    private DateTime _stockLastFetch;
+    private string _clipboardCache = "";
+    private string _todoCache = "";
+    private DateTime _todoLastFetch;
+    private Dictionary<string, string> _cmdCaches = new();
+    private DateTime _cmdLastFetch;
+
     public event Action? WidgetsChanged;
 
     private class WidgetEntry
@@ -59,10 +71,19 @@ public class WidgetManager
         _marqueeSpeed = Math.Max(5, cfg.Theme.MarqueeSpeed);
         _widgetsByBar.Clear();
 
+        var allPages = new List<string>();
+        foreach (var w in cfg.Widgets.Where(w => w.Enabled))
+        {
+            if (w.BarPage != "All" && !allPages.Contains(w.BarPage))
+                allPages.Add(w.BarPage);
+        }
+        if (!allPages.Contains("Docker"))
+            allPages.Insert(0, "Docker");
+
         foreach (var w in cfg.Widgets.Where(w => w.Enabled))
         {
             var pages = w.BarPage == "All"
-                ? new[] { "Docker", "Basic", "Advanced" }
+                ? allPages.ToArray()
                 : new[] { w.BarPage };
             foreach (var page in pages)
             {
@@ -337,6 +358,13 @@ public class WidgetManager
             case "script":       UpdateScript(we); break;
             case "label":        UpdateLabel(we); break;
             case "button":       UpdateButton(we); break;
+            case "weather":      UpdateWeather(we); break;
+            case "idle_time":    UpdateIdleTime(we); break;
+            case "clipboard":    UpdateClipboard(we); break;
+            case "process_monitor": UpdateProcessMonitor(we); break;
+            case "stock":        UpdateStock(we); break;
+            case "todo":         UpdateTodo(we); break;
+            case "custom_command": UpdateCustomCommand(we); break;
         }
     }
 
@@ -562,12 +590,32 @@ public class WidgetManager
 
     private void UpdateVolume(WidgetEntry we)
     {
-        if (we.Text != null) we.Text.Text = "";
+        try
+        {
+            if (!_volInit) { _volumeEndpoint = GetVolumeEndpoint(); _volInit = true; }
+            if (_volumeEndpoint == null) { if (we.Text != null) we.Text.Text = ""; return; }
+            var ep = (IAudioEndpointVolume)_volumeEndpoint;
+            ep.GetMasterVolumeLevelScalar(out float vol);
+            ep.GetMute(out bool mute);
+            if (we.Text != null)
+            {
+                var icon = mute ? "🔇" : vol >= 0.66f ? "🔊" : vol >= 0.33f ? "🔉" : "🔈";
+                var simple = we.Config.Format == "simple";
+                we.Text.Text = mute ? (simple ? "MUTED" : "🔇 MUTED") : (simple ? $"{vol * 100:F0}%" : $"{icon} {vol * 100:F0}%");
+            }
+        }
+        catch (Exception ex) { Logger.Warn($"Volume widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
     }
 
     private void UpdateAudioDevice(WidgetEntry we)
     {
-        if (we.Text != null) we.Text.Text = "";
+        try
+        {
+            if (!_volInit) { _volumeEndpoint = GetVolumeEndpoint(); _volInit = true; }
+            var name = GetDefaultAudioDeviceName();
+            if (we.Text != null) we.Text.Text = name ?? "";
+        }
+        catch (Exception ex) { Logger.Warn($"AudioDevice widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
     }
 
     private void UpdateWorldClock(WidgetEntry we)
@@ -616,24 +664,75 @@ public class WidgetManager
         }
     }
 
+    private bool _btInit; private bool _btOn;
     private void UpdateBluetooth(WidgetEntry we)
     {
-        if (we.Text != null) we.Text.Text = "";
+        try
+        {
+            if (!_btInit) { _btOn = CheckBluetooth(); _btInit = true; }
+            if (we.Text != null) we.Text.Text = _btOn ? "🔵 BT On" : "BT Off";
+        }
+        catch (Exception ex) { Logger.Warn($"Bluetooth widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
     }
 
     private void UpdateMicrophone(WidgetEntry we)
     {
-        if (we.Text != null) we.Text.Text = "";
+        try
+        {
+            var muted = IsMicrophoneMuted();
+            if (we.Text != null) we.Text.Text = muted ? "🎤 Muted" : "🎤 Live";
+        }
+        catch (Exception ex) { Logger.Warn($"Microphone widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
     }
 
     private void UpdateCamera(WidgetEntry we)
     {
-        if (we.Text != null) we.Text.Text = "";
+        try
+        {
+            var active = IsCameraActive();
+            if (we.Text != null) we.Text.Text = active ? "📷 Active" : "📷 Off";
+        }
+        catch (Exception ex) { Logger.Warn($"Camera widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
     }
 
+    private string _scriptOutput = ""; private string _scriptPath = ""; private DateTime _scriptLastRun;
     private void UpdateScript(WidgetEntry we)
     {
-        if (string.IsNullOrEmpty(we.Config.Args)) return;
+        try
+        {
+            var script = we.Config.Args ?? "";
+            if (string.IsNullOrEmpty(script)) return;
+            var interval = Math.Max(we.Config.FontSize > 0 ? we.Config.FontSize : 5, 1);
+            if (script != _scriptPath || (DateTime.UtcNow - _scriptLastRun).TotalSeconds > interval)
+            {
+                _scriptPath = script;
+                _scriptLastRun = DateTime.UtcNow;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        using var p = new Process
+                        {
+                            StartInfo = new ProcessStartInfo
+                            {
+                                FileName = "cmd.exe",
+                                Arguments = $"/c {script}",
+                                UseShellExecute = false,
+                                RedirectStandardOutput = true,
+                                CreateNoWindow = true,
+                            }
+                        };
+                        p.Start();
+                        _scriptOutput = p.StandardOutput.ReadToEnd().Trim();
+                        p.WaitForExit(5000);
+                        if (!p.HasExited) p.Kill();
+                    }
+                    catch (Exception ex) { Logger.Warn($"Script failed: {ex.Message}"); _scriptOutput = ""; }
+                });
+            }
+            if (we.Text != null) we.Text.Text = _scriptOutput;
+        }
+        catch (Exception ex) { Logger.Warn($"Script widget failed: {ex.Message}"); }
     }
 
     private void UpdateLabel(WidgetEntry we)
@@ -990,5 +1089,332 @@ public class WidgetManager
         public byte Reserved1;
         public int BatteryLifeTime;
         public int BatteryFullLifeTime;
+    }
+
+    private void UpdateWeather(WidgetEntry we)
+    {
+        try
+        {
+            var city = we.Config.Args ?? "";
+            if (string.IsNullOrEmpty(city)) city = "";
+            var key = $"weather_{city}";
+            if ((DateTime.UtcNow - _weatherLastFetch).TotalMinutes > 30 || _weatherCache == "")
+            {
+                _weatherLastFetch = DateTime.UtcNow;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                        client.DefaultRequestHeaders.UserAgent.ParseAdd("Dwalia/1.0");
+                        var url = string.IsNullOrEmpty(city)
+                            ? "https://wttr.in/?format=%C+%t+%w"
+                            : $"https://wttr.in/{Uri.EscapeDataString(city)}?format=%C+%t+%w";
+                        _weatherCache = client.GetStringAsync(url).Result.Trim();
+                    }
+                    catch (Exception ex) { Logger.Warn($"Weather fetch failed: {ex.Message}"); _weatherCache = "N/A"; }
+                });
+            }
+            if (we.Text != null) we.Text.Text = _weatherCache;
+        }
+        catch (Exception ex) { Logger.Warn($"Weather widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
+    }
+
+    private void UpdateIdleTime(WidgetEntry we)
+    {
+        try
+        {
+            var li = new LASTINPUTINFO();
+            li.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf(li);
+            if (GetLastInputInfo(ref li))
+            {
+                var idle = (uint)Environment.TickCount - li.dwTime;
+                var ts = TimeSpan.FromMilliseconds(idle);
+                if (we.Text != null) we.Text.Text = ts.TotalHours >= 1
+                    ? $"{(int)ts.TotalHours}h {(int)ts.Minutes}m"
+                    : ts.TotalMinutes >= 1
+                        ? $"{(int)ts.TotalMinutes}m"
+                        : $"{ts.Seconds}s";
+            }
+        }
+        catch (Exception ex) { Logger.Warn($"IdleTime widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
+    }
+
+    private void UpdateClipboard(WidgetEntry we)
+    {
+        try
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    _clipboardCache = System.Windows.Clipboard.GetText() ?? "";
+                    if (_clipboardCache.Length > 60)
+                        _clipboardCache = _clipboardCache[..60] + "…";
+                }
+                catch { _clipboardCache = ""; }
+            });
+            if (we.Text != null) we.Text.Text = string.IsNullOrEmpty(_clipboardCache) ? "📋 empty" : $"📋 {_clipboardCache}";
+        }
+        catch (Exception ex) { Logger.Warn($"Clipboard widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
+    }
+
+    private void UpdateProcessMonitor(WidgetEntry we)
+    {
+        try
+        {
+            var procName = we.Config.Args ?? "";
+            if (string.IsNullOrEmpty(procName)) { if (we.Text != null) we.Text.Text = ""; return; }
+            var procs = Process.GetProcessesByName(procName.Replace(".exe", ""));
+            var running = procs.Length > 0;
+            foreach (var p in procs) p.Dispose();
+            if (we.Text != null) we.Text.Text = running ? $"🟢 {procName}" : $"🔴 {procName}";
+        }
+        catch (Exception ex) { Logger.Warn($"ProcessMonitor widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
+    }
+
+    private void UpdateStock(WidgetEntry we)
+    {
+        try
+        {
+            var symbol = we.Config.Args ?? "";
+            if (string.IsNullOrEmpty(symbol)) { if (we.Text != null) we.Text.Text = ""; return; }
+            if ((DateTime.UtcNow - _stockLastFetch).TotalMinutes > 10 || _stockCache == "")
+            {
+                _stockLastFetch = DateTime.UtcNow;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                        client.DefaultRequestHeaders.UserAgent.ParseAdd("Dwalia/1.0");
+                        var url = $"https://query1.finance.yahoo.com/v8/finance/chart/{Uri.EscapeDataString(symbol)}";
+                        var json = client.GetStringAsync(url).Result;
+                        var price = ParseStockPrice(json);
+                        _stockCache = price ?? "N/A";
+                    }
+                    catch (Exception ex) { Logger.Warn($"Stock fetch failed: {ex.Message}"); _stockCache = "N/A"; }
+                });
+            }
+            if (we.Text != null) we.Text.Text = string.IsNullOrEmpty(_stockCache) ? "" : $"${_stockCache}";
+        }
+        catch (Exception ex) { Logger.Warn($"Stock widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
+    }
+
+    private void UpdateTodo(WidgetEntry we)
+    {
+        try
+        {
+            var path = we.Config.Args ?? "";
+            if (string.IsNullOrEmpty(path)) { if (we.Text != null) we.Text.Text = ""; return; }
+            if ((DateTime.UtcNow - _todoLastFetch).TotalSeconds > 10 || _todoCache == "")
+            {
+                _todoLastFetch = DateTime.UtcNow;
+                try
+                {
+                    if (File.Exists(path))
+                    {
+                        var lines = File.ReadAllLines(path).Where(l => !string.IsNullOrWhiteSpace(l)).Take(3).ToArray();
+                        _todoCache = lines.Length > 0 ? string.Join(" · ", lines) : "Done!";
+                    }
+                    else { _todoCache = ""; }
+                }
+                catch { _todoCache = ""; }
+            }
+            if (we.Text != null) we.Text.Text = string.IsNullOrEmpty(_todoCache) ? "📝 --" : $"📝 {_todoCache}";
+        }
+        catch (Exception ex) { Logger.Warn($"Todo widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
+    }
+
+    private void UpdateCustomCommand(WidgetEntry we)
+    {
+        try
+        {
+            var cmd = we.Config.Args ?? "";
+            if (string.IsNullOrEmpty(cmd)) return;
+            var interval = Math.Max(we.Config.FontSize > 0 ? we.Config.FontSize : 10, 1);
+            string? cached;
+            if (!_cmdCaches.TryGetValue(cmd, out cached)) { _cmdCaches[cmd] = cached = ""; }
+            if ((DateTime.UtcNow - _cmdLastFetch).TotalSeconds > interval || cached == "")
+            {
+                _cmdLastFetch = DateTime.UtcNow;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        using var p = new Process
+                        {
+                            StartInfo = new ProcessStartInfo
+                            {
+                                FileName = "cmd.exe",
+                                Arguments = $"/c {cmd}",
+                                UseShellExecute = false,
+                                RedirectStandardOutput = true,
+                                CreateNoWindow = true,
+                            }
+                        };
+                        p.Start();
+                        _cmdCaches[cmd] = p.StandardOutput.ReadToEnd().Trim();
+                        p.WaitForExit(5000);
+                        if (!p.HasExited) { p.Kill(); _cmdCaches[cmd] = "TIMEOUT"; }
+                    }
+                    catch (Exception ex) { Logger.Warn($"CustomCommand failed: {ex.Message}"); _cmdCaches[cmd] = ""; }
+                });
+            }
+            if (we.Text != null) we.Text.Text = _cmdCaches.GetValueOrDefault(cmd, "");
+        }
+        catch (Exception ex) { Logger.Warn($"CustomCommand widget failed: {ex.Message}"); }
+    }
+
+    private static string? ParseStockPrice(string json)
+    {
+        try
+        {
+            var idx = json.IndexOf("\"regularMarketPrice\"");
+            if (idx < 0) return null;
+            idx += 22;
+            var end = json.IndexOfAny(new[] { ',', '}', '\n' }, idx);
+            if (end < 0) return null;
+            var num = json[idx..end].Trim().Trim('"');
+            return double.TryParse(num, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var v)
+                ? v.ToString("F2") : null;
+        }
+        catch { return null; }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct LASTINPUTINFO
+    {
+        public uint cbSize;
+        public uint dwTime;
+    }
+
+    [System.Runtime.InteropServices.ComImport,
+     System.Runtime.InteropServices.Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
+    private class MMDeviceEnumerator { }
+
+    [System.Runtime.InteropServices.ComImport,
+     System.Runtime.InteropServices.Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"),
+     System.Runtime.InteropServices.InterfaceType(System.Runtime.InteropServices.ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMMDeviceEnumerator
+    {
+        int EnumAudioEndpoints(int dataFlow, int dwStateMask, out IntPtr ppDevices);
+        int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice ppEndpoint);
+        int GetDevice([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)] string pwstrId, out IMMDevice ppDevice);
+        int RegisterEndpointNotificationCallback(IntPtr pClient);
+        int UnregisterEndpointNotificationCallback(IntPtr pClient);
+    }
+
+    [System.Runtime.InteropServices.ComImport,
+     System.Runtime.InteropServices.Guid("D666063F-1587-4E43-81F1-B948E807363F"),
+     System.Runtime.InteropServices.InterfaceType(System.Runtime.InteropServices.ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMMDevice
+    {
+        int Activate(ref System.Guid iid, int dwClsCtx, IntPtr pActivationParams, [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.IUnknown)] out object ppInterface);
+        int OpenPropertyStore(int stgmAccess, out IntPtr ppProperties);
+        int GetId([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)] out string ppwstrId);
+        int GetState(out int pdwState);
+    }
+
+    [System.Runtime.InteropServices.ComImport,
+     System.Runtime.InteropServices.Guid("5CDF2C82-841E-4546-9722-0CF74078229A"),
+     System.Runtime.InteropServices.InterfaceType(System.Runtime.InteropServices.ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IAudioEndpointVolume
+    {
+        int RegisterControlChangeNotify(IntPtr pNotify);
+        int UnregisterControlChangeNotify(IntPtr pNotify);
+        int GetChannelCount(out uint pnChannelCount);
+        int SetMasterVolumeLevel(float fLevelDB, ref System.Guid pguidEventContext);
+        int SetMasterVolumeLevelScalar(float fLevel, ref System.Guid pguidEventContext);
+        int GetMasterVolumeLevel(out float pfLevelDB);
+        int GetMasterVolumeLevelScalar(out float pfLevel);
+        int SetChannelVolumeLevel(uint nChannel, float fLevelDB, ref System.Guid pguidEventContext);
+        int SetChannelVolumeLevelScalar(uint nChannel, float fLevel, ref System.Guid pguidEventContext);
+        int GetChannelVolumeLevel(uint nChannel, out float pfLevelDB);
+        int GetChannelVolumeLevelScalar(uint nChannel, out float pfLevel);
+        int SetMute([System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)] bool bMute, ref System.Guid pguidEventContext);
+        int GetMute(out bool pbMute);
+        int GetVolumeStepInfo(out uint pnStep, out uint pnStepCount);
+        int VolumeStepUp(ref System.Guid pguidEventContext);
+        int VolumeStepDown(ref System.Guid pguidEventContext);
+    }
+
+    [System.Runtime.InteropServices.ComImport,
+     System.Runtime.InteropServices.Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"),
+     System.Runtime.InteropServices.InterfaceType(System.Runtime.InteropServices.ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMMDeviceEnumerator2 { }
+
+    private static object? GetVolumeEndpoint()
+    {
+        try
+        {
+            var enumeratorType = Type.GetTypeFromCLSID(new System.Guid("BCDE0395-E52F-467C-8E3D-C4579291692E"));
+            if (enumeratorType == null) return null;
+            var enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(enumeratorType)!;
+            var guid = new System.Guid("5CDF2C82-841E-4546-9722-0CF74078229A");
+            enumerator.GetDefaultAudioEndpoint(0, 0, out var device);
+            device.Activate(ref guid, 1, IntPtr.Zero, out var ep);
+            return ep;
+        }
+        catch { return null; }
+    }
+
+    private static string? GetDefaultAudioDeviceName()
+    {
+        try
+        {
+            var enumeratorType = Type.GetTypeFromCLSID(new System.Guid("BCDE0395-E52F-467C-8E3D-C4579291692E"));
+            if (enumeratorType == null) return null;
+            var enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(enumeratorType)!;
+            enumerator.GetDefaultAudioEndpoint(0, 0, out var device);
+            device.GetId(out var id);
+            if (id == null) return null;
+            var parts = id.Split('{');
+            return parts.Length > 0 ? parts[0].TrimEnd('.') : id;
+        }
+        catch { return null; }
+    }
+
+    private static bool CheckBluetooth()
+    {
+        try
+        {
+            var t = Type.GetTypeFromCLSID(new System.Guid("21F52C1D-7396-440A-975C-98E18D5854C5"));
+            if (t != null) return true;
+            return false;
+        }
+        catch { return false; }
+    }
+
+    private static bool IsMicrophoneMuted()
+    {
+        try
+        {
+            var enumeratorType = Type.GetTypeFromCLSID(new System.Guid("BCDE0395-E52F-467C-8E3D-C4579291692E"));
+            if (enumeratorType == null) return false;
+            var enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(enumeratorType)!;
+            enumerator.GetDefaultAudioEndpoint(1, 0, out var device);
+            var guid = new System.Guid("5CDF2C82-841E-4546-9722-0CF74078229A");
+            device.Activate(ref guid, 1, IntPtr.Zero, out var ep);
+            var vol = (IAudioEndpointVolume)ep;
+            vol.GetMute(out bool muted);
+            return muted;
+        }
+        catch { return false; }
+    }
+
+    private static bool IsCameraActive()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine
+                .OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam");
+            return key != null;
+        }
+        catch { return false; }
     }
 }

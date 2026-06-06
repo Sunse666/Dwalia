@@ -558,22 +558,22 @@ widgets:
 | `inc_gap` / `dec_gap` | Increase / decrease window gaps |
 | `inc_inner_gap` / `dec_inner_gap` | Adjust inner gap only |
 | `inc_outer_gap` / `dec_outer_gap` | Adjust outer gap only |
-| `bar_next` / `bar_previous` | Cycle bar mode (Docker → Info → Launcher) |
+| `bar_next` / `bar_previous` | Cycle bar mode |
 | `toggle_bar` | Show / hide the top bar |
 | `snap_left_top` / `snap_right_top` | Snap window to top of left / right column |
 | `snap_left_bottom` / `snap_right_bottom` | Snap window to bottom of left / right column |
 
 ### Bar Modes
 
-Dwalia's bar is widget-driven and has 3 pages, cycled with `Alt+Shift+Down` / `Alt+Shift+Up`:
+Dwalia's bar is fully widget-driven. Three pages are cycled with `Alt+Shift+Down` / `Alt+Shift+Up`. Each page is built dynamically by `WidgetManager` from the `widgets:` config — there are no hardcoded bar elements.
 
-| Page | Content |
+| Page | Default content |
 |---|---|
 | **Docker** | Workspace pills, window tabs, layout indicator |
-| **Basic** | Active window title, clock, CPU, memory, battery, network, media |
-| **Advanced** | Window count, CPU, memory, network, GPU, disk usage, disk I/O |
+| **Basic** | Clock, CPU, memory, battery, network, media |
+| **Advanced** | Launcher buttons, additional system widgets |
 
-Each page is composed of widgets configured under `widgets:`. The built-in widget types:
+Configure `bar_page` per widget to control which page it appears on. The built-in widget types:
 
 | Widget | Description |
 |---|---|

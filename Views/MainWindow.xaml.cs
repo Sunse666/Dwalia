@@ -50,9 +50,6 @@ public partial class MainWindow : Window
     private int _taskPillCR = 14;
     private int _taskPillH = 28;
     private int _taskHoverBrighten = 20;
-    private string _progressFilled = "▰";
-    private string _progressEmpty = "▱";
-    private int _marqueeSpeed = 25;
     private readonly List<System.Windows.Controls.Border> _monitorBars = new();
     private NOTIFYICONDATA _trayData;
     private bool _trayCreated;
@@ -698,9 +695,6 @@ public partial class MainWindow : Window
         _taskPillCR = c.Theme.TaskPillCornerRadius;
         _taskPillH = c.Theme.TaskPillHeight;
         _taskHoverBrighten = c.Theme.TaskHoverBrighten;
-        _progressFilled = c.Theme.ProgressFilledChar.Length > 0 ? c.Theme.ProgressFilledChar : "▰";
-        _progressEmpty = c.Theme.ProgressEmptyChar.Length > 0 ? c.Theme.ProgressEmptyChar : "▱";
-        _marqueeSpeed = Math.Max(5, c.Theme.MarqueeSpeed);
 
         ApplyPillStyling();
 

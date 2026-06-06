@@ -558,22 +558,22 @@ widgets:
 | `inc_gap` / `dec_gap` | 增加 / 减少窗口间距 |
 | `inc_inner_gap` / `dec_inner_gap` | 仅调整内边距 |
 | `inc_outer_gap` / `dec_outer_gap` | 仅调整外边距 |
-| `bar_next` / `bar_previous` | 状态栏模式切换（Docker → Info → Launcher） |
+| `bar_next` / `bar_previous` | 状态栏模式切换 |
 | `toggle_bar` | 显示 / 隐藏状态栏 |
 | `snap_left_top` / `snap_right_top` | 将窗口压到左列 / 右列最上 |
 | `snap_left_bottom` / `snap_right_bottom` | 将窗口压到左列 / 右列最下 |
 
 ### 状态栏模式
 
-状态栏由 Widget 驱动，有 3 页，用 `Alt+Shift+Down` / `Alt+Shift+Up` 循环切换：
+状态栏完全由 Widget 驱动。三页通过 `Alt+Shift+Down` / `Alt+Shift+Up` 循环切换。每页由 `WidgetManager` 根据 `widgets:` 配置动态构建——没有硬编码的栏元素。
 
-| 页面 | 内容 |
+| 页面 | 默认内容 |
 |---|---|
 | **Docker** | 工作区指示器、窗口标签、布局名称 |
-| **Basic** | 活动窗口标题、时钟、CPU、内存、电池、网络、媒体 |
-| **Advanced** | 窗口数、CPU、内存、网络、GPU、磁盘使用率、磁盘 I/O |
+| **Basic** | 时钟、CPU、内存、电池、网络、媒体 |
+| **Advanced** | 启动器按钮、更多系统 widget |
 
-每页由 `widgets:` 配置下的 widget 组成。所有支持的 widget 类型：
+通过每个 widget 的 `bar_page` 控制显示在哪一页。所有支持的 widget 类型：
 
 | Widget | 说明 |
 |---|---|

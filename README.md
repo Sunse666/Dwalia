@@ -106,7 +106,7 @@ theme:
   foreground: "#c0caf5"
   accent: "#7aa2f7"
   muted: "#565f89"
-  taskbar_background: "#5516161e"
+  taskbar_background: "#00ffffff"
   inactive_border: "#3b4261"
   active_border: "#7aa2f7"
   border_width: 2
@@ -118,31 +118,20 @@ theme:
   focus_follows_mouse: false      # auto-focus window under cursor
   color_filter: "#7aa2f7"
   color_filter_opacity: 0.0       # 0.0 = off, try 0.05 for subtle tint
-  font_size: 11                   # bar font size (8-24)
+  font_size: 16                   # bar font size (8-24)
   bar_font: Segoe UI              # bar font family
-  status_show_clock: true         # show clock in info bar
-  status_show_cpu: true           # show CPU usage in info bar
-  status_show_mem: true           # show memory usage in info bar
-  status_show_battery: true       # show battery in info bar
   drag_source_color: ""           # drag source highlight (empty = use accent)
   drag_target_color: ""           # drag target highlight (empty = white)
   context_menu_background: "#2d2d2d"
   context_menu_foreground: "#cccccc"
   context_menu_border: "#444444"
-  task_button_background: "#24283e"
+  task_button_background: "#1a1a3e"
   task_button_hover_background: ""
-  monitor_bar_background: "#5516161e"
+  monitor_bar_background: "#00ffffff"
   monitor_bar_border: ""          # empty = use muted color
   workspace_pill_inactive_color: ""  # empty = use muted color
   workspace_pill_empty_color: ""     # empty = half-muted
   workspace_pill_show_count: false   # show window count beside pills
-  widget_pill_background: "#1a1a3e"  # default widget pill background
-  widget_cpu_color: "#00ff88"
-  widget_mem_color: "#00ccff"
-  widget_battery_color: "#88ff00"
-  widget_network_down_color: "#00ff88"
-  widget_network_up_color: "#ff4444"
-  widget_media_color: "#ff88ff"
   widget_separator_color: "#334466"
   media_dot_playing_color: "#00ff88"
   media_dot_paused_color: "#334466"
@@ -158,12 +147,10 @@ theme:
   media_script: ""               # custom media info script path
   media_script_interval: 3       # script polling interval (seconds)
   date_format: "HH:mm:ss  yyyy-MM-dd"
-  status_show_network: true
-  status_show_media: true
 
 layout:
   inner_gap: 4
-  outer_gap: 2
+  outer_gap: 4
   master_factor: 0.6              # 0.3 — 0.8
   smart_gaps: false               # remove gaps when only one window
   enabled_layouts:
@@ -201,6 +188,7 @@ window_rules:
   #   fullscreen: true              # launch in fullscreen
   #   layout: Monocle               # set layout for this window's workspace
   #   monitor: 1                    # assign to specific monitor
+  #   sticky: true                  # show window on all workspaces
 
 keybindings:
 - command: focus_down
@@ -307,29 +295,70 @@ resize_mode:
 
 # Multi-monitor settings
 monitor:
+  monitor_mode: independent       # independent (default) | mirror | span
   monitor_bar_enabled: true       # show per-monitor bars
 
 widgets:
-  - type: workspace               # BarPage: All = shown on every page
+  # Dock page — workspace pills, window tabs, layout indicator
+  - type: workspace
     bar_page: All
     align: left
     order: 1
-  - type: layout                  # BarPage: Docker = only on Docker page
+  - type: window_tabs
+    bar_page: Docker
+    align: left
+    order: 2
+  - type: layout
     bar_page: Docker
     align: right
-    order: 2
+    order: 1
+
+  # Info page — system stats (each widget controls its own color/enabled)
   - type: clock
     bar_page: Basic
     align: center
     order: 1
-  # Widget options:
+    enabled: true
+    font_size: 14
+  - type: cpu
+    bar_page: Basic
+    align: right
+    order: 2
+    enabled: true
+    text_color: "#00ff88"
+  - type: memory
+    bar_page: Basic
+    align: right
+    order: 3
+    enabled: true
+    text_color: "#00ccff"
+  - type: battery
+    bar_page: Basic
+    align: right
+    order: 4
+    enabled: true
+    text_color: "#88ff00"
+  - type: network
+    bar_page: Basic
+    align: right
+    order: 5
+    enabled: true
+    text_color: "#00ff88"
+  - type: media
+    bar_page: Basic
+    align: center
+    order: 6
+    enabled: true
+    text_color: "#ff88ff"
+  # Per-widget options:
   #   bar_page: All | Docker | Basic | Advanced
   #   align: left | center | right
   #   order: sort priority (lower = first)
-  #   width / height / font_size: custom dimensions
-  #   pill_color / text_color: custom colors
-  #   format / args: widget-specific options
   #   enabled: true | false
+  #   text_color: widget text color
+  #   pill_color: widget background color
+  #   width / height / font_size: custom dimensions
+  #   format / args: widget-specific options
 ```
 
 ### Available Commands

@@ -106,7 +106,7 @@ theme:
   foreground: "#c0caf5"            # 任务栏文字色
   accent: "#7aa2f7"                # 强调色（焦点高亮、活动指示器）
   muted: "#565f89"                 # 次要色（布局标签、非活动指示器）
-  taskbar_background: "#5516161e"  # 状态栏背景色（含透明度）
+  taskbar_background: "#00ffffff"  # 状态栏背景色（含透明度）
   inactive_border: "#3b4261"       # 非活动窗口边框色
   active_border: "#7aa2f7"         # 活动窗口边框色
   border_width: 2                  # 边框宽度（1-8）
@@ -118,31 +118,20 @@ theme:
   focus_follows_mouse: false      # 鼠标跟随聚焦
   color_filter: "#7aa2f7"          # 全局颜色滤镜
   color_filter_opacity: 0.0        # 滤镜透明度（0.0=关闭，建议 0.05）
-  font_size: 11                    # 状态栏字体大小（8-24）
+  font_size: 16                    # 状态栏字体大小（8-24）
   bar_font: Segoe UI               # 状态栏字体族
-  status_show_clock: true          # 信息栏显示时钟
-  status_show_cpu: true            # 信息栏显示 CPU
-  status_show_mem: true            # 信息栏显示内存
-  status_show_battery: true        # 信息栏显示电池
   drag_source_color: ""            # 拖拽源高亮色（空=使用 accent 色）
   drag_target_color: ""            # 拖拽目标高亮色（空=白色）
   context_menu_background: "#2d2d2d"  # 右键菜单背景
   context_menu_foreground: "#cccccc"  # 右键菜单文字
   context_menu_border: "#444444"      # 右键菜单边框
-  task_button_background: "#24283e"   # 任务栏按钮背景
+  task_button_background: "#1a1a3e"   # 任务栏按钮背景
   task_button_hover_background: ""    # 任务栏按钮悬停背景（空=使用背景色）
-  monitor_bar_background: "#5516161e" # 多显示器工具栏背景
+  monitor_bar_background: "#00ffffff" # 多显示器工具栏背景
   monitor_bar_border: ""              # 多显示器工具栏边框（空=使用 muted 色）
   workspace_pill_inactive_color: ""   # 非活动工作区指示器
   workspace_pill_empty_color: ""      # 空工作区指示器
   workspace_pill_show_count: false    # 工作区胶囊旁显示窗口计数
-  widget_pill_background: "#1a1a3e"   # 默认 widget 胶囊背景
-  widget_cpu_color: "#00ff88"         # CPU widget 文字色
-  widget_mem_color: "#00ccff"         # 内存 widget 文字色
-  widget_battery_color: "#88ff00"     # 电池 widget 文字色
-  widget_network_down_color: "#00ff88" # 网络下载文字色
-  widget_network_up_color: "#ff4444"   # 网络上传文字色
-  widget_media_color: "#ff88ff"        # 媒体 widget 文字色
   widget_separator_color: "#334466"    # widget 分隔符颜色
   media_dot_playing_color: "#00ff88"   # 媒体播放指示灯色
   media_dot_paused_color: "#334466"    # 媒体暂停指示灯色
@@ -158,12 +147,10 @@ theme:
   media_script: ""                     # 自定义媒体信息脚本路径
   media_script_interval: 3             # 脚本轮询间隔（秒）
   date_format: "HH:mm:ss  yyyy-MM-dd"  # 时钟日期格式
-  status_show_network: true            # 显示网络速率
-  status_show_media: true              # 显示媒体信息
 
 layout:
   inner_gap: 4                     # 窗口内边距
-  outer_gap: 2                     # 屏幕外边距
+  outer_gap: 4                     # 屏幕外边距
   master_factor: 0.6               # 主区域比例（0.3-0.8）
   smart_gaps: false                # 单窗口时去掉间距
   enabled_layouts:                 # 启用的布局（Alt+T 循环切换）
@@ -201,6 +188,7 @@ window_rules:
   #   fullscreen: true              # 启动即全屏
   #   layout: Monocle               # 为该窗口工作区设置布局
   #   monitor: 1                    # 分配到指定显示器
+  #   sticky: true                  # 在所有工作区显示
 
 keybindings:
 - command: focus_down
@@ -307,29 +295,70 @@ resize_mode:
 
 # 多显示器设置
 monitor:
+  monitor_mode: independent        # independent (默认) | mirror | span
   monitor_bar_enabled: true        # 非主屏显示辅助工具栏
 
 widgets:
-  - type: workspace                # BarPage: All = 在每页显示
+  # 停靠页 — 工作区指示器、窗口标签、布局信息
+  - type: workspace
     bar_page: All
     align: left
     order: 1
-  - type: layout                   # BarPage: Docker = 仅在 Docker 页显示
+  - type: window_tabs
+    bar_page: Docker
+    align: left
+    order: 2
+  - type: layout
     bar_page: Docker
     align: right
-    order: 2
+    order: 1
+
+  # 信息页 — 系统状态（每个 widget 单独控制颜色和开关）
   - type: clock
     bar_page: Basic
     align: center
     order: 1
-  # Widget 选项：
+    enabled: true
+    font_size: 14
+  - type: cpu
+    bar_page: Basic
+    align: right
+    order: 2
+    enabled: true
+    text_color: "#00ff88"
+  - type: memory
+    bar_page: Basic
+    align: right
+    order: 3
+    enabled: true
+    text_color: "#00ccff"
+  - type: battery
+    bar_page: Basic
+    align: right
+    order: 4
+    enabled: true
+    text_color: "#88ff00"
+  - type: network
+    bar_page: Basic
+    align: right
+    order: 5
+    enabled: true
+    text_color: "#00ff88"
+  - type: media
+    bar_page: Basic
+    align: center
+    order: 6
+    enabled: true
+    text_color: "#ff88ff"
+  # 每个 widget 可选参数：
   #   bar_page: All | Docker | Basic | Advanced
   #   align: left | center | right
   #   order: 排序优先级（越小越靠前）
-  #   width / height / font_size: 自定义尺寸
-  #   pill_color / text_color: 自定义颜色
-  #   format / args: widget 特定选项
   #   enabled: true | false
+  #   text_color: 文字颜色
+  #   pill_color: 胶囊背景色
+  #   width / height / font_size: 自定义尺寸
+  #   format / args: widget 特定选项
 ```
 
 ### 全部命令

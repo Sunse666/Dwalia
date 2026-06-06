@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icon.ico" width="128" alt="Dwalia">
+</p>
+
 # Dwalia
 
 Windows 平铺窗口管理器。

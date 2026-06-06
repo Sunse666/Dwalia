@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icon.ico" width="128" alt="Dwalia">
+</p>
+
 # Dwalia
 
 A tiling window manager for Windows.

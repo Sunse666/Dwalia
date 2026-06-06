@@ -57,6 +57,7 @@ Run `Dwalia.exe` from `bin/Release/net8.0-windows/`. All keybindings work immedi
 | Toggle fullscreen | `Alt+F` |
 | Close window | `Alt+Q` |
 | Enter resize mode | `Alt+R` |
+| Snap window to corner | `Ctrl+Alt+[` / `]` / `'` / `\` |
 | Adjust master ratio | `Alt+Ctrl+H` / `Alt+Ctrl+J` / `Alt+Ctrl+K` / `Alt+Ctrl+L` |
 | Adjust gaps | `Alt+OemComma` / `Alt+OemPeriod` |
 | Switch workspace | `Alt+Shift+1-5` |
@@ -271,6 +272,14 @@ keybindings:
   binding: Alt+Shift+Up
 - command: reload_config
   binding: Alt+Shift+R
+- command: snap_left_top
+  binding: Alt+Ctrl+OemOpenBrackets
+- command: snap_right_top
+  binding: Alt+Ctrl+OemCloseBrackets
+- command: snap_left_bottom
+  binding: Alt+Ctrl+Oem7
+- command: snap_right_bottom
+  binding: Alt+Ctrl+Oem5
 
 launcher:
   - name: Terminal
@@ -551,6 +560,8 @@ widgets:
 | `inc_outer_gap` / `dec_outer_gap` | Adjust outer gap only |
 | `bar_next` / `bar_previous` | Cycle bar mode (Docker → Info → Launcher) |
 | `toggle_bar` | Show / hide the top bar |
+| `snap_left_top` / `snap_right_top` | Snap window to top of left / right column |
+| `snap_left_bottom` / `snap_right_bottom` | Snap window to bottom of left / right column |
 
 ### Bar Modes
 

@@ -57,6 +57,7 @@ dotnet build -c Release
 | 切换全屏 | `Alt+F` |
 | 关闭窗口 | `Alt+Q` |
 | 进入 resize 模式 | `Alt+R` |
+| 窗口压角 | `Ctrl+Alt+[` / `]` / `'` / `\` |
 | 调整主区域比例 | `Alt+Ctrl+H` / `Alt+Ctrl+J` / `Alt+Ctrl+K` / `Alt+Ctrl+L` |
 | 调整窗口间距 | `Alt+,` / `Alt+.` |
 | 切换工作区 | `Alt+Shift+1-5` |
@@ -271,6 +272,14 @@ keybindings:
   binding: Alt+Shift+Up
 - command: reload_config
   binding: Alt+Shift+R
+- command: snap_left_top
+  binding: Alt+Ctrl+OemOpenBrackets
+- command: snap_right_top
+  binding: Alt+Ctrl+OemCloseBrackets
+- command: snap_left_bottom
+  binding: Alt+Ctrl+Oem7
+- command: snap_right_bottom
+  binding: Alt+Ctrl+Oem5
 
 launcher:
   - name: 终端
@@ -551,6 +560,8 @@ widgets:
 | `inc_outer_gap` / `dec_outer_gap` | 仅调整外边距 |
 | `bar_next` / `bar_previous` | 状态栏模式切换（Docker → Info → Launcher） |
 | `toggle_bar` | 显示 / 隐藏状态栏 |
+| `snap_left_top` / `snap_right_top` | 将窗口压到左列 / 右列最上 |
+| `snap_left_bottom` / `snap_right_bottom` | 将窗口压到左列 / 右列最下 |
 
 ### 状态栏模式
 

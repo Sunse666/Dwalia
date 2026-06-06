@@ -11,6 +11,7 @@ Dwalia automatically arranges your windows into non-overlapping tiles, managed t
 ## Features
 
 - **8 tiling layouts**: Dynamic, MasterStack, Monocle, Grid, HorizontalStack, Columns, VerticalStack, BSP
+- **Corner snap** (`Ctrl+Alt+[]'\`): Snap windows between columns in Dynamic layout
 - **Resize mode** (`Alt+R`): Drag rounded rectangles to swap windows, click split edges to resize, or use `HJKL` / arrow keys
 - **Virtual workspaces**: 5 configurable workspaces with independent window sets
 - **Keyboard driven**: All operations via `Alt` + key chords
@@ -20,12 +21,12 @@ Dwalia automatically arranges your windows into non-overlapping tiles, managed t
 - **Focus highlighting**: Colored border + rounded corner overlay for the active window
 - **Acrylic blur**: Optional acrylic backdrop for the desktop overlay
 - **Color filter**: Subtle full-screen tint for visual cohesion across apps
-- **Configurable bar**: Font, height, position (top/bottom), info panel options
+- **Unlimited bar pages**: Create any number of bar pages — just add a new `bar_page` name in config
+- **30+ widgets**: Volume, weather, stock, clipboard, idle time, process monitor, and more
 - **Multi-monitor**: Covers the full virtual desktop
 - **Zero config**: All keybindings work out of the box — no config file needed
 - **YAML config**: Human-readable; edit and save to auto-reload, or press `Alt+Shift+R`
-- **Launcher bar**: Quick-launch buttons for your favorite apps
-- **Info bar**: System stats at a glance (clock, CPU, memory, battery) — individually toggleable
+- **Auto-start**: Optional registry auto-start (`auto_start: true`)
 
 ## Quick Start
 
@@ -565,15 +566,19 @@ widgets:
 
 ### Bar Modes
 
-Dwalia's bar is fully widget-driven. Three pages are cycled with `Alt+Shift+Down` / `Alt+Shift+Up`. Each page is built dynamically by `WidgetManager` from the `widgets:` config — there are no hardcoded bar elements.
+Dwalia's bar is fully widget-driven with **unlimited pages**. Cycle pages with `Alt+Shift+Down` / `Alt+Shift+Up`. Each page is built dynamically by `WidgetManager` from the `widgets:` config — there are no hardcoded bar elements.
+
+**Any `bar_page` name creates a new page.** The default config uses 5 pages:
 
 | Page | Default content |
 |---|---|
 | **Docker** | Workspace pills, window tabs, layout indicator |
-| **Basic** | Clock, CPU, memory, battery, network, media |
-| **Advanced** | Launcher buttons, additional system widgets |
+| **Basic** | Clock, weather, active window title, uptime, IP address |
+| **Advanced** | CPU, memory, network, GPU, disk usage, window count |
+| **Media** | Volume, media, microphone, Bluetooth, camera, audio device |
+| **Tools** | Clipboard, idle time, process monitor, stock, todo, custom command |
 
-Configure `bar_page` per widget to control which page it appears on. The built-in widget types:
+Configure `bar_page` per widget to control which page it appears on. Use `bar_page: All` to show a widget on every page. The built-in widget types:
 
 | Widget | Description |
 |---|---|
@@ -602,7 +607,19 @@ Configure `bar_page` per widget to control which page it appears on. The built-i
 | `launcher` | Quick-launch app buttons |
 | `label` | Static text label (`args`) |
 | `button` | Clickable button with text (`args`) |
-| `script` | Custom script output |
+| `script` | Custom script output (`args` = script path) |
+| `volume` | System volume level + mute status |
+| `weather` | Weather via wttr.in (`args` = city name) |
+| `microphone` | Microphone mute / live status |
+| `bluetooth` | Bluetooth on / off indicator |
+| `camera` | Camera active / off indicator |
+| `audio_device` | Current audio output device name |
+| `idle_time` | Time since last user input |
+| `clipboard` | Clipboard text preview (last 60 chars) |
+| `process_monitor` | Process running status (`args` = process name) |
+| `stock` | Stock/crypto price via Yahoo Finance (`args` = symbol) |
+| `todo` | Read first 3 lines of a text file (`args` = file path) |
+| `custom_command` | Run a command periodically (`args` = command, `font_size` = poll interval) |
 
 Configure under `theme:`:
 - `font_size` / `bar_font` — customize bar typography

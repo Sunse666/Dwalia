@@ -11,6 +11,7 @@ Windows 平铺窗口管理器。
 ## 特性
 
 - **8 种平铺布局**: Dynamic、MasterStack、Monocle、Grid、HorizontalStack、Columns、VerticalStack、BSP
+- **窗口压角** (`Ctrl+Alt+[]'\`)：Dynamic 布局下窗口跨列插入/创列
 - **Resize 模式** (`Alt+R`)：拖拽圆角矩形交换窗口位置，点击边界调整大小，HJKL / 方向键键盘微调
 - **虚拟工作区**: 5 个可配置的工作区，各自独立的窗口集合
 - **纯键盘驱动**: 所有操作通过 `Alt` + 按键组合完成
@@ -20,12 +21,12 @@ Windows 平铺窗口管理器。
 - **焦点高亮**: 活动窗口的彩色边框 + 圆角矩形覆盖层
 - **亚克力模糊**: 可选的毛玻璃桌面背景
 - **颜色滤镜**: 可选的全屏微调色彩，统一不同应用的视觉风格
-- **可配置状态栏**: 字体、高度、位置（顶部/底部）、信息面板独立开关
+- **无限状态栏页**: 任意 `bar_page` 名称自动创建新页，无限扩展
+- **30+ 控件**: 音量、天气、股票、剪贴板、空闲时间、进程监控等
 - **多显示器**: 覆盖完整虚拟桌面
 - **零配置**: 所有键位开箱即用 — 无需配置文件
 - **YAML 配置**: 可读性强；编辑保存自动热重载，或按 `Alt+Shift+R`
-- **启动器栏**: 常用应用的快捷启动按钮
-- **信息栏**: 系统状态一览（时钟、CPU、内存、电池）— 可独立开关
+- **开机自启**: 可选注册表自启 (`auto_start: true`)
 
 ## 快速开始
 
@@ -565,15 +566,19 @@ widgets:
 
 ### 状态栏模式
 
-状态栏完全由 Widget 驱动。三页通过 `Alt+Shift+Down` / `Alt+Shift+Up` 循环切换。每页由 `WidgetManager` 根据 `widgets:` 配置动态构建——没有硬编码的栏元素。
+状态栏完全由 Widget 驱动，**页数无上限**。`Alt+Shift+Down` / `Alt+Shift+Up` 循环切换。每页由 `WidgetManager` 根据 `widgets:` 配置动态构建——无硬编码栏元素。
+
+**任意 `bar_page` 名称自动创建新页。** 默认配置使用 5 页：
 
 | 页面 | 默认内容 |
 |---|---|
 | **Docker** | 工作区指示器、窗口标签、布局名称 |
-| **Basic** | 时钟、CPU、内存、电池、网络、媒体 |
-| **Advanced** | 启动器按钮、更多系统 widget |
+| **Basic** | 时钟、天气、活动窗口标题、运行时间、IP 地址 |
+| **Advanced** | CPU、内存、网络、GPU、磁盘使用率、窗口数 |
+| **Media** | 音量、媒体、麦克风、蓝牙、摄像头、音频设备 |
+| **Tools** | 剪贴板、空闲时间、进程监控、股票、待办、自定义命令 |
 
-通过每个 widget 的 `bar_page` 控制显示在哪一页。所有支持的 widget 类型：
+通过每个 widget 的 `bar_page` 控制显示在哪一页。`bar_page: All` 在所有页面显示。所有支持的 widget 类型：
 
 | Widget | 说明 |
 |---|---|
@@ -602,7 +607,19 @@ widgets:
 | `launcher` | 快捷启动按钮 |
 | `label` | 静态文本标签（`args`） |
 | `button` | 可点击按钮（`args`） |
-| `script` | 自定义脚本输出 |
+| `script` | 自定义脚本输出（`args` = 脚本路径） |
+| `volume` | 系统音量 + 静音状态 |
+| `weather` | 天气（wttr.in，`args` = 城市名） |
+| `microphone` | 麦克风静音 / 活跃状态 |
+| `bluetooth` | 蓝牙开关指示 |
+| `camera` | 摄像头活跃 / 关闭指示 |
+| `audio_device` | 当前音频输出设备名称 |
+| `idle_time` | 距上次输入的空闲时间 |
+| `clipboard` | 剪贴板文字预览（最多 60 字符） |
+| `process_monitor` | 进程运行状态（`args` = 进程名） |
+| `stock` | 股票/加密货币价格（`args` = 代码） |
+| `todo` | 读取文本文件前 3 行（`args` = 文件路径） |
+| `custom_command` | 定时执行命令（`args` = 命令，`font_size` = 轮询间隔秒数） |
 
 在 `theme:` 下可配置：
 - `font_size` / `bar_font` — 自定义字体

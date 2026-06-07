@@ -94,6 +94,7 @@ general:
   bar_height: 40                   # 状态栏高度 px（16-80）
   bar_position: top                # 状态栏位置 top 或 bottom
   default_layout: Dynamic          # 新工作区默认布局
+  auto_start: false                # Windows 开机自启动
   startup_workspace: 0             # 启动时激活的工作区（0=不切换）
   excluded_processes:              # 不纳入管理的进程
     - SearchApp
@@ -113,12 +114,12 @@ theme:
   active_border: "#7aa2f7"         # 活动窗口边框色
   border_width: 2                  # 边框宽度（1-8）
   enable_acrylic: true             # 启用毛玻璃效果
-  focus_active_opacity: 0.27      # 焦点高亮-活动窗口透明度
-  focus_inactive_opacity: 0.09    # 焦点高亮-非活动窗口透明度
-  focus_radius: 8                 # 焦点高亮圆角半径
-  focus_fill: true                # true=填充模式, false=仅边框
-  focus_follows_mouse: false      # 鼠标跟随聚焦
-  color_filter: "#7aa2f7"          # 全局颜色滤镜
+  focus_active_opacity: 0.27       # 焦点高亮-活动窗口透明度
+  focus_inactive_opacity: 0.09     # 焦点高亮-非活动窗口透明度
+  focus_radius: 8                  # 焦点高亮圆角半径
+  focus_fill: true                 # true=填充模式, false=仅边框
+  focus_follows_mouse: false       # 鼠标跟随聚焦
+  color_filter: "#7aa2f7"        # 全局颜色滤镜
   color_filter_opacity: 0.0        # 滤镜透明度（0.0=关闭，建议 0.05）
   font_size: 16                    # 状态栏字体大小（8-24）
   bar_font: Segoe UI               # 状态栏字体族

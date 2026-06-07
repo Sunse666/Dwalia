@@ -94,6 +94,7 @@ general:
   bar_height: 40                   # bar height in px (16-80)
   bar_position: top                # top or bottom
   default_layout: Dynamic          # initial layout for new workspaces
+  auto_start: false               # add to Windows startup registry
   startup_workspace: 0             # workspace to activate on launch (0 = none)
   excluded_processes:
     - SearchApp

@@ -62,7 +62,7 @@ Run `Dwalia.exe` from `bin/Release/net8.0-windows/`. All keybindings work immedi
 | Adjust master ratio | `Alt+Ctrl+H` / `Alt+Ctrl+J` / `Alt+Ctrl+K` / `Alt+Ctrl+L` |
 | Adjust gaps | `Alt+OemComma` / `Alt+OemPeriod` |
 | Switch workspace | `Alt+Shift+1-5` |
-| Move window to workspace | `Alt+Shift+N` / `Alt+Shift+M` |
+| Move window to workspace | `Alt+Shift+M` / `Alt+Shift+N` |
 | Launch terminal | `Alt+Enter` |
 | Cycle bar mode | `Alt+Shift+Down` / `Alt+Shift+Up` |
 | Toggle bar visibility | `Alt+U` |
@@ -260,9 +260,9 @@ keybindings:
 - command: workspace_previous
   binding: Alt+Shift+Left
 - command: move_to_workspace_next
-  binding: Alt+Shift+N
-- command: move_to_workspace_previous
   binding: Alt+Shift+M
+- command: move_to_workspace_previous
+  binding: Alt+Shift+N
 - command: launch_terminal
   binding: Alt+Enter
 - command: toggle_bar

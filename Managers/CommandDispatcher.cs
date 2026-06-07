@@ -40,8 +40,8 @@ public static class CommandDispatcher
             case DwaliaCommand.Workspace5: ws.SwitchToWorkspace(4); break;
             case DwaliaCommand.WorkspaceNext: ws.NextWorkspace(); break;
             case DwaliaCommand.WorkspacePrevious: ws.PreviousWorkspace(); break;
-            case DwaliaCommand.MoveToWorkspaceNext: MoveActiveRelative(1, fm, ws); break;
-            case DwaliaCommand.MoveToWorkspacePrevious: MoveActiveRelative(-1, fm, ws); break;
+            case DwaliaCommand.MoveToWorkspaceNext: MoveActiveRelative(1, fm, ws, lm); break;
+            case DwaliaCommand.MoveToWorkspacePrevious: MoveActiveRelative(-1, fm, ws, lm); break;
             case DwaliaCommand.LaunchTerminal: LaunchTerminal(launchTerminal); break;
             case DwaliaCommand.ReloadConfig: reloadConfig?.Invoke(); break;
             case DwaliaCommand.CycleLayout: lm.CycleLayout(); break;
@@ -112,12 +112,13 @@ public static class CommandDispatcher
         fm.SetActiveWindow(ordered[index]);
     }
 
-    private static void MoveActiveRelative(int direction, FocusManager fm, WorkspaceManager ws)
+    private static void MoveActiveRelative(int direction, FocusManager fm, WorkspaceManager ws, LayoutManager lm)
     {
         if (fm.ActiveWindow == null) return;
         var count = ws.Workspaces.Count;
         var newWs = (fm.ActiveWindow.WorkspaceId + direction + count) % count;
         ws.MoveWindowToWorkspace(fm.ActiveWindow, newWs);
+        lm.Relayout();
     }
 
     private static void LaunchTerminal(string cmd)

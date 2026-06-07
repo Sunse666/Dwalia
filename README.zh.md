@@ -62,7 +62,7 @@ dotnet build -c Release
 | 调整主区域比例 | `Alt+Ctrl+H` / `Alt+Ctrl+J` / `Alt+Ctrl+K` / `Alt+Ctrl+L` |
 | 调整窗口间距 | `Alt+,` / `Alt+.` |
 | 切换工作区 | `Alt+Shift+1-5` |
-| 移动窗口到工作区 | `Alt+Shift+N` / `Alt+Shift+M` |
+| 移动窗口到工作区 | `Alt+Shift+M` / `Alt+Shift+N` |
 | 启动终端 | `Alt+Enter` |
 | 切换状态栏模式 | `Alt+Shift+Down` / `Alt+Shift+Up` |
 | 隐藏/显示状态栏 | `Alt+U` |
@@ -260,9 +260,9 @@ keybindings:
 - command: workspace_previous
   binding: Alt+Shift+Left
 - command: move_to_workspace_next
-  binding: Alt+Shift+N
-- command: move_to_workspace_previous
   binding: Alt+Shift+M
+- command: move_to_workspace_previous
+  binding: Alt+Shift+N
 - command: launch_terminal
   binding: Alt+Enter
 - command: toggle_bar

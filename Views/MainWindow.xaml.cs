@@ -403,18 +403,73 @@ public partial class MainWindow : Window
             BorderBrush = new SolidColorBrush(_ctxMenuBorder)
         };
 
+        var wsInfo = "";
+        if (ServiceLocator.TryResolve<WorkspaceManager>(out var wsm))
+        {
+            var activeWs = wsm.GetActiveWorkspace();
+            var winCount = activeWs?.Windows.Count ?? 0;
+            wsInfo = $"  [{activeWs?.Name}]  {winCount} window(s)";
+        }
+        var headerItem = new MenuItem { Header = $"Dwalia{wsInfo}", IsEnabled = false };
+        menu.Items.Add(headerItem);
+
+        var sep0 = new Separator();
+        menu.Items.Add(sep0);
+
         if (Visibility == Visibility.Visible)
         {
-            var hideItem = new MenuItem { Header = "Hide Dwalia" };
+            var hideItem = new MenuItem { Header = "Hide Bar" };
             hideItem.Click += (_, _) => Hide();
             menu.Items.Add(hideItem);
         }
         else
         {
-            var showItem = new MenuItem { Header = "Show Dwalia" };
+            var showItem = new MenuItem { Header = "Show Bar" };
             showItem.Click += (_, _) => { Show(); WindowState = WindowState.Normal; };
             menu.Items.Add(showItem);
         }
+
+        var toggleBarItem = new MenuItem { Header = "Toggle Bar Visibility" };
+        toggleBarItem.Click += (_, _) =>
+        {
+            if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm))
+                hkm.DispatchCommand(DwaliaCommand.ToggleBar);
+        };
+        menu.Items.Add(toggleBarItem);
+
+        var sep1 = new Separator();
+        menu.Items.Add(sep1);
+
+        var reloadItem = new MenuItem { Header = "Reload Config" };
+        reloadItem.Click += (_, _) =>
+        {
+            if (ServiceLocator.TryResolve<HotKeyManager>(out var hkm))
+                hkm.DispatchCommand(DwaliaCommand.ReloadConfig);
+        };
+        menu.Items.Add(reloadItem);
+
+        var restartItem = new MenuItem { Header = "Restart Dwalia" };
+        restartItem.Click += (_, _) =>
+        {
+            try
+            {
+                var exePath = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(exePath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = exePath,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch { }
+            Application.Current.Shutdown();
+        };
+        menu.Items.Add(restartItem);
+
+        var sep2 = new Separator();
+        menu.Items.Add(sep2);
 
         var quitItem = new MenuItem { Header = "Quit" };
         quitItem.Click += (_, _) => Application.Current.Shutdown();

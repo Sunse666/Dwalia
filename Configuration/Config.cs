@@ -50,6 +50,9 @@ public class GeneralConfig
         "ApplicationFrameHost", "LockApp", "shellexperiencehost"
     };
 
+    [YamlMember(Alias = "excluded_classes")]
+    public List<string> ExcludedClasses { get; set; } = new();
+
     [YamlMember(Alias = "enable_logging")]
     public bool EnableLogging { get; set; } = false;
 
@@ -331,6 +334,9 @@ public class WindowRuleConfig
 
     [YamlMember(Alias = "sticky")]
     public bool Sticky { get; set; }
+
+    [YamlMember(Alias = "ignore")]
+    public bool Ignore { get; set; }
 
     [YamlMember(Alias = "layout")]
     public string? Layout { get; set; }

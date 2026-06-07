@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
+using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Win32;
 using static Dwalia.Win32.NativeMethods;
@@ -99,6 +100,19 @@ public class WindowEventHookManager
         if (!WindowHelper.IsManageableWindow(hwnd)) return;
         var pn = WindowHelper.GetProcessName(hwnd);
         if (_windowManager.ExcludedProcesses.Contains(pn)) return;
+        var cls = WindowHelper.GetClassNameSafe(hwnd);
+        if (_windowManager.ExcludedClasses.Contains(cls))
+        {
+            Logger.Info($"Filtered: '{WindowHelper.GetWindowTextSafe(hwnd)}' ({pn}) class={cls}");
+            return;
+        }
+
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg) &&
+            ConfigManager.ShouldIgnore(cfg, pn, WindowHelper.GetWindowTextSafe(hwnd)))
+        {
+            Logger.Info($"Ignored by rule: '{WindowHelper.GetWindowTextSafe(hwnd)}' ({pn}) class={cls}");
+            return;
+        }
 
         WindowDiscovered?.Invoke(this, hwnd);
     }

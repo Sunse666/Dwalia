@@ -7,7 +7,7 @@
         AllowsTransparency="True"
         Background="Transparent"
         Topmost="False"
-        ShowInTaskbar="True"
+        ShowInTaskbar="False"
         Focusable="True"
         Loaded="OnLoaded"
         Closing="OnClosing"

@@ -49,7 +49,7 @@ public partial class App : Application
         _config = _configManager.Load();
         Logger.Enabled = _config.General.EnableLogging;
 
-        _windowManager = new WindowManager(_config.General.ExcludedProcesses);
+        _windowManager = new WindowManager(_config.General.ExcludedProcesses, _config.General.ExcludedClasses);
         _hookManager = new WindowEventHookManager(_windowManager, Dispatcher);
         _workspaceManager = new WorkspaceManager();
         _windowManager.SetWorkspaceManager(_workspaceManager);

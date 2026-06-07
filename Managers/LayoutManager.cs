@@ -709,7 +709,8 @@ public class LayoutManager
 
         if (root == null)
         {
-            var first = _focusManager.ActiveWindow ?? windows[0];
+            var focused = _focusManager.ActiveWindow;
+            var first = (focused != null && windows.Contains(focused)) ? focused : windows[0];
             root = new SplitNode { Window = first };
             treeWindows.Add(first.Hwnd);
         }
@@ -719,7 +720,7 @@ public class LayoutManager
             if (treeWindows.Contains(mw.Hwnd)) continue;
 
             var focused = _focusManager.ActiveWindow;
-            var anchor = (focused != null && treeWindows.Contains(focused.Hwnd))
+            var anchor = (focused != null && windows.Contains(focused) && treeWindows.Contains(focused.Hwnd))
                 ? focused
                 : windows.FirstOrDefault(w => treeWindows.Contains(w.Hwnd));
             if (anchor == null)

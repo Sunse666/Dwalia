@@ -332,6 +332,36 @@ public class ConfigManager
         }
     }
 
+    public static bool ShouldIgnore(ConfigRoot config, string processName, string title)
+    {
+        foreach (var rule in config.WindowRules)
+        {
+            if (!rule.Ignore) continue;
+
+            bool processMatch = string.IsNullOrEmpty(rule.Process)
+                || processName.Equals(
+                    rule.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                        ? rule.Process[..^4] : rule.Process,
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (!processMatch) continue;
+
+            if (rule.Title == null)
+                return true;
+
+            bool titleMatch = rule.TitleMatchMode.ToLowerInvariant() switch
+            {
+                "contains" => title.Contains(rule.Title, StringComparison.OrdinalIgnoreCase),
+                "startswith" => title.StartsWith(rule.Title, StringComparison.OrdinalIgnoreCase),
+                "regex" => MatchTitleRegex(title, rule.Title),
+                _ => title.Equals(rule.Title, StringComparison.OrdinalIgnoreCase),
+            };
+
+            if (titleMatch) return true;
+        }
+        return false;
+    }
+
     private static bool MatchTitleRegex(string title, string pattern)
     {
         try

@@ -1,3 +1,4 @@
+using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Models;
 using Dwalia.Win32;
@@ -11,10 +12,12 @@ public class WindowManager
     private readonly Dictionary<IntPtr, ManagedWindow> _managedWindows = new();
     private readonly Dictionary<IntPtr, IntPtr> _swallowedParents = new();
     private readonly HashSet<string> _excludedProcesses;
+    private readonly HashSet<string> _excludedClasses;
     private WorkspaceManager? _workspaceManager;
 
     public IReadOnlyDictionary<IntPtr, ManagedWindow> ManagedWindows => _managedWindows;
     public IReadOnlyCollection<string> ExcludedProcesses => _excludedProcesses;
+    public IReadOnlyCollection<string> ExcludedClasses => _excludedClasses;
     public int ManagedCount => _managedWindows.Count;
 
     public event EventHandler<ManagedWindow>? WindowManaged;
@@ -22,13 +25,22 @@ public class WindowManager
     public event EventHandler<ManagedWindow>? WindowTitleChanged;
     public event EventHandler? WindowsChanged;
 
-    public WindowManager(IEnumerable<string> excludedProcesses)
+    public WindowManager(IEnumerable<string> excludedProcesses, IEnumerable<string> excludedClasses)
     {
         _excludedProcesses = new HashSet<string>(excludedProcesses, StringComparer.OrdinalIgnoreCase);
         _excludedProcesses.Add(System.Diagnostics.Process.GetCurrentProcess().ProcessName);
+        _excludedClasses = new HashSet<string>(excludedClasses, StringComparer.OrdinalIgnoreCase);
     }
 
     public void SetWorkspaceManager(WorkspaceManager ws) => _workspaceManager = ws;
+
+    private bool ShouldIgnoreByRules(IntPtr hwnd)
+    {
+        if (!ServiceLocator.TryResolve<ConfigRoot>(out var config)) return false;
+        return ConfigManager.ShouldIgnore(config,
+            WindowHelper.GetProcessName(hwnd),
+            WindowHelper.GetWindowTextSafe(hwnd));
+    }
 
     public void Initialize()
     {
@@ -38,7 +50,7 @@ public class WindowManager
             if (WindowHelper.IsManageableWindow(hwnd))
             {
                 var pn = WindowHelper.GetProcessName(hwnd);
-                if (!_excludedProcesses.Contains(pn))
+                if (!_excludedProcesses.Contains(pn) && !_excludedClasses.Contains(WindowHelper.GetClassNameSafe(hwnd)) && !ShouldIgnoreByRules(hwnd))
                     TryManageWindow(hwnd);
             }
             return true;
@@ -52,6 +64,8 @@ public class WindowManager
         if (!WindowHelper.IsManageableWindow(hwnd)) return null;
         var pn = WindowHelper.GetProcessName(hwnd);
         if (_excludedProcesses.Contains(pn)) return null;
+        if (_excludedClasses.Contains(WindowHelper.GetClassNameSafe(hwnd))) return null;
+        if (ShouldIgnoreByRules(hwnd)) return null;
 
         try
         {
@@ -62,7 +76,8 @@ public class WindowManager
 
             WindowManaged?.Invoke(this, mw);
             WindowsChanged?.Invoke(this, EventArgs.Empty);
-            Logger.Info($"Managed: '{mw.Title}' ({mw.ProcessName})");
+            var cls = WindowHelper.GetClassNameSafe(hwnd);
+            Logger.Info($"Managed: '{mw.Title}' ({mw.ProcessName}) class={cls}");
             return mw;
         }
         catch (Exception ex)

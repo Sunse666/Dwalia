@@ -139,6 +139,18 @@ internal static class WindowHelper
         catch (Exception ex) { Logger.Warn($"Failed to create VirtualDesktopManager: {ex.Message}"); return null; }
     });
 
+    public static string? GetProcessPath(IntPtr hwnd)
+    {
+        try
+        {
+            GetWindowThreadProcessId(hwnd, out uint processId);
+            if (processId == 0) return null;
+            using var process = Process.GetProcessById((int)processId);
+            return process.MainModule?.FileName;
+        }
+        catch { return null; }
+    }
+
     public static bool IsWindowOnCurrentDesktop(IntPtr hwnd)
     {
         if (_vdm.Value == null) return true;

@@ -309,7 +309,7 @@ monitor:
   monitor_bar_enabled: true       # show per-monitor bars
 
 widgets:
-  # Dock page — workspace pills, window tabs, layout indicator
+  # Dock page — workspace pills, icon tray, window tabs, layout indicator
   - type: workspace
     bar_page: All
     align: left
@@ -322,6 +322,18 @@ widgets:
     format: ''
     args: ''
     font_size: 0
+  - type: taskbar
+    bar_page: Docker
+    align: left
+    order: 2
+    height: 30
+    args: ''                       # "all" = show windows from all workspaces
+  - type: taskbar
+    bar_page: Docker
+    align: right
+    order: 1
+    height: 24
+    args: hidden                   # "hidden" = minimized windows, "all" = all workspaces
   - type: window_tabs
     bar_page: Docker
     align: center
@@ -620,6 +632,8 @@ Configure `bar_page` per widget to control which page it appears on. Use `bar_pa
 | `stock` | Stock/crypto price via Yahoo Finance (`args` = symbol) |
 | `todo` | Read first 3 lines of a text file (`args` = file path) |
 | `custom_command` | Run a command periodically (`args` = command, `font_size` = poll interval) |
+| `taskbar` | Window icon tray. Left=focus, Right=menu, Middle=close. `args`: default=current ws, `"all"`=all ws, `"hidden"`=hidden windows |
+| `systray` | Quick-launch Dock. `args` = paths (newline/comma separated), auto-extracts exe icons |
 
 Configure under `theme:`:
 - `font_size` / `bar_font` — customize bar typography

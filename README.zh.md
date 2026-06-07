@@ -309,7 +309,7 @@ monitor:
   monitor_bar_enabled: true        # 非主屏显示辅助工具栏
 
 widgets:
-  # 停靠页 — 工作区指示器、窗口标签、布局信息
+  # 停靠页 — 工作区指示器、窗口图标托盘、窗口标签、布局信息
   - type: workspace
     bar_page: All
     align: left
@@ -322,6 +322,22 @@ widgets:
     format: ''
     args: ''
     font_size: 0
+  - type: taskbar
+    bar_page: Docker
+    align: left
+    order: 2
+    height: 30
+    args: ''                       # "all" = 显示全部工作区窗口
+  - type: systray
+    bar_page: Docker
+    align: left
+    order: 0
+    height: 28
+    args: |
+      wt.exe
+      chrome.exe
+      code
+      explorer.exe                 # 快捷启动栏，自动取 exe 图标
   - type: window_tabs
     bar_page: Docker
     align: center
@@ -620,6 +636,8 @@ widgets:
 | `stock` | 股票/加密货币价格（`args` = 代码） |
 | `todo` | 读取文本文件前 3 行（`args` = 文件路径） |
 | `custom_command` | 定时执行命令（`args` = 命令，`font_size` = 轮询间隔秒数） |
+| `taskbar` | 窗口图标托盘。左键聚焦、右键菜单、中键关闭。`args`: 默认=当前工作区, `"all"`=全部工作区, `"hidden"`=隐藏窗口 |
+| `systray` | 快捷启动栏 Dock。`args` 中配置路径（换行/逗号分割），自动读取 exe 图标 |
 
 在 `theme:` 下可配置：
 - `font_size` / `bar_font` — 自定义字体

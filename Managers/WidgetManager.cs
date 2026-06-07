@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -146,7 +147,7 @@ public class WidgetManager
 
         foreach (var we in ordered)
         {
-            if (we.Config.Type is "window_tabs" or "launcher")
+            if (we.Config.Type is "window_tabs" or "launcher" or "taskbar" or "systray")
             {
                 we.Panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
                 switch (we.Config.Align)
@@ -355,6 +356,8 @@ public class WidgetManager
             case "camera":       UpdateCamera(we); break;
             case "window_tabs":  UpdateWindowTabs(we); break;
             case "launcher":     UpdateLauncher(we); break;
+            case "taskbar":      UpdateTaskbar(we); break;
+            case "systray":      UpdateSystray(we); break;
             case "script":       UpdateScript(we); break;
             case "label":        UpdateLabel(we); break;
             case "button":       UpdateButton(we); break;
@@ -975,6 +978,294 @@ public class WidgetManager
             var pill = new Border { CornerRadius = new CornerRadius(h / 2), Height = h, Background = new SolidColorBrush(ParseColor(cfg.Theme.TaskButtonBackground) ?? Color.FromRgb(0x24, 0x28, 0x3e)), Child = btn, Margin = new Thickness(2, 0, 2, 0) };
             we.Panel.Children.Add(pill);
         }
+    }
+
+    private void UpdateTaskbar(WidgetEntry we)
+    {
+        if (we.Panel == null) return;
+        if (!ServiceLocator.TryResolve<WindowManager>(out var wm)) return;
+        if (!ServiceLocator.TryResolve<WorkspaceManager>(out var wsm)) return;
+        ServiceLocator.TryResolve<FocusManager>(out var fm);
+        ServiceLocator.TryResolve<ConfigRoot>(out var cfg);
+
+        var mode = (we.Config.Args ?? "").Trim().ToLowerInvariant();
+        var showHidden = mode == "hidden";
+        var showAll = mode == "all";
+
+        var hwnds = new HashSet<IntPtr>();
+        foreach (var mw in wm.ManagedWindows.Values)
+        {
+            if (!IsWindow(mw.Hwnd)) continue;
+            if (mw.SwallowedByHwnd != IntPtr.Zero) continue;
+
+            if (showHidden)
+            {
+                if (!IsWindowVisible(mw.Hwnd))
+                    hwnds.Add(mw.Hwnd);
+            }
+            else if (showAll)
+            {
+                if (IsWindowVisible(mw.Hwnd) || mw.IsSticky)
+                    hwnds.Add(mw.Hwnd);
+            }
+            else
+            {
+                var activeWs = wsm.GetActiveWorkspace();
+                if (activeWs == null) continue;
+                if (activeWs.Windows.Contains(mw) && IsWindowVisible(mw.Hwnd))
+                    hwnds.Add(mw.Hwnd);
+                else if (mw.IsSticky && IsWindowVisible(mw.Hwnd))
+                    hwnds.Add(mw.Hwnd);
+            }
+        }
+
+        var existing = new Dictionary<IntPtr, Border>(we.TabPills);
+        var activeHwnd = fm?.ActiveWindow?.Hwnd ?? IntPtr.Zero;
+
+        foreach (var hwnd in hwnds)
+        {
+            if (existing.TryGetValue(hwnd, out var oldPill))
+            {
+                existing.Remove(hwnd);
+                var pillActive = hwnd == activeHwnd && !showHidden;
+                var pillBorder = pillActive
+                    ? (ParseColor(cfg?.Theme.Accent) ?? Color.FromRgb(0x7a, 0xa2, 0xf7))
+                    : (ParseColor(cfg?.Theme.Muted) ?? Color.FromRgb(0x56, 0x5f, 0x89));
+                oldPill.BorderThickness = new Thickness(pillActive ? 2 : 1);
+                oldPill.BorderBrush = new SolidColorBrush(pillBorder);
+                oldPill.Tag = pillActive ? "taskbar-icon active" : "taskbar-icon";
+                if (oldPill.Child is Button oldBtn)
+                    oldBtn.Foreground = new SolidColorBrush(pillActive
+                        ? ParseColor(cfg?.Theme.Accent) ?? Color.FromRgb(0x7a, 0xa2, 0xf7)
+                        : ParseColor(cfg?.Theme.Foreground) ?? Color.FromRgb(0xc0, 0xca, 0xf5));
+                continue;
+            }
+
+            var mw = wm.GetManagedWindow(hwnd);
+            if (mw == null) continue;
+
+            var iconSize = we.Config.Height > 0 ? we.Config.Height : 28;
+            var isActive = mw.Hwnd == activeHwnd && !showHidden;
+            var captured = mw;
+
+            var stack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var hasIcon = false;
+
+            try
+            {
+                var exePath = Win32.WindowHelper.GetProcessPath(mw.Hwnd);
+                if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+                {
+                    using var icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+                    if (icon != null)
+                    {
+                        var img = new System.Windows.Controls.Image
+                        {
+                            Source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                                icon.Handle, System.Windows.Int32Rect.Empty,
+                                System.Windows.Media.Imaging.BitmapSizeOptions.FromWidthAndHeight(iconSize - 6, iconSize - 6)),
+                            Width = iconSize - 6,
+                            Height = iconSize - 6
+                        };
+                        stack.Children.Add(img);
+                        hasIcon = true;
+                    }
+                }
+            }
+            catch { }
+
+            if (!hasIcon)
+                stack.Children.Add(new TextBlock
+                {
+                    Text = captured.Title.Length > 0 ? captured.Title[..1].ToUpper() : "?",
+                    FontSize = iconSize * 0.45,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(isActive
+                        ? ParseColor(cfg?.Theme.Accent) ?? Color.FromRgb(0x7a, 0xa2, 0xf7)
+                        : ParseColor(cfg?.Theme.Foreground) ?? Color.FromRgb(0xc0, 0xca, 0xf5))
+                });
+
+            var btn = new Button
+            {
+                Content = stack,
+                MinWidth = iconSize + 4,
+                Height = iconSize,
+                Padding = new Thickness(2),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = showHidden ? $"[Hidden] {mw.Title} ({mw.ProcessName})" : $"{mw.Title} ({mw.ProcessName})",
+                Tag = "taskbar-icon"
+            };
+
+            btn.Click += (_, _) =>
+            {
+                ShowWindow(captured.Hwnd, SW_RESTORE);
+                SetForegroundWindow(captured.Hwnd);
+                fm?.SetActiveWindow(captured);
+            };
+            btn.MouseRightButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                var rect = Win32.WindowHelper.GetWindowRectSafe(captured.Hwnd);
+                int cx = rect.Left + rect.Width / 2;
+                int cy = rect.Top + rect.Height / 2;
+                PostMessage(captured.Hwnd, 0x007B, (IntPtr)(-1), (IntPtr)((cy << 16) | (cx & 0xFFFF)));
+            };
+            btn.MouseDown += (_, e) =>
+            {
+                if (e.MiddleButton == System.Windows.Input.MouseButtonState.Pressed)
+                    PostMessage(captured.Hwnd, WM_CLOSE, 0, 0);
+            };
+
+            var borderThickness = isActive ? 2 : 1;
+            var borderColor = isActive
+                ? (ParseColor(cfg?.Theme.Accent) ?? Color.FromRgb(0x7a, 0xa2, 0xf7))
+                : (ParseColor(cfg?.Theme.Muted) ?? Color.FromRgb(0x56, 0x5f, 0x89));
+
+            var pill = new Border
+            {
+                MinWidth = iconSize + 8,
+                Height = iconSize + 4,
+                CornerRadius = new CornerRadius(4),
+                Background = new SolidColorBrush(
+                    ParseColor(cfg?.Theme.TaskButtonBackground) ?? Color.FromRgb(0x1a, 0x1a, 0x3e)),
+                BorderBrush = new SolidColorBrush(borderColor),
+                BorderThickness = new Thickness(borderThickness),
+                Child = btn,
+                Margin = new Thickness(1, 0, 1, 0),
+                Tag = isActive ? "taskbar-icon active" : "taskbar-icon"
+            };
+            we.TabPills[hwnd] = pill;
+            we.Panel.Children.Add(pill);
+        }
+
+        foreach (var kv in existing)
+        {
+            we.Panel.Children.Remove(kv.Value);
+            we.TabPills.Remove(kv.Key);
+        }
+    }
+
+    private int _dockInit;
+
+    private void UpdateSystray(WidgetEntry we)
+    {
+        if (we.Panel == null) return;
+        if (_dockInit != 0) return;
+        _dockInit = 1;
+
+        var args = (we.Config.Args ?? "").Trim();
+        if (string.IsNullOrEmpty(args)) return;
+
+        var paths = args.Split(new[] { '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .Where(p => p.Length > 0)
+            .ToList();
+
+        if (paths.Count == 0) return;
+
+        ServiceLocator.TryResolve<ConfigRoot>(out var cfg);
+        var iconSize = we.Config.Height > 0 ? we.Config.Height : 28;
+        var bg = ParseColor(cfg?.Theme.TaskButtonBackground) ?? Color.FromRgb(0x1a, 0x1a, 0x3e);
+        var fg = ParseColor(cfg?.Theme.Foreground) ?? Color.FromRgb(0xc0, 0xca, 0xf5);
+
+        foreach (var cmd in paths)
+        {
+            var name = Path.GetFileNameWithoutExtension(cmd);
+            if (string.IsNullOrEmpty(name)) name = cmd;
+
+            var content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var exePath = cmd;
+            if (!File.Exists(exePath))
+            {
+                try
+                {
+                    var found = FindExeInPath(exePath);
+                    if (found != null) exePath = found;
+                }
+                catch { }
+            }
+
+            if (File.Exists(exePath))
+            {
+                try
+                {
+                    using var icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+                    if (icon != null)
+                    {
+                        content.Children.Add(new System.Windows.Controls.Image
+                        {
+                            Source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                                icon.Handle, System.Windows.Int32Rect.Empty,
+                                System.Windows.Media.Imaging.BitmapSizeOptions.FromWidthAndHeight(iconSize - 6, iconSize - 6)),
+                            Width = iconSize - 6,
+                            Height = iconSize - 6
+                        });
+                    }
+                }
+                catch { }
+            }
+
+            if (content.Children.Count == 0)
+                content.Children.Add(new TextBlock
+                {
+                    Text = name.Length > 0 ? name[..1].ToUpper() : "?",
+                    FontSize = iconSize * 0.4,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(fg)
+                });
+
+            var btn = new Button
+            {
+                Content = content,
+                MinWidth = iconSize + 8,
+                Height = iconSize + 2,
+                Padding = new Thickness(0),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = cmd,
+                Tag = "dock-icon"
+            };
+            btn.Click += (_, _) =>
+            {
+                try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); }
+                catch { }
+            };
+
+            we.Panel.Children.Add(new Border
+            {
+                MinWidth = iconSize + 10,
+                Height = iconSize + 4,
+                CornerRadius = new CornerRadius(4),
+                Background = new SolidColorBrush(bg),
+                Child = btn,
+                Margin = new Thickness(1, 0, 1, 0)
+            });
+        }
+    }
+
+    private static string? FindExeInPath(string name)
+    {
+        if (name.Contains('\\') || name.Contains('/')) return null;
+        var search = name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name : name + ".exe";
+        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var dir in pathEnv.Split(';'))
+        {
+            try
+            {
+                var full = Path.Combine(dir.Trim(), search);
+                if (File.Exists(full)) return full;
+            }
+            catch { }
+        }
+        return null;
     }
 
     private static string ProgressBar(int pct)

@@ -365,4 +365,74 @@ public static partial class NativeMethods
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
         public string szExeFile;
     }
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr FindWindowEx(IntPtr hWndParent, IntPtr hWndChildAfter, string lpszClass, string? lpszWindow);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, StringBuilder lParam);
+
+    [DllImport(User32, SetLastError = true)]
+    public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, ref RECT lParam);
+
+    [DllImport(Kernel32, SetLastError = true)]
+    public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, IntPtr lpBuffer, int dwSize, out int lpNumberOfBytesRead);
+
+    [DllImport(Kernel32, SetLastError = true)]
+    public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, uint flAllocationType, uint flProtect);
+
+    [DllImport(Kernel32, SetLastError = true)]
+    public static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, uint dwFreeType);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER identifier, out RECT iconLocation);
+
+    [DllImport("comctl32.dll", SetLastError = true)]
+    public static extern int ImageList_GetIconSize(IntPtr himl, out int cx, out int cy);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct TBBUTTON
+    {
+        public int iBitmap;
+        public int idCommand;
+        public byte fsState;
+        public byte fsStyle;
+        public byte bReserved0;
+        public byte bReserved1;
+        public IntPtr dwData;
+        public IntPtr iString;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct NOTIFYICONIDENTIFIER
+    {
+        public int cbSize;
+        public IntPtr hWnd;
+        public int uID;
+        public Guid guidItem;
+    }
+
+    public const uint TB_GETBUTTON = 0x0417;
+    public const uint TB_BUTTONCOUNT = 0x0418;
+    public const uint TB_GETBUTTONTEXT = 0x044D;
+    public const uint TB_GETRECT = 0x0433;
+    public const uint TB_GETIMAGELIST = 0x0409;
+    public const uint TB_GETBUTTONSIZE = 0x043A;
+    public const uint TB_LOADIMAGES = 0x0432;
+    public const uint TBSTYLE_WRAPABLE = 0x200;
+
+    public const uint PROCESS_VM_OPERATION = 0x0008;
+    public const uint PROCESS_VM_READ = 0x0010;
+    public const uint PROCESS_VM_WRITE = 0x0020;
+    public const uint PROCESS_QUERY_INFORMATION = 0x0400;
+    public const uint MEM_COMMIT = 0x1000;
+    public const uint MEM_RESERVE = 0x2000;
+    public const uint MEM_RELEASE = 0x8000;
+    public const uint PAGE_READWRITE = 0x04;
 }

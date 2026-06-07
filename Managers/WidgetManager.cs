@@ -279,6 +279,8 @@ public class WidgetManager
         }
         if (Styling.StyleEngine.HasStyles)
             Styling.StyleEngine.ApplyToElement(pill);
+
+        ApplyHover(pill);
         return pill;
     }
 
@@ -1119,6 +1121,7 @@ public class WidgetManager
             };
 
             var borderThickness = isActive ? 2 : 1;
+            var pillBg = ParseColor(cfg?.Theme.TaskButtonBackground) ?? Color.FromRgb(0x1a, 0x1a, 0x3e);
             var borderColor = isActive
                 ? (ParseColor(cfg?.Theme.Accent) ?? Color.FromRgb(0x7a, 0xa2, 0xf7))
                 : (ParseColor(cfg?.Theme.Muted) ?? Color.FromRgb(0x56, 0x5f, 0x89));
@@ -1128,14 +1131,14 @@ public class WidgetManager
                 MinWidth = iconSize + 8,
                 Height = iconSize + 4,
                 CornerRadius = new CornerRadius(4),
-                Background = new SolidColorBrush(
-                    ParseColor(cfg?.Theme.TaskButtonBackground) ?? Color.FromRgb(0x1a, 0x1a, 0x3e)),
+                Background = new SolidColorBrush(pillBg),
                 BorderBrush = new SolidColorBrush(borderColor),
                 BorderThickness = new Thickness(borderThickness),
                 Child = btn,
                 Margin = new Thickness(1, 0, 1, 0),
                 Tag = isActive ? "taskbar-icon active" : "taskbar-icon"
             };
+            ApplyHover(pill);
             we.TabPills[hwnd] = pill;
             we.Panel.Children.Add(pill);
         }
@@ -1239,7 +1242,7 @@ public class WidgetManager
                 catch { }
             };
 
-            we.Panel.Children.Add(new Border
+            var pill = new Border
             {
                 MinWidth = iconSize + 10,
                 Height = iconSize + 4,
@@ -1247,8 +1250,22 @@ public class WidgetManager
                 Background = new SolidColorBrush(bg),
                 Child = btn,
                 Margin = new Thickness(1, 0, 1, 0)
-            });
+            };
+            ApplyHover(pill);
+            we.Panel.Children.Add(pill);
         }
+    }
+
+    private static void ApplyHover(Border pill)
+    {
+        if (pill.Background is not SolidColorBrush bg) return;
+        var c = bg.Color;
+        var hoverColor = Color.FromArgb(c.A,
+            (byte)Math.Min(255, c.R + 40),
+            (byte)Math.Min(255, c.G + 40),
+            (byte)Math.Min(255, c.B + 40));
+        pill.MouseEnter += (_, _) => pill.Background = new SolidColorBrush(hoverColor);
+        pill.MouseLeave += (_, _) => pill.Background = bg;
     }
 
     private static string? FindExeInPath(string name)

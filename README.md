@@ -622,15 +622,15 @@ Configure `bar_page` per widget to control which page it appears on. Use `bar_pa
 | `custom_command` | Run a command periodically (`args` = command, `font_size` = poll interval) |
 | `systray` | Quick-launch Dock. `args` = paths (newline/comma separated), auto-extracts exe icons |
 | `window_controls` | Min/max/close buttons for foreground window |
-| `power_menu` | Power menu. Left=shutdown, Right=restart |
+| `power_menu` | Power menu. Double-click to confirm: Left=shutdown, Right=restart |
 | `power_plan` | Current power plan name |
-| `language` | Current input language indicator |
+| `language` | Current input language indicator (auto-detects EN/中文/etc) |
 | `recycle_bin` | Recycle bin status (file count) |
 | `brightness` | Screen brightness percentage |
 | `server_monitor` | Server status. `args` = URL, shows 🟢/🔴 |
 | `notifications` | Notification center. Click opens Action Center |
 | `pomodoro` | Pomodoro timer. `args` = work minutes, click to start/reset |
-| `cava` | Audio visualizer bars |
+| `cava` | Volume control with expandable slider — click to expand, drag to adjust |
 | `home` | Collapsible menu. `args` = path list, click to expand/collapse |
 
 Configure under `theme:`:

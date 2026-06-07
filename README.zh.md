@@ -654,15 +654,15 @@ widgets:
 | `custom_command` | 定时执行命令（`args` = 命令，`font_size` = 轮询间隔秒数） |
 | `systray` | 快捷启动栏 Dock。`args` = 路径（换行/逗号分割），自动提取 exe 图标 |
 | `window_controls` | 窗口控制按钮（最小化/最大化/关闭） |
-| `power_menu` | 电源菜单。左键=关机、右键=重启 |
+| `power_menu` | 电源菜单。双击确认：左键=关机、右键=重启 |
 | `power_plan` | 当前电源计划名称 |
-| `language` | 当前输入语言 |
+| `language` | 当前输入语言（自动检测 EN/中文 等） |
 | `recycle_bin` | 回收站状态 |
 | `brightness` | 屏幕亮度百分比 |
 | `server_monitor` | 服务器状态。`args` = URL，显示 🟢/🔴 |
 | `notifications` | 通知中心。点击打开操作中心 |
 | `pomodoro` | 番茄钟计时器。`args` = 工作时长(分)，点击开始/重置 |
-| `cava` | 音频可视化条 |
+| `cava` | 音量控制，点击展开滑块，拖拽调节音量 |
 | `home` | 可折叠菜单。`args` = 路径列表，点击展开/收起 |
 
 在 `theme:` 下可配置：

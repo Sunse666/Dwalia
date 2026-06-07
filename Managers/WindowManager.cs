@@ -131,6 +131,9 @@ public class WindowManager
         ShowWindow(parentHwnd, SW_HIDE);
         _workspaceManager?.RemoveWindow(parentMw);
 
+        ServiceLocator.TryResolve<LayoutManager>(out var lm);
+        lm?.Relayout();
+
         Logger.Info($"Swallowing: parent '{parentMw.Title}' replaced by child HWND {childHwnd}");
         WindowsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -147,6 +150,9 @@ public class WindowManager
         _workspaceManager?.AddWindow(parentMw, parentMw.WorkspaceId);
         ShowWindow(parentHwnd, SW_SHOWNOACTIVATE);
         _swallowedParents.Remove(childHwnd);
+
+        ServiceLocator.TryResolve<LayoutManager>(out var lm2);
+        lm2?.Relayout();
 
         Logger.Info($"Restored swallowed parent: '{parentMw.Title}'");
         WindowsChanged?.Invoke(this, EventArgs.Empty);

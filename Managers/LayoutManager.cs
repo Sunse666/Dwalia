@@ -72,7 +72,12 @@ public class LayoutManager
             UpdateResizeZones();
             RelayoutCompleted?.Invoke();
         };
-        _windowManager.WindowUnmanaged += (_, _) => Relayout();
+        _windowManager.WindowUnmanaged += (_, mw) =>
+        {
+            if (ReferenceEquals(_currentMaster, mw))
+                _currentMaster = null;
+            Relayout();
+        };
         _workspaceManager.WorkspaceChanged += (_, id) =>
         {
             var ws = _workspaceManager.GetWorkspace(id);
@@ -153,7 +158,7 @@ public class LayoutManager
                 continue;
             }
             var onActive = activeWorkspaceIds.Contains(mw.WorkspaceId);
-            if (mw.State == WindowLayoutState.Floating)
+            if (mw.State == WindowLayoutState.Floating || mw.State == WindowLayoutState.Fullscreen)
             {
                 if (!onActive)
                     ShowWindow(mw.Hwnd, SW_HIDE);
@@ -1137,6 +1142,7 @@ public class LayoutManager
             default: return;
         }
 
+        ReSortWorkspaceWindows();
         UpdateResizeZones();
     }
 
@@ -1361,6 +1367,18 @@ public class LayoutManager
 
         ReSortWorkspaceWindows();
         _bspOrderedHwnds.Clear();
+
+        var dynRoot = GetDynamicRoot(active.WorkspaceId);
+        if (dynRoot != null)
+            SwapLeafWindows(dynRoot, active, other);
+        var bspRoot = _bspRoots.GetValueOrDefault(active.WorkspaceId);
+        if (bspRoot != null)
+            SwapLeafWindows(bspRoot, active, other);
+
+        if (ReferenceEquals(_currentMaster, active))
+            _currentMaster = other;
+        else if (ReferenceEquals(_currentMaster, other))
+            _currentMaster = active;
 
         _isAnimating = true;
         _pendingPositions.Clear();
@@ -1647,7 +1665,7 @@ public class LayoutManager
             mw.PreFullscreenRect = Win32.WindowHelper.GetWindowRectSafe(hwnd);
             mw.State = WindowLayoutState.Fullscreen;
             Position(mw, _area);
-            NotifyLayoutComplete();
+            Relayout();
         }
     }
 

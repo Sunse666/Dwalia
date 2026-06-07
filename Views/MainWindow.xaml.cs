@@ -623,7 +623,12 @@ public partial class MainWindow : Window
                     IsChecked = mw.WorkspaceId == ws.Id
                 };
                 var targetId = ws.Id;
-                wsItem.Click += (_, _) => wsm.MoveWindowToWorkspace(mw, targetId);
+                wsItem.Click += (_, _) =>
+                {
+                    wsm.MoveWindowToWorkspace(mw, targetId);
+                    if (ServiceLocator.TryResolve<LayoutManager>(out var lm3))
+                        lm3.Relayout();
+                };
                 moveMenu.Items.Add(wsItem);
             }
         }

@@ -207,7 +207,7 @@ public class WidgetManager
             VerticalAlignment = VerticalAlignment.Center,
             Tag = $"widget type:{c.Type}"
         };
-        if (c.Width > 0) pill.Width = c.Width;
+        if (c.Width > 0 && c.Type != "active_window") pill.Width = c.Width;
 
         switch (c.Type)
         {
@@ -219,8 +219,9 @@ public class WidgetManager
                 pill.Child = we.Text;
                 break;
             case "active_window":
-                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 16, Text = we.CachedText };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 16, Text = "..." };
                 pill.Child = we.Text;
+                if (c.Width > 0) pill.MaxWidth = c.Width;
                 break;
             case "clock":
             case "time_only":

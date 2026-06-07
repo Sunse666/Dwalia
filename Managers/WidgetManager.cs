@@ -30,7 +30,7 @@ public class WidgetManager
     private PerformanceCounter? _gpuCounter;
     private PerformanceCounter? _diskReadCounter;
     private PerformanceCounter? _diskWriteCounter;
-    private readonly Dictionary<string, PerformanceCounter> _perfCounters = new();
+    private readonly List<PerformanceCounter> _allCounters = new();
     private string _cachedMedia = "";
     private bool _mediaPaused;
     private bool _mediaInit;
@@ -53,6 +53,13 @@ public class WidgetManager
 
     public event Action? WidgetsChanged;
 
+    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(5) };
+
+    static WidgetManager()
+    {
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("Dwalia/1.0");
+    }
+
     private class WidgetEntry
     {
         public WidgetConfig Config = null!;
@@ -62,8 +69,19 @@ public class WidgetManager
         public Border? Dot;
         public Canvas? Canvas;
         public TextBlock? SecondaryText;
+        public Slider? VolumeSlider;
         public string CachedText = "";
         public Dictionary<IntPtr, Border> TabPills = new();
+
+        public bool CavaExpanded;
+        public bool HomeExpanded;
+        public List<Button> HomeButtons = new();
+        public string PowerPendingAction = "";
+        public DateTime PowerPendingTime;
+        public string ScriptOutput = "";
+        public string ScriptPath = "";
+        public DateTime ScriptLastRun;
+        public bool DockInit;
     }
 
     public void Initialize()
@@ -241,22 +259,60 @@ public class WidgetManager
                 pill.Child = sp;
                 if (c.Width <= 0) pill.Width = c.Width > 0 ? c.Width : 200;
                 break;
-            case "volume":
-            case "gpu":
-            case "disk":
-            case "disk_usage":
-            case "uptime":
-            case "wifi_ssid":
-            case "ip_address":
-            case "public_ip":
-            case "vpn_status":
-            case "audio_device":
-            case "bluetooth":
-            case "microphone":
-            case "camera":
-            case "window_count":
-            case "world_clock":
-            case "countdown":
+            case "window_controls":
+                we.Panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                pill.Child = we.Panel;
+                pill.Padding = new Thickness(2);
+                pill.Background = Brushes.Transparent;
+                break;
+            case "cava":
+                we.Panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 14, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 45, TextAlignment = TextAlignment.Center };
+                we.Panel.Children.Add(we.Text);
+
+                var accent = ParseColor(c.TextColor) ?? GetAccentColorOrDefault();
+                var trackBg = Color.FromArgb(0x44, accent.R, accent.G, accent.B);
+                we.VolumeSlider = new Slider
+                {
+                    Minimum = 0, Maximum = 100,
+                    Width = 0,
+                    Height = h,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(6, 0, 0, 0),
+                    IsMoveToPointEnabled = true,
+                    Focusable = false,
+                };
+                try { we.VolumeSlider.Template = BuildSliderTemplate(accent, trackBg); } catch { }
+                we.VolumeSlider.MouseLeftButtonDown += (_, e2) => { e2.Handled = true; };
+                we.VolumeSlider.ValueChanged += (_, _) =>
+                {
+                    if (!_settingCavaVolume && _volumeEndpoint != null)
+                    {
+                        try
+                        {
+                            var ep = (IAudioEndpointVolume)_volumeEndpoint;
+                            var g = Guid.Empty;
+                            ep.SetMasterVolumeLevelScalar((float)(we.VolumeSlider!.Value / 100.0), ref g);
+                            var pct = (int)we.VolumeSlider!.Value;
+                            var icon = pct >= 66 ? "🔊" : pct >= 33 ? "🔉" : pct > 0 ? "🔈" : "🔇";
+                            we.Text!.Text = $"{icon} {pct}%";
+                        }
+                        catch { }
+                    }
+                };
+                we.Panel.Children.Add(we.VolumeSlider);
+                pill.Child = we.Panel;
+                pill.Padding = new Thickness(6, 2, 6, 2);
+                pill.Cursor = System.Windows.Input.Cursors.Hand;
+                if (c.Width <= 0) pill.MinWidth = 55;
+                break;
+            case "home":
+                we.Panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                we.Text = new TextBlock { FontSize = c.FontSize > 0 ? (double)c.FontSize : 15, Text = "☰" };
+                we.Panel.Children.Add(we.Text);
+                pill.Child = we.Panel;
+                pill.Cursor = System.Windows.Input.Cursors.Hand;
+                break;
             case "script":
             case "label":
             case "button":
@@ -301,6 +357,75 @@ public class WidgetManager
             catch (Exception ex) { Logger.Warn($"Widget update failed: {ex.Message}"); }
         }
         return Color.FromArgb(0x44, 0xff, 0xff, 0xff);
+    }
+
+    private static Color GetAccentColorOrDefault()
+    {
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
+        {
+            try { return (Color)ColorConverter.ConvertFromString(cfg.Theme.Accent); }
+            catch { }
+        }
+        return Color.FromRgb(0x7a, 0xa2, 0xf7);
+    }
+
+    private static ControlTemplate BuildSliderTemplate(Color accent, Color trackBg)
+    {
+        var accHex = $"#{accent.R:X2}{accent.G:X2}{accent.B:X2}";
+        var trkHex = $"#{trackBg.R:X2}{trackBg.G:X2}{trackBg.B:X2}";
+        var dimHex = $"#{accent.R/3:X2}{accent.G/3:X2}{accent.B/3:X2}";
+
+        var xaml =
+            $""""
+            <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                             TargetType="Slider">
+              <Grid>
+                <Border Height="6" Background="{dimHex}" CornerRadius="3" VerticalAlignment="Center"/>
+                <Track x:Name="PART_Track" VerticalAlignment="Stretch">
+                  <Track.DecreaseRepeatButton>
+                    <RepeatButton>
+                      <RepeatButton.Template>
+                        <ControlTemplate TargetType="RepeatButton">
+                          <Grid>
+                            <Border Background="Transparent"/>
+                            <Border Height="6" Background="{accHex}" CornerRadius="3,0,0,3" VerticalAlignment="Center"/>
+                          </Grid>
+                        </ControlTemplate>
+                      </RepeatButton.Template>
+                    </RepeatButton>
+                  </Track.DecreaseRepeatButton>
+                  <Track.Thumb>
+                    <Thumb>
+                      <Thumb.Template>
+                        <ControlTemplate TargetType="Thumb">
+                          <Grid>
+                            <Border Background="Transparent" Width="26" Height="26"/>
+                            <Border Width="16" Height="16" Background="{accHex}" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </Grid>
+                        </ControlTemplate>
+                      </Thumb.Template>
+                    </Thumb>
+                  </Track.Thumb>
+                  <Track.IncreaseRepeatButton>
+                    <RepeatButton>
+                      <RepeatButton.Template>
+                        <ControlTemplate TargetType="RepeatButton">
+                          <Grid>
+                            <Border Background="Transparent"/>
+                            <Border Height="6" Background="{trkHex}" CornerRadius="0,3,3,0" VerticalAlignment="Center"/>
+                          </Grid>
+                        </ControlTemplate>
+                      </RepeatButton.Template>
+                    </RepeatButton>
+                  </Track.IncreaseRepeatButton>
+                </Track>
+              </Grid>
+            </ControlTemplate>
+            """";
+        using var sr = new StringReader(xaml);
+        using var xr = System.Xml.XmlReader.Create(sr);
+        return (ControlTemplate)System.Windows.Markup.XamlReader.Load(xr);
     }
 
     private static Color? ParseColor(string? hex)
@@ -370,6 +495,17 @@ public class WidgetManager
             case "stock":        UpdateStock(we); break;
             case "todo":         UpdateTodo(we); break;
             case "custom_command": UpdateCustomCommand(we); break;
+            case "power_plan":   UpdatePowerPlan(we); break;
+            case "language":     UpdateLanguage(we); break;
+            case "recycle_bin":  UpdateRecycleBin(we); break;
+            case "brightness":   UpdateBrightness(we); break;
+            case "server_monitor": UpdateServerMonitor(we); break;
+            case "notifications": UpdateNotifications(we); break;
+            case "window_controls": UpdateWindowControls(we); break;
+            case "power_menu":   UpdatePowerMenu(we); break;
+            case "pomodoro":     UpdatePomodoro(we); break;
+            case "cava":         UpdateCava(we); break;
+            case "home":         UpdateHome(we); break;
         }
     }
 
@@ -570,8 +706,7 @@ public class WidgetManager
             {
                 try
                 {
-                    using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                    _publicIpText = await client.GetStringAsync("https://api.ipify.org");
+                    _publicIpText = await _http.GetStringAsync("https://api.ipify.org");
                 }
                 catch (Exception ex) { Logger.Warn($"Public IP fetch failed: {ex.Message}"); _publicIpText = "N/A"; }
             });
@@ -700,7 +835,6 @@ public class WidgetManager
         catch (Exception ex) { Logger.Warn($"Camera widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
     }
 
-    private string _scriptOutput = ""; private string _scriptPath = ""; private DateTime _scriptLastRun;
     private void UpdateScript(WidgetEntry we)
     {
         try
@@ -708,10 +842,11 @@ public class WidgetManager
             var script = we.Config.Args ?? "";
             if (string.IsNullOrEmpty(script)) return;
             var interval = Math.Max(we.Config.FontSize > 0 ? we.Config.FontSize : 5, 1);
-            if (script != _scriptPath || (DateTime.UtcNow - _scriptLastRun).TotalSeconds > interval)
+            if (script != we.ScriptPath || (DateTime.UtcNow - we.ScriptLastRun).TotalSeconds > interval)
             {
-                _scriptPath = script;
-                _scriptLastRun = DateTime.UtcNow;
+                we.ScriptPath = script;
+                we.ScriptLastRun = DateTime.UtcNow;
+                var captured = we;
                 Task.Run(() =>
                 {
                     try
@@ -721,21 +856,21 @@ public class WidgetManager
                             StartInfo = new ProcessStartInfo
                             {
                                 FileName = "cmd.exe",
-                                Arguments = $"/c {script}",
+                                Arguments = "/c \"" + script + "\"",
                                 UseShellExecute = false,
                                 RedirectStandardOutput = true,
                                 CreateNoWindow = true,
                             }
                         };
                         p.Start();
-                        _scriptOutput = p.StandardOutput.ReadToEnd().Trim();
+                        captured.ScriptOutput = p.StandardOutput.ReadToEnd().Trim();
                         p.WaitForExit(5000);
                         if (!p.HasExited) p.Kill();
                     }
-                    catch (Exception ex) { Logger.Warn($"Script failed: {ex.Message}"); _scriptOutput = ""; }
+                    catch (Exception ex) { Logger.Warn($"Script failed: {ex.Message}"); captured.ScriptOutput = ""; }
                 });
             }
-            if (we.Text != null) we.Text.Text = _scriptOutput;
+            if (we.Text != null) we.Text.Text = we.ScriptOutput;
         }
         catch (Exception ex) { Logger.Warn($"Script widget failed: {ex.Message}"); }
     }
@@ -1150,13 +1285,11 @@ public class WidgetManager
         }
     }
 
-    private int _dockInit;
-
     private void UpdateSystray(WidgetEntry we)
     {
         if (we.Panel == null) return;
-        if (_dockInit != 0) return;
-        _dockInit = 1;
+        if (we.DockInit) return;
+        we.DockInit = true;
 
         var args = (we.Config.Args ?? "").Trim();
         if (string.IsNullOrEmpty(args)) return;
@@ -1285,6 +1418,423 @@ public class WidgetManager
         return null;
     }
 
+    private void UpdatePowerPlan(WidgetEntry we)
+    {
+        try
+        {
+            using var active = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "powercfg", Arguments = "/GETACTIVESCHEME",
+                UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true
+            });
+            if (active == null) return;
+            var output = active.StandardOutput.ReadToEnd().Trim();
+            active.WaitForExit(2000);
+            if (!active.HasExited) { active.Kill(); }
+            else
+            {
+                var name = output;
+                var idx = output.LastIndexOf('(');
+                if (idx > 0) name = output[(output.IndexOf(':') + 1)..idx].Trim();
+                if (we.Text != null) we.Text.Text = $"⚡ {name}";
+            }
+        }
+        catch { if (we.Text != null) we.Text.Text = "⚡ --"; }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetKeyboardLayout(uint idThread);
+
+    private void UpdateLanguage(WidgetEntry we)
+    {
+        try
+        {
+            var tid = GetWindowThreadProcessId(GetForegroundWindow(), out uint tidOut);
+            if (tid == 0) tid = GetCurrentThreadId();
+            var layout = GetKeyboardLayout(tid);
+            if (layout == IntPtr.Zero) layout = GetKeyboardLayout(0);
+            var langId = (int)((long)layout & 0xFFFF);
+            if (langId == 0 && layout == IntPtr.Zero)
+            {
+                var ci = System.Globalization.CultureInfo.CurrentUICulture;
+                if (we.Text != null) we.Text.Text = $"🔤 {ci.TwoLetterISOLanguageName.ToUpper()}";
+                return;
+            }
+            var name = langId switch
+            {
+                0x0409 => "EN",
+                0x0809 => "EN-UK",
+                0x0c09 => "EN-AU",
+                0x1009 => "EN-CA",
+                0x0804 => "中文",
+                0x0404 => "中文-TW",
+                0x0411 => "JP",
+                0x0412 => "KO",
+                0x040c => "FR",
+                0x0407 => "DE",
+                0x0410 => "IT",
+                0x0c0a => "ES",
+                0x0416 => "PT",
+                0x0419 => "RU",
+                0x0405 => "CZ",
+                0x040e => "HU",
+                _ => $"{langId:X4}"
+            };
+            if (we.Text != null) we.Text.Text = $"🔤 {name}";
+        }
+        catch { if (we.Text != null) we.Text.Text = "🔤 --"; }
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SHQueryRecycleBin(string pszRootPath, ref SHQUERYRBINFO pSHQueryRBInfo);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SHQUERYRBINFO { public int cbSize; public long i64Size; public long i64NumItems; }
+
+    private string _recycleText = "";
+    private void UpdateRecycleBin(WidgetEntry we)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(_recycleText))
+            {
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        var info = new SHQUERYRBINFO { cbSize = Marshal.SizeOf<SHQUERYRBINFO>() };
+                        SHQueryRecycleBin("C:\\", ref info);
+                        if (info.i64NumItems > 0)
+                            _recycleText = $"🗑 {info.i64NumItems}";
+                        else
+                            _recycleText = "🗑 Empty";
+                    }
+                    catch { _recycleText = "🗑 --"; }
+                });
+            }
+            if (we.Text != null) we.Text.Text = _recycleText;
+        }
+        catch { if (we.Text != null) we.Text.Text = "🗑 --"; }
+    }
+
+    [DllImport("dxva2.dll")]
+    private static extern bool GetMonitorBrightness(IntPtr hMonitor, out uint min, out uint cur, out uint max);
+
+    private void UpdateBrightness(WidgetEntry we)
+    {
+        try
+        {
+            var hMon = MonitorFromWindow(GetDesktopWindow(), 1);
+            if (GetMonitorBrightness(hMon, out _, out uint cur, out uint max))
+            {
+                var pct = max > 0 ? (int)(cur * 100 / max) : 0;
+                if (we.Text != null) we.Text.Text = $"☀ {pct}%";
+            }
+            else if (we.Text != null) we.Text.Text = "☀ --";
+        }
+        catch { if (we.Text != null) we.Text.Text = "☀ --"; }
+    }
+
+    private string _serverStatus = "";
+    private void UpdateServerMonitor(WidgetEntry we)
+    {
+        var url = we.Config.Args ?? "";
+        if (string.IsNullOrEmpty(url)) { if (we.Text != null) we.Text.Text = "🌐 --"; return; }
+        try
+        {
+            if (string.IsNullOrEmpty(_serverStatus))
+            {
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        var resp = _http.GetAsync(url).Result;
+                        _serverStatus = resp.IsSuccessStatusCode ? "🟢 Online" : "🔴 Offline";
+                    }
+                    catch { _serverStatus = "🔴 Offline"; }
+                });
+            }
+            if (we.Text != null) we.Text.Text = _serverStatus;
+        }
+        catch { if (we.Text != null) we.Text.Text = "🌐 --"; }
+    }
+
+    private void UpdateNotifications(WidgetEntry we)
+    {
+        if (we.Text != null) we.Text.Text = "🔔";
+        if (we.Pill != null && we.Pill.Tag?.ToString() != "notif-ready")
+        {
+            we.Pill.Tag = "notif-ready";
+            we.Pill.Cursor = System.Windows.Input.Cursors.Hand;
+            we.Pill.MouseLeftButtonDown += (_, _) =>
+            {
+                try { System.Diagnostics.Process.Start("explorer", "shell:::{05d7b0f4-2121-4eff-bf6b-ed3f69b894d9}"); }
+                catch { }
+            };
+            we.Pill.ToolTip = "Click to open Action Center";
+        }
+    }
+
+    private void UpdateWindowControls(WidgetEntry we)
+    {
+        if (we.Panel == null || we.Panel.Children.Count > 0) return;
+        var h = we.Config.Height > 0 ? we.Config.Height : 22;
+        var fgColor = Colors.White;
+        if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
+            fgColor = ParseColor(cfg.Theme.Foreground) ?? Colors.White;
+
+        void AddBtn(string text, string label, Action action)
+        {
+            var btn = new Button
+            {
+                Content = text, Width = h + 4, Height = h, FontSize = h * 0.55,
+                Padding = new Thickness(0), Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand,
+                Foreground = new SolidColorBrush(fgColor), ToolTip = label
+            };
+            btn.Click += (_, _) => { try { action(); } catch { } };
+            we.Panel!.Children.Add(btn);
+        }
+        AddBtn("─", "Minimize", () =>
+        {
+            var fg = GetForegroundWindow();
+            if (fg != IntPtr.Zero) ShowWindow(fg, 6);
+        });
+        AddBtn("□", "Maximize", () =>
+        {
+            var fg = GetForegroundWindow();
+            if (fg != IntPtr.Zero) ShowWindow(fg, 3);
+        });
+        AddBtn("✕", "Close", () =>
+        {
+            var fg = GetForegroundWindow();
+            if (fg != IntPtr.Zero) PostMessage(fg, 0x0010, 0, 0);
+        });
+    }
+
+    private void UpdatePowerMenu(WidgetEntry we)
+    {
+        if (we.Text == null) return;
+        if (we.Pill == null) return;
+        we.Pill.Cursor = System.Windows.Input.Cursors.Hand;
+
+        if (!string.IsNullOrEmpty(we.PowerPendingAction) && (DateTime.UtcNow - we.PowerPendingTime).TotalSeconds > 4)
+        {
+            we.PowerPendingAction = "";
+        }
+
+        if (string.IsNullOrEmpty(we.PowerPendingAction))
+            we.Text.Text = "⏻";
+        else
+            we.Text.Text = "Sure?";
+
+        if (we.Pill.Tag?.ToString() == "power-menu-ready") return;
+        we.Pill.Tag = "power-menu-ready";
+        we.Pill.MouseLeftButtonDown += (_, _) =>
+        {
+            if (string.IsNullOrEmpty(we.PowerPendingAction))
+            {
+                we.PowerPendingAction = "shutdown";
+                we.PowerPendingTime = DateTime.UtcNow;
+            }
+            else if (we.PowerPendingAction == "shutdown")
+            {
+                we.PowerPendingAction = "";
+                try { System.Diagnostics.Process.Start("shutdown", "/s /t 10"); }
+                catch { }
+            }
+            else { we.PowerPendingAction = ""; }
+        };
+        we.Pill.MouseRightButtonDown += (_, e) =>
+        {
+            e.Handled = true;
+            if (string.IsNullOrEmpty(we.PowerPendingAction))
+            {
+                we.PowerPendingAction = "restart";
+                we.PowerPendingTime = DateTime.UtcNow;
+            }
+            else if (we.PowerPendingAction == "restart")
+            {
+                we.PowerPendingAction = "";
+                try { System.Diagnostics.Process.Start("shutdown", "/r /t 10"); }
+                catch { }
+            }
+            else { we.PowerPendingAction = ""; }
+        };
+        we.Pill.ToolTip = "Left=Shutdown | Right=Restart | Double-click to confirm";
+    }
+
+    private bool _pomodoroRunning; private int _pomodoroSecs;
+    private int _pomodoroTick; private int _pomodoroWorkSecs = 25 * 60;
+
+    private void UpdatePomodoro(WidgetEntry we)
+    {
+        var args = (we.Config.Args ?? "25,5").Split(',');
+        if (args.Length >= 1 && int.TryParse(args[0].Trim(), out var wm))
+            _pomodoroWorkSecs = wm * 60;
+
+        _pomodoroTick++;
+        if (_pomodoroTick % 2 != 0) return;
+        if (_pomodoroRunning) _pomodoroSecs++;
+
+        var remain = _pomodoroWorkSecs - _pomodoroSecs;
+        if (remain <= 0 && _pomodoroRunning)
+        {
+            _pomodoroRunning = false;
+            _pomodoroSecs = 0;
+        }
+        var mins = remain / 60;
+        var secs = remain % 60;
+        var icon = _pomodoroRunning ? "🍅" : "⏸";
+        if (we.Text != null) we.Text.Text = $"{icon} {mins:D2}:{secs:D2}";
+        if (we.Pill != null)
+        {
+            we.Pill.Cursor = System.Windows.Input.Cursors.Hand;
+            if (we.Pill.Tag?.ToString() != "pomodoro-ready")
+            {
+                we.Pill.Tag = "pomodoro-ready";
+                we.Pill.MouseLeftButtonDown += (_, _) =>
+                {
+                    _pomodoroRunning = !_pomodoroRunning;
+                    if (!_pomodoroRunning) _pomodoroSecs = 0;
+                };
+            }
+        }
+    }
+
+    private bool _settingCavaVolume;
+
+    private void UpdateCava(WidgetEntry we)
+    {
+        if (we.Panel == null || we.Text == null || we.Pill == null) return;
+
+        try
+        {
+            if (!_volInit) { _volumeEndpoint = GetVolumeEndpoint(); _volInit = true; }
+            if (_volumeEndpoint == null) { we.Text.Text = "🔇 --"; return; }
+            var ep = (IAudioEndpointVolume)_volumeEndpoint;
+            ep.GetMasterVolumeLevelScalar(out float vol);
+            ep.GetMute(out bool mute);
+
+            var pct = (int)(vol * 100);
+            if (mute) pct = 0;
+            var icon = mute ? "🔇" : pct >= 66 ? "🔊" : pct >= 33 ? "🔉" : pct > 0 ? "🔈" : "🔇";
+            we.Text.Text = $"{icon} {pct}%";
+
+            if (we.CavaExpanded && we.VolumeSlider != null)
+            {
+                _settingCavaVolume = true;
+                if (Math.Abs(we.VolumeSlider.Value - pct) > 0.5)
+                    we.VolumeSlider.Value = pct;
+                _settingCavaVolume = false;
+            }
+        }
+        catch { if (we.Text != null) we.Text.Text = "🔇 --"; }
+
+        if (we.Pill.Tag?.ToString() != "cava-ready")
+        {
+            we.Pill.Tag = "cava-ready";
+            we.Pill.MouseLeftButtonDown += (_, _) =>
+            {
+                we.CavaExpanded = !we.CavaExpanded;
+                if (we.VolumeSlider == null) return;
+
+                var sliderW = we.CavaExpanded ? (we.Config.Width > 0 ? (double)we.Config.Width - 58 : 100) : 0;
+
+                if (we.CavaExpanded && _volumeEndpoint != null)
+                {
+                    try
+                    {
+                        var ep = (IAudioEndpointVolume)_volumeEndpoint;
+                        ep.GetMasterVolumeLevelScalar(out float vol);
+                        _settingCavaVolume = true;
+                        we.VolumeSlider.Value = (int)(vol * 100);
+                        _settingCavaVolume = false;
+                    }
+                    catch { }
+                }
+
+                var anim = new System.Windows.Media.Animation.DoubleAnimation(
+                    we.VolumeSlider.Width, sliderW,
+                    TimeSpan.FromMilliseconds(200))
+                {
+                    EasingFunction = new System.Windows.Media.Animation.CubicEase
+                    {
+                        EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+                    }
+                };
+                we.VolumeSlider.BeginAnimation(FrameworkElement.WidthProperty, anim);
+            };
+        }
+    }
+
+    private void UpdateHome(WidgetEntry we)
+    {
+        if (we.Panel == null || we.Text == null) return;
+        we.Text.Text = we.HomeExpanded ? "✕" : "☰";
+
+        var args = (we.Config.Args ?? "").Trim();
+        var hasArgs = !string.IsNullOrEmpty(args);
+
+        if (hasArgs && we.HomeButtons.Count == 0)
+        {
+            var paths = args.Split(new[] { '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
+
+            var h = we.Config.Height > 0 ? we.Config.Height : 22;
+            var fg = Colors.White;
+            if (ServiceLocator.TryResolve<ConfigRoot>(out var cfg))
+                fg = ParseColor(cfg.Theme.Foreground) ?? Colors.White;
+
+            foreach (var cmd in paths)
+            {
+                var name = Path.GetFileNameWithoutExtension(cmd);
+                if (string.IsNullOrEmpty(name)) name = cmd;
+                var captured = cmd;
+                var btn = new Button
+                {
+                    Content = name, Height = h, FontSize = h * 0.45,
+                    Padding = new Thickness(6, 0, 6, 0), Background = Brushes.Transparent,
+                    BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand,
+                    Foreground = new SolidColorBrush(fg), Visibility = Visibility.Collapsed
+                };
+                btn.Click += (_, _) =>
+                {
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    { FileName = captured, UseShellExecute = true }); }
+                    catch { }
+                };
+                we.HomeButtons.Add(btn);
+                we.Panel!.Children.Add(btn);
+            }
+        }
+
+        if (hasArgs)
+        {
+            var vis = we.HomeExpanded ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var b in we.HomeButtons) b.Visibility = vis;
+        }
+
+        if (we.Pill != null)
+        {
+            we.Pill.Cursor = System.Windows.Input.Cursors.Hand;
+            if (we.Pill.Tag?.ToString() != "home-ready")
+            {
+                we.Pill.Tag = "home-ready";
+                we.Pill.MouseLeftButtonDown += (_, _) =>
+                {
+                    we.HomeExpanded = !we.HomeExpanded;
+                    if (hasArgs)
+                    {
+                        var vis = we.HomeExpanded ? Visibility.Visible : Visibility.Collapsed;
+                        foreach (var b in we.HomeButtons) b.Visibility = vis;
+                    }
+                    we.Text!.Text = we.HomeExpanded ? "✕" : "☰";
+                };
+            }
+        }
+    }
+
     private static string ProgressBar(int pct)
     {
         int filled = Math.Clamp(pct * 8 / 100, 0, 8);
@@ -1302,8 +1852,11 @@ public class WidgetManager
     {
         try
         {
-            _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-            _memCounter = new PerformanceCounter("Memory", "% Committed Bytes In Use");
+            foreach (var c in _allCounters) { try { c.Dispose(); } catch { } }
+            _allCounters.Clear();
+
+            _cpuCounter = AddCounter(new PerformanceCounter("Processor", "% Processor Time", "_Total"));
+            _memCounter = AddCounter(new PerformanceCounter("Memory", "% Committed Bytes In Use"));
             _cpuCounter.NextValue(); _memCounter.NextValue();
 
             var netCat = new PerformanceCounterCategory("Network Interface");
@@ -1312,8 +1865,8 @@ public class WidgetManager
                 ?? netCat.GetInstanceNames().FirstOrDefault() ?? "";
             if (!string.IsNullOrEmpty(iface))
             {
-                _netDownCounter = new PerformanceCounter("Network Interface", "Bytes Received/sec", iface);
-                _netUpCounter = new PerformanceCounter("Network Interface", "Bytes Sent/sec", iface);
+                _netDownCounter = AddCounter(new PerformanceCounter("Network Interface", "Bytes Received/sec", iface));
+                _netUpCounter = AddCounter(new PerformanceCounter("Network Interface", "Bytes Sent/sec", iface));
             }
         }
         catch (Exception ex) { Logger.Warn($"WidgetManager operation failed: {ex.Message}"); }
@@ -1328,7 +1881,7 @@ public class WidgetManager
                     var gpuCat = new PerformanceCounterCategory("GPU Engine");
                     var gpuInst = gpuCat.GetInstanceNames().FirstOrDefault(i => i.Contains("engtype_3D"));
                     if (!string.IsNullOrEmpty(gpuInst))
-                        _gpuCounter = new PerformanceCounter("GPU Engine", "Utilization Percentage", gpuInst);
+                        _gpuCounter = AddCounter(new PerformanceCounter("GPU Engine", "Utilization Percentage", gpuInst));
                 }
                 catch (Exception ex) { Logger.Warn($"Widget update failed: {ex.Message}"); }
             });
@@ -1343,13 +1896,19 @@ public class WidgetManager
                     var diskInst = diskCat.GetInstanceNames().FirstOrDefault(i => i == "_Total");
                     if (!string.IsNullOrEmpty(diskInst))
                     {
-                        _diskReadCounter = new PerformanceCounter("PhysicalDisk", "Disk Read Bytes/sec", diskInst);
-                        _diskWriteCounter = new PerformanceCounter("PhysicalDisk", "Disk Write Bytes/sec", diskInst);
+                        _diskReadCounter = AddCounter(new PerformanceCounter("PhysicalDisk", "Disk Read Bytes/sec", diskInst));
+                        _diskWriteCounter = AddCounter(new PerformanceCounter("PhysicalDisk", "Disk Write Bytes/sec", diskInst));
                     }
                 }
                 catch (Exception ex) { Logger.Warn($"Widget update failed: {ex.Message}"); }
             });
         }
+    }
+
+    private PerformanceCounter AddCounter(PerformanceCounter c)
+    {
+        _allCounters.Add(c);
+        return c;
     }
 
     private void InitMediaMonitor()
@@ -1405,7 +1964,6 @@ public class WidgetManager
         {
             var city = we.Config.Args ?? "";
             if (string.IsNullOrEmpty(city)) city = "";
-            var key = $"weather_{city}";
             if ((DateTime.UtcNow - _weatherLastFetch).TotalMinutes > 30 || _weatherCache == "")
             {
                 _weatherLastFetch = DateTime.UtcNow;
@@ -1413,12 +1971,10 @@ public class WidgetManager
                 {
                     try
                     {
-                        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                        client.DefaultRequestHeaders.UserAgent.ParseAdd("Dwalia/1.0");
                         var url = string.IsNullOrEmpty(city)
                             ? "https://wttr.in/?format=%C+%t+%w"
                             : $"https://wttr.in/{Uri.EscapeDataString(city)}?format=%C+%t+%w";
-                        _weatherCache = client.GetStringAsync(url).Result.Trim();
+                        _weatherCache = _http.GetStringAsync(url).Result.Trim();
                     }
                     catch (Exception ex) { Logger.Warn($"Weather fetch failed: {ex.Message}"); _weatherCache = "N/A"; }
                 });
@@ -1452,16 +2008,13 @@ public class WidgetManager
     {
         try
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            try
             {
-                try
-                {
-                    _clipboardCache = System.Windows.Clipboard.GetText() ?? "";
-                    if (_clipboardCache.Length > 60)
-                        _clipboardCache = _clipboardCache[..60] + "…";
-                }
-                catch { _clipboardCache = ""; }
-            });
+                _clipboardCache = System.Windows.Clipboard.GetText() ?? "";
+                if (_clipboardCache.Length > 60)
+                    _clipboardCache = _clipboardCache[..60] + "…";
+            }
+            catch { _clipboardCache = ""; }
             if (we.Text != null) we.Text.Text = string.IsNullOrEmpty(_clipboardCache) ? "📋 empty" : $"📋 {_clipboardCache}";
         }
         catch (Exception ex) { Logger.Warn($"Clipboard widget failed: {ex.Message}"); if (we.Text != null) we.Text.Text = ""; }
@@ -1494,10 +2047,8 @@ public class WidgetManager
                 {
                     try
                     {
-                        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                        client.DefaultRequestHeaders.UserAgent.ParseAdd("Dwalia/1.0");
                         var url = $"https://query1.finance.yahoo.com/v8/finance/chart/{Uri.EscapeDataString(symbol)}";
-                        var json = client.GetStringAsync(url).Result;
+                        var json = _http.GetStringAsync(url).Result;
                         var price = ParseStockPrice(json);
                         _stockCache = price ?? "N/A";
                     }
@@ -1650,11 +2201,6 @@ public class WidgetManager
         int VolumeStepUp(ref System.Guid pguidEventContext);
         int VolumeStepDown(ref System.Guid pguidEventContext);
     }
-
-    [System.Runtime.InteropServices.ComImport,
-     System.Runtime.InteropServices.Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"),
-     System.Runtime.InteropServices.InterfaceType(System.Runtime.InteropServices.ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IMMDeviceEnumerator2 { }
 
     private static object? GetVolumeEndpoint()
     {

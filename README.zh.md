@@ -322,12 +322,6 @@ widgets:
     format: ''
     args: ''
     font_size: 0
-  - type: taskbar
-    bar_page: Docker
-    align: left
-    order: 2
-    height: 30
-    args: ''                       # "all" = 显示全部工作区窗口
   - type: systray
     bar_page: Docker
     align: left
@@ -337,7 +331,29 @@ widgets:
       wt.exe
       chrome.exe
       code
-      explorer.exe                 # 快捷启动栏，自动取 exe 图标
+      explorer.exe                 # 快捷启动栏
+  - type: window_controls
+    bar_page: Docker
+    align: right
+    order: 10
+    height: 24
+  - type: power_menu
+    bar_page: Docker
+    align: right
+    order: 11
+    height: 24
+  - type: pomodoro
+    bar_page: Docker
+    align: right
+    order: 12
+    height: 24
+    args: 25,5                     # 工作25分钟, 休息5分钟
+  - type: home
+    bar_page: Docker
+    align: left
+    order: 3
+    height: 24
+    args: calc.exe, notepad.exe    # 可折叠菜单
   - type: window_tabs
     bar_page: Docker
     align: center
@@ -636,8 +652,18 @@ widgets:
 | `stock` | 股票/加密货币价格（`args` = 代码） |
 | `todo` | 读取文本文件前 3 行（`args` = 文件路径） |
 | `custom_command` | 定时执行命令（`args` = 命令，`font_size` = 轮询间隔秒数） |
-| `taskbar` | 窗口图标托盘。左键聚焦、右键菜单、中键关闭。`args`: 默认=当前工作区, `"all"`=全部工作区, `"hidden"`=隐藏窗口 |
-| `systray` | 快捷启动栏 Dock。`args` 中配置路径（换行/逗号分割），自动读取 exe 图标 |
+| `systray` | 快捷启动栏 Dock。`args` = 路径（换行/逗号分割），自动提取 exe 图标 |
+| `window_controls` | 窗口控制按钮（最小化/最大化/关闭） |
+| `power_menu` | 电源菜单。左键=关机、右键=重启 |
+| `power_plan` | 当前电源计划名称 |
+| `language` | 当前输入语言 |
+| `recycle_bin` | 回收站状态 |
+| `brightness` | 屏幕亮度百分比 |
+| `server_monitor` | 服务器状态。`args` = URL，显示 🟢/🔴 |
+| `notifications` | 通知中心。点击打开操作中心 |
+| `pomodoro` | 番茄钟计时器。`args` = 工作时长(分)，点击开始/重置 |
+| `cava` | 音频可视化条 |
+| `home` | 可折叠菜单。`args` = 路径列表，点击展开/收起 |
 
 在 `theme:` 下可配置：
 - `font_size` / `bar_font` — 自定义字体

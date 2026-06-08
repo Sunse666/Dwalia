@@ -51,6 +51,7 @@ internal static class WindowStyles
     public const nint WS_EX_OVERLAPPEDWINDOW = WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE;
     public const nint WS_EX_PALETTEWINDOW = WS_EX_WINDOWEDGE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST;
     public const nint WS_EX_LAYERED = unchecked((nint)0x00080000);
+    public const uint LWA_ALPHA = 0x00000002;
     public const nint WS_EX_NOINHERITLAYOUT = 0x00100000;
     public const nint WS_EX_NOREDIRECTIONBITMAP = 0x00200000;
     public const nint WS_EX_LAYOUTRTL = 0x00400000;

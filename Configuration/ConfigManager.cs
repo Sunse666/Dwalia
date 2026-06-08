@@ -136,6 +136,10 @@ public class ConfigManager
         { Logger.Warn($"focus_active_opacity {t.FocusActiveOpacity} out of range, clamped"); t.FocusActiveOpacity = Math.Clamp(t.FocusActiveOpacity, 0, 1); }
         if (t.FocusInactiveOpacity < 0 || t.FocusInactiveOpacity > 1)
         { Logger.Warn($"focus_inactive_opacity {t.FocusInactiveOpacity} out of range, clamped"); t.FocusInactiveOpacity = Math.Clamp(t.FocusInactiveOpacity, 0, 1); }
+        if (t.WindowOpacityFocused < 0.1 || t.WindowOpacityFocused > 1.0)
+        { Logger.Warn($"window_opacity_focused {t.WindowOpacityFocused} out of range [0.1-1.0], clamped"); t.WindowOpacityFocused = Math.Clamp(t.WindowOpacityFocused, 0.1, 1.0); }
+        if (t.WindowOpacityUnfocused < 0.1 || t.WindowOpacityUnfocused > 1.0)
+        { Logger.Warn($"window_opacity_unfocused {t.WindowOpacityUnfocused} out of range [0.1-1.0], clamped"); t.WindowOpacityUnfocused = Math.Clamp(t.WindowOpacityUnfocused, 0.1, 1.0); }
         if (t.ColorFilterOpacity < 0 || t.ColorFilterOpacity > 1)
         { Logger.Warn($"color_filter_opacity {t.ColorFilterOpacity} out of range, clamped"); t.ColorFilterOpacity = Math.Clamp(t.ColorFilterOpacity, 0, 1); }
         if (t.PillCornerRadius < 0 || t.PillCornerRadius > 40)

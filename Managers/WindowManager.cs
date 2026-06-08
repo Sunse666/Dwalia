@@ -34,6 +34,18 @@ public class WindowManager
 
     public void SetWorkspaceManager(WorkspaceManager ws) => _workspaceManager = ws;
 
+    public static void SetWindowOpacity(IntPtr hwnd, double opacity)
+    {
+        byte alpha = (byte)(Math.Clamp(opacity, 0.0, 1.0) * 255);
+        IntPtr exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+        if ((exStyle & WS_EX_LAYERED) == 0)
+        {
+            exStyle |= WS_EX_LAYERED;
+            SetWindowLongPtr(hwnd, GWL_EXSTYLE, exStyle);
+        }
+        SetLayeredWindowAttributes(hwnd, 0, alpha, LWA_ALPHA);
+    }
+
     private bool ShouldIgnoreByRules(IntPtr hwnd)
     {
         if (!ServiceLocator.TryResolve<ConfigRoot>(out var config)) return false;
@@ -73,6 +85,10 @@ public class WindowManager
             _managedWindows[hwnd] = mw;
 
             _workspaceManager?.AddWindow(mw, _workspaceManager.ActiveWorkspaceId);
+
+            if (ServiceLocator.TryResolve<ConfigRoot>(out var opCfg)
+                && (opCfg.Theme.WindowOpacityFocused < 1.0 || opCfg.Theme.WindowOpacityUnfocused < 1.0))
+                SetWindowOpacity(hwnd, opCfg.Theme.WindowOpacityUnfocused);
 
             WindowManaged?.Invoke(this, mw);
             WindowsChanged?.Invoke(this, EventArgs.Empty);

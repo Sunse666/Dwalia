@@ -1,3 +1,4 @@
+using Dwalia.Configuration;
 using Dwalia.Infrastructure;
 using Dwalia.Models;
 using static Dwalia.Win32.NativeMethods;
@@ -44,12 +45,16 @@ public class FocusManager
         {
             _activeWindow.IsActive = false;
             ApplyBorderColor(_activeWindow.Hwnd, _inactiveBorderColor);
+            if (ServiceLocator.TryResolve<ConfigRoot>(out var unfocusedCfg))
+                WindowManager.SetWindowOpacity(_activeWindow.Hwnd, unfocusedCfg.Theme.WindowOpacityUnfocused);
         }
         _activeWindow = window;
         if (_activeWindow != null)
         {
             _activeWindow.IsActive = true;
             ApplyBorderColor(_activeWindow.Hwnd, _activeBorderColor);
+            if (ServiceLocator.TryResolve<ConfigRoot>(out var focusedCfg))
+                WindowManager.SetWindowOpacity(_activeWindow.Hwnd, focusedCfg.Theme.WindowOpacityFocused);
         }
         FocusChanged?.Invoke();
     }

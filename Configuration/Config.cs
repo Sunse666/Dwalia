@@ -116,6 +116,12 @@ public class ThemeConfig
     [YamlMember(Alias = "focus_inactive_opacity")]
     public double FocusInactiveOpacity { get; set; } = 0.09;
 
+    [YamlMember(Alias = "window_opacity_focused")]
+    public double WindowOpacityFocused { get; set; } = 1.0;
+
+    [YamlMember(Alias = "window_opacity_unfocused")]
+    public double WindowOpacityUnfocused { get; set; } = 1.0;
+
     [YamlMember(Alias = "focus_radius")]
     public int FocusRadius { get; set; } = 8;
 

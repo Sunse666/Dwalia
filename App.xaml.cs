@@ -314,6 +314,17 @@ public partial class App : Application
             NativeConstants.ParseDwmColor(c.Theme.ActiveBorder),
             NativeConstants.ParseDwmColor(c.Theme.InactiveBorder));
 
+        if (_windowManager != null)
+        {
+            var focusedOp = c.Theme.WindowOpacityFocused;
+            var unfocusedOp = c.Theme.WindowOpacityUnfocused;
+            if (focusedOp < 1.0 || unfocusedOp < 1.0)
+            {
+                foreach (var mw in _windowManager.ManagedWindows.Values)
+                    WindowManager.SetWindowOpacity(mw.Hwnd, mw.IsActive ? focusedOp : unfocusedOp);
+            }
+        }
+
         _mainWindow?.Dispatcher.Invoke(() =>
         {
             _mainWindow.ApplyThemeFromConfig();
